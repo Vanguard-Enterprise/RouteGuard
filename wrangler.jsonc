@@ -1,0 +1,20 @@
+{
+	"main": ".open-next/worker.js",
+	"name": "routeguard",
+	"compatibility_date": "2025-04-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "routeguard-db",
+			"database_id": "032de663-becf-44ab-a71a-b00ad917bbb1",
+			"migrations_dir": "drizzle/migrations"
+		}
+	]
+}
