@@ -16,5 +16,11 @@
 			"database_id": "032de663-becf-44ab-a71a-b00ad917bbb1",
 			"migrations_dir": "drizzle/migrations"
 		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "R2",
+			"bucket_name": "routeguard-assets"
+		}
 	]
 }
