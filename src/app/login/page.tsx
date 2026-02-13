@@ -14,12 +14,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Loader2, LogIn } from "lucide-react";
+import { Shield, Loader2, LogIn, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [staffLoading, setStaffLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isDev = process.env.NODE_ENV === "development";
@@ -63,6 +64,36 @@ export default function LoginPage() {
     }
   }
 
+  async function handleStaffLogin() {
+    setError(null);
+    setStaffLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/staff/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Staff login failed. Please try again.");
+        setStaffLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError("No redirect URL returned.");
+        setStaffLoading(false);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+      setStaffLoading(false);
+    }
+  }
+
   async function handleDevLogin() {
     setError(null);
 
@@ -97,6 +128,7 @@ export default function LoginPage() {
 
   const emailDomain = email.includes("@") ? email.split("@")[1] : "";
   const showSSOHint = emailDomain.length > 3;
+  const anyLoading = loading || staffLoading;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
@@ -121,7 +153,7 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="space-y-4">
             <form onSubmit={handleSSOLogin} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="email">Email address</Label>
@@ -133,7 +165,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   autoFocus
-                  disabled={loading}
+                  disabled={anyLoading}
                 />
                 {showSSOHint && (
                   <p className="text-xs text-muted-foreground">
@@ -147,7 +179,7 @@ export default function LoginPage() {
                 <p className="text-sm text-destructive">{error}</p>
               )}
 
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button type="submit" disabled={anyLoading} className="w-full">
                 {loading ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
@@ -156,6 +188,28 @@ export default function LoginPage() {
                 Continue with SSO
               </Button>
             </form>
+
+            <Separator />
+
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                RouteGuard Staff
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={anyLoading}
+                onClick={handleStaffLogin}
+              >
+                {staffLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Lock className="size-4" />
+                )}
+                Sign in with RouteGuard SSO
+              </Button>
+            </div>
           </CardContent>
 
           {isDev && (
@@ -169,7 +223,7 @@ export default function LoginPage() {
                   type="button"
                   variant="outline"
                   className="w-full"
-                  disabled={loading}
+                  disabled={anyLoading}
                   onClick={handleDevLogin}
                 >
                   {loading ? (

@@ -77,9 +77,6 @@ export async function PUT(
         slug: body.slug ?? existing.slug,
         type: body.type ?? existing.type,
         timezone: body.timezone ?? existing.timezone,
-        ssoProvider: body.ssoProvider !== undefined ? (body.ssoProvider || null) : existing.ssoProvider,
-        ssoDomain: body.ssoDomain !== undefined ? (body.ssoDomain || null) : existing.ssoDomain,
-        ssoConnectionId: body.ssoConnectionId !== undefined ? (body.ssoConnectionId || null) : existing.ssoConnectionId,
         logoUrl: body.logoUrl !== undefined ? (body.logoUrl || null) : existing.logoUrl,
         updatedAt: new Date(),
       })

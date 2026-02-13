@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, ArrowLeft, Users, School, GraduationCap, Bus, Route } from "lucide-react";
+import { SsoConnectionsCard } from "@/components/admin/sso-connections-card";
 
 export default async function OrganizationDetailPage({
   params,
@@ -106,21 +107,12 @@ export default async function OrganizationDetailPage({
                 {org.createdAt ? new Date(org.createdAt).toLocaleDateString() : "--"}
               </dd>
             </div>
-            {org.ssoProvider && (
-              <div>
-                <dt className="text-muted-foreground">SSO Provider</dt>
-                <dd className="font-medium">{org.ssoProvider}</dd>
-              </div>
-            )}
-            {org.ssoDomain && (
-              <div>
-                <dt className="text-muted-foreground">SSO Domain</dt>
-                <dd className="font-medium">{org.ssoDomain}</dd>
-              </div>
-            )}
           </dl>
         </CardContent>
       </Card>
+
+      {/* SSO Connections */}
+      <SsoConnectionsCard orgId={org.id} />
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">

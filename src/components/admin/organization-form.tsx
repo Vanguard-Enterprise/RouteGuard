@@ -41,9 +41,6 @@ const organizationSchema = z.object({
   slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
   type: z.enum(["district", "company"]),
   timezone: z.string().min(1, "Timezone is required"),
-  ssoProvider: z.string().optional(),
-  ssoDomain: z.string().optional(),
-  ssoConnectionId: z.string().optional(),
   logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   adminEmail: z.string().email("Must be a valid email").optional().or(z.literal("")),
   adminName: z.string().optional(),
@@ -81,9 +78,6 @@ export function OrganizationForm({ mode, organization }: OrganizationFormProps) 
       slug: organization?.slug ?? "",
       type: (organization?.type as "district" | "company") ?? "district",
       timezone: organization?.timezone ?? "America/New_York",
-      ssoProvider: organization?.ssoProvider ?? "",
-      ssoDomain: organization?.ssoDomain ?? "",
-      ssoConnectionId: organization?.ssoConnectionId ?? "",
       logoUrl: organization?.logoUrl ?? "",
       adminEmail: "",
       adminName: "",
@@ -117,9 +111,6 @@ export function OrganizationForm({ mode, organization }: OrganizationFormProps) 
         slug: data.slug,
         type: data.type,
         timezone: data.timezone,
-        ssoProvider: data.ssoProvider || null,
-        ssoDomain: data.ssoDomain || null,
-        ssoConnectionId: data.ssoConnectionId || null,
         logoUrl: data.logoUrl || null,
       };
 
@@ -240,40 +231,6 @@ export function OrganizationForm({ mode, organization }: OrganizationFormProps) 
               {errors.logoUrl && (
                 <p className="text-sm text-destructive">{errors.logoUrl.message}</p>
               )}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="text-sm font-medium mb-3">SSO Configuration (Optional)</h3>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="ssoProvider">SSO Provider</Label>
-                <Input
-                  id="ssoProvider"
-                  {...register("ssoProvider")}
-                  placeholder="e.g. google, okta"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ssoDomain">SSO Domain</Label>
-                <Input
-                  id="ssoDomain"
-                  {...register("ssoDomain")}
-                  placeholder="e.g. lincoln.edu"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ssoConnectionId">SSO Connection ID</Label>
-                <Input
-                  id="ssoConnectionId"
-                  {...register("ssoConnectionId")}
-                  placeholder="WorkOS connection ID"
-                />
-              </div>
             </div>
           </div>
 

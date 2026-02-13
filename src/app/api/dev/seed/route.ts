@@ -20,6 +20,8 @@ import {
   dailySummaries,
   apiKeys,
   studentStops,
+  oauthStates,
+  ssoConnections,
 } from "@/db/schema";
 
 export async function POST() {
@@ -46,6 +48,8 @@ export async function POST() {
   await db.delete(students);
   await db.delete(schools);
   await db.delete(apiKeys);
+  await db.delete(oauthStates);
+  await db.delete(ssoConnections);
   await db.delete(sessions);
   await db.delete(users);
   await db.delete(organizations);
@@ -285,6 +289,19 @@ export async function POST() {
     { routeId: morningRoute.id, vehicleId: bus1.id, driverId: driver1.id, effectiveDate: "2025-01-01", daysOfWeek: "MTWRF" },
     { routeId: afternoonRoute.id, vehicleId: bus2.id, driverId: driver2.id, effectiveDate: "2025-01-01", daysOfWeek: "MTWRF" },
   ]);
+
+  // Create sample SSO connection for demo org
+  await db.insert(ssoConnections).values({
+    orgId: org.id,
+    type: "oidc",
+    displayName: "Google Workspace (Demo)",
+    domain: "lincoln.edu",
+    enabled: true,
+    oidcIssuerUrl: "https://accounts.google.com",
+    oidcClientId: "placeholder-client-id",
+    oidcClientSecret: "placeholder-client-secret",
+    oidcScopes: "openid email profile",
+  });
 
   return NextResponse.json({
     message: "Seed data created successfully",

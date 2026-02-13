@@ -79,9 +79,6 @@ export async function POST(request: Request) {
         slug: body.slug,
         type: body.type || "district",
         timezone: body.timezone || "America/New_York",
-        ssoProvider: body.ssoProvider || null,
-        ssoDomain: body.ssoDomain || null,
-        ssoConnectionId: body.ssoConnectionId || null,
         logoUrl: body.logoUrl || null,
       })
       .returning();

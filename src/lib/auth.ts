@@ -1,19 +1,9 @@
-import { WorkOS } from "@workos-inc/node";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { users, sessions, organizations } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { users, sessions } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import type { User, UserRole } from "@/db/schema";
-
-let workos: WorkOS | null = null;
-
-function getWorkOS(): WorkOS {
-  if (!workos) {
-    workos = new WorkOS(process.env.WORKOS_API_KEY!);
-  }
-  return workos;
-}
 
 const SESSION_COOKIE = "rg_session";
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -103,82 +93,6 @@ export async function destroySession(): Promise<void> {
   }
 
   cookieStore.delete(SESSION_COOKIE);
-}
-
-export function getSSOAuthorizationUrl(connectionId: string, redirectUri: string): string {
-  const wo = getWorkOS();
-  return wo.userManagement.getAuthorizationUrl({
-    provider: "authkit",
-    connectionId,
-    redirectUri,
-    clientId: process.env.WORKOS_CLIENT_ID!,
-  });
-}
-
-export async function handleSSOCallback(code: string) {
-  const wo = getWorkOS();
-  const { user: ssoUser, organizationId } = await wo.userManagement.authenticateWithCode({
-    code,
-    clientId: process.env.WORKOS_CLIENT_ID!,
-  });
-
-  const db = await getDb();
-
-  // Find user by SSO ID or email
-  let [existingUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.ssoId, ssoUser.id))
-    .limit(1);
-
-  if (!existingUser && ssoUser.email) {
-    [existingUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, ssoUser.email))
-      .limit(1);
-
-    if (existingUser) {
-      await db
-        .update(users)
-        .set({ ssoId: ssoUser.id, lastLoginAt: new Date() })
-        .where(eq(users.id, existingUser.id));
-    }
-  }
-
-  if (!existingUser) {
-    // Find org by SSO domain
-    const emailDomain = ssoUser.email?.split("@")[1];
-    let org = emailDomain
-      ? (await db.select().from(organizations).where(eq(organizations.ssoDomain, emailDomain)).limit(1))[0]
-      : null;
-
-    if (!org) {
-      return null;
-    }
-
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        orgId: org.id,
-        email: ssoUser.email!,
-        name: `${ssoUser.firstName ?? ""} ${ssoUser.lastName ?? ""}`.trim() || ssoUser.email!,
-        role: "school_admin",
-        ssoId: ssoUser.id,
-        avatarUrl: ssoUser.profilePictureUrl,
-        lastLoginAt: new Date(),
-      })
-      .returning();
-
-    return newUser;
-  }
-
-  await db
-    .update(users)
-    .set({ lastLoginAt: new Date(), avatarUrl: ssoUser.profilePictureUrl })
-    .where(eq(users.id, existingUser.id));
-
-  return existingUser;
 }
 
 export async function requireSuperAdmin(): Promise<{ user: User; orgId: string }> {

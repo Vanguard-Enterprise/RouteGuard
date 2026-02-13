@@ -27,6 +27,7 @@ export const users = sqliteTable("users", {
   name: text("name").notNull(),
   role: text("role", { enum: ["super_admin", "org_admin", "school_admin", "driver"] }).notNull(),
   ssoId: text("sso_id"),
+  authProvider: text("auth_provider").default("sso"),
   avatarUrl: text("avatar_url"),
   lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
@@ -51,6 +52,36 @@ export const apiKeys = sqliteTable("api_keys", {
   permissions: text("permissions").default("{}"),
   lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
   expiresAt: integer("expires_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+export const ssoConnections = sqliteTable("sso_connections", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  type: text("type", { enum: ["oidc", "saml"] }).notNull().default("oidc"),
+  displayName: text("display_name").notNull(),
+  domain: text("domain").notNull().unique(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  oidcIssuerUrl: text("oidc_issuer_url"),
+  oidcClientId: text("oidc_client_id"),
+  oidcClientSecret: text("oidc_client_secret"),
+  oidcScopes: text("oidc_scopes").default("openid email profile"),
+  samlEntityId: text("saml_entity_id"),
+  samlSsoUrl: text("saml_sso_url"),
+  samlCertificate: text("saml_certificate"),
+  samlMetadataUrl: text("saml_metadata_url"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+export const oauthStates = sqliteTable("oauth_states", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  state: text("state").notNull().unique(),
+  codeVerifier: text("code_verifier"),
+  connectionId: text("connection_id"),
+  flowType: text("flow_type", { enum: ["staff", "customer_oidc", "customer_saml"] }).notNull(),
+  redirectAfter: text("redirect_after"),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
@@ -280,6 +311,11 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   routes: many(routes),
   apiKeys: many(apiKeys),
   trips: many(trips),
+  ssoConnections: many(ssoConnections),
+}));
+
+export const ssoConnectionsRelations = relations(ssoConnections, ({ one }) => ({
+  organization: one(organizations, { fields: [ssoConnections.orgId], references: [organizations.id] }),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -407,5 +443,9 @@ export type SmsMessage = typeof smsMessages.$inferSelect;
 export type DailySummary = typeof dailySummaries.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type RouteAssignment = typeof routeAssignments.$inferSelect;
+
+export type SsoConnection = typeof ssoConnections.$inferSelect;
+export type NewSsoConnection = typeof ssoConnections.$inferInsert;
+export type OauthState = typeof oauthStates.$inferSelect;
 
 export type UserRole = "super_admin" | "org_admin" | "school_admin" | "driver";
