@@ -1,0 +1,199 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Shield, Loader2, LogIn } from "lucide-react";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isDev = process.env.NODE_ENV === "development";
+
+  async function handleSSOLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/sso/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "SSO login failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError("No SSO redirect URL returned.");
+        setLoading(false);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  async function handleDevLogin() {
+    setError(null);
+
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/dev-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Dev login failed.");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  const emailDomain = email.includes("@") ? email.split("@")[1] : "";
+  const showSSOHint = emailDomain.length > 3;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <Shield className="size-8 text-primary" />
+            <span className="text-2xl font-bold tracking-tight">
+              RouteGuard
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            School bus tracking and safety platform
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign in</CardTitle>
+            <CardDescription>
+              Enter your work email to continue with SSO.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form onSubmit={handleSSOLogin} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@yourdistrict.edu"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  autoFocus
+                  disabled={loading}
+                />
+                {showSSOHint && (
+                  <p className="text-xs text-muted-foreground">
+                    You will be redirected to your organization&apos;s SSO
+                    provider for <span className="font-medium">{emailDomain}</span>.
+                  </p>
+                )}
+              </div>
+
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <LogIn className="size-4" />
+                )}
+                Continue with SSO
+              </Button>
+            </form>
+          </CardContent>
+
+          {isDev && (
+            <CardFooter className="flex flex-col gap-4">
+              <Separator />
+              <div className="flex w-full flex-col gap-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Development only
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={loading}
+                  onClick={handleDevLogin}
+                >
+                  {loading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : null}
+                  Sign in as test user
+                </Button>
+              </div>
+            </CardFooter>
+          )}
+        </Card>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          By signing in, you agree to our{" "}
+          <a href="/terms" className="underline underline-offset-4 hover:text-foreground">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+            Privacy Policy
+          </a>
+          .
+        </p>
+      </div>
+    </div>
+  );
+}
