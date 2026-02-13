@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   Shield,
+  ShieldAlert,
   UserCircle,
   Key,
   ChevronDown,
@@ -71,6 +72,7 @@ const settingsNav: NavItem[] = [
   { title: "Settings", href: "/dashboard/settings", icon: Settings, roles: ["super_admin", "org_admin"] },
   { title: "Users", href: "/dashboard/settings/users", icon: Shield, roles: ["super_admin", "org_admin"] },
   { title: "API Keys", href: "/dashboard/settings/api-keys", icon: Key, roles: ["super_admin", "org_admin"] },
+  { title: "Admin Panel", href: "/admin", icon: ShieldAlert, roles: ["super_admin"] },
 ];
 
 interface AppSidebarProps {

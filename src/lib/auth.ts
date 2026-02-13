@@ -181,6 +181,22 @@ export async function handleSSOCallback(code: string) {
   return existingUser;
 }
 
+export async function requireSuperAdmin(): Promise<{ user: User; orgId: string }> {
+  const session = await requireAuth();
+  if (session.user.role !== "super_admin") {
+    redirect("/dashboard");
+  }
+  return session;
+}
+
+export async function getAdminSession(): Promise<{ user: User; orgId: string } | null> {
+  const session = await getSession();
+  if (!session || session.user.role !== "super_admin") {
+    return null;
+  }
+  return session;
+}
+
 // Dev-only: create a session for a user without SSO
 export async function devLogin(email: string): Promise<User | null> {
   const db = await getDb();

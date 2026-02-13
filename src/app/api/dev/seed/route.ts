@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import {
   organizations,
   users,
+  sessions,
   schools,
   students,
   guardians,
@@ -12,6 +13,13 @@ import {
   routes,
   stops,
   routeAssignments,
+  trips,
+  tripLocations,
+  scanEvents,
+  smsMessages,
+  dailySummaries,
+  apiKeys,
+  studentStops,
 } from "@/db/schema";
 
 export async function POST() {
@@ -20,6 +28,48 @@ export async function POST() {
   }
 
   const db = await getDb();
+
+  // Clear all tables in dependency order
+  await db.delete(tripLocations);
+  await db.delete(scanEvents);
+  await db.delete(smsMessages);
+  await db.delete(dailySummaries);
+  await db.delete(trips);
+  await db.delete(routeAssignments);
+  await db.delete(studentStops);
+  await db.delete(stops);
+  await db.delete(routes);
+  await db.delete(drivers);
+  await db.delete(vehicles);
+  await db.delete(studentGuardians);
+  await db.delete(guardians);
+  await db.delete(students);
+  await db.delete(schools);
+  await db.delete(apiKeys);
+  await db.delete(sessions);
+  await db.delete(users);
+  await db.delete(organizations);
+
+  // Create platform organization + super admin
+  const [platformOrg] = await db
+    .insert(organizations)
+    .values({
+      name: "RouteGuard Platform",
+      slug: "routeguard-platform",
+      type: "company",
+      timezone: "America/New_York",
+    })
+    .returning();
+
+  const [superAdmin] = await db
+    .insert(users)
+    .values({
+      orgId: platformOrg.id,
+      email: "admin@routeguard.com",
+      name: "Platform Admin",
+      role: "super_admin",
+    })
+    .returning();
 
   // Create demo organization
   const [org] = await db
@@ -110,10 +160,14 @@ export async function POST() {
     { firstName: "Benjamin", lastName: "Thomas", grade: "8", schoolId: jefferson.id, rfidTagId: "RFID-008", address: "88 Spruce Ct", city: "Springfield", state: "IL", zip: "62702" },
   ];
 
-  const insertedStudents = await db
-    .insert(students)
-    .values(studentData.map((s) => ({ ...s, orgId: org.id, studentNumber: `STU-${Math.random().toString(36).slice(2, 8).toUpperCase()}` })))
-    .returning();
+  const insertedStudents = [];
+  for (const s of studentData) {
+    const [inserted] = await db
+      .insert(students)
+      .values({ ...s, orgId: org.id, studentNumber: `STU-${Math.random().toString(36).slice(2, 8).toUpperCase()}` })
+      .returning();
+    insertedStudents.push(inserted);
+  }
 
   // Create guardians
   const guardianData = [
@@ -234,6 +288,8 @@ export async function POST() {
 
   return NextResponse.json({
     message: "Seed data created successfully",
+    platformOrg: { id: platformOrg.id, name: platformOrg.name },
+    superAdmin: { email: superAdmin.email, role: superAdmin.role },
     org: { id: org.id, name: org.name, slug: org.slug },
     users: {
       admin: { email: admin.email, role: admin.role },

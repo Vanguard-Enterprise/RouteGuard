@@ -1,4 +1,10 @@
--- Organization
+-- Platform Organization & Super Admin
+INSERT INTO organizations (id, name, slug, type, timezone, settings, created_at, updated_at)
+VALUES ('org-platform', 'RouteGuard Platform', 'routeguard-platform', 'company', 'America/New_York', '{}', unixepoch(), unixepoch());
+INSERT INTO users (id, org_id, email, name, role, created_at)
+VALUES ('user-sa', 'org-platform', 'admin@routeguard.com', 'Platform Admin', 'super_admin', unixepoch());
+
+-- Demo Organization
 INSERT INTO organizations (id, name, slug, type, timezone, settings, created_at, updated_at)
 VALUES ('org-001', 'Lincoln School District', 'lincoln-sd', 'district', 'America/New_York', '{}', unixepoch(), unixepoch());
 

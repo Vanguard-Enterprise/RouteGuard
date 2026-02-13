@@ -16,9 +16,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check session cookie for dashboard routes
+  // Check session cookie for protected routes
   const sessionToken = request.cookies.get("rg_session")?.value;
-  if (!sessionToken && pathname.startsWith("/dashboard")) {
+  if (!sessionToken && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
