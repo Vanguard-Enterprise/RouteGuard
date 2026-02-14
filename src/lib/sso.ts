@@ -200,6 +200,7 @@ export function getOidcAuthorizationUrl(
     redirectUri: string;
     state: string;
     scopes: string;
+    codeChallenge?: string;
   },
 ): string {
   const searchParams = new URLSearchParams({
@@ -210,6 +211,11 @@ export function getOidcAuthorizationUrl(
     state: params.state,
   });
 
+  if (params.codeChallenge) {
+    searchParams.set("code_challenge", params.codeChallenge);
+    searchParams.set("code_challenge_method", "S256");
+  }
+
   return `${discovery.authorization_endpoint}?${searchParams.toString()}`;
 }
 
@@ -218,20 +224,29 @@ export async function exchangeOidcCode(
   params: {
     code: string;
     clientId: string;
-    clientSecret: string;
+    clientSecret?: string;
+    codeVerifier?: string;
     redirectUri: string;
   },
 ): Promise<{ access_token: string; id_token?: string }> {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code: params.code,
+    client_id: params.clientId,
+    redirect_uri: params.redirectUri,
+  });
+
+  if (params.codeVerifier) {
+    body.set("code_verifier", params.codeVerifier);
+  }
+  if (params.clientSecret) {
+    body.set("client_secret", params.clientSecret);
+  }
+
   const res = await fetch(discovery.token_endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code: params.code,
-      client_id: params.clientId,
-      client_secret: params.clientSecret,
-      redirect_uri: params.redirectUri,
-    }),
+    body,
   });
 
   if (!res.ok) {

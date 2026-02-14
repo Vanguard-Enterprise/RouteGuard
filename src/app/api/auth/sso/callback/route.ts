@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       .where(eq(ssoConnections.id, oauthState.connectionId))
       .limit(1);
 
-    if (!connection || !connection.oidcIssuerUrl || !connection.oidcClientId || !connection.oidcClientSecret) {
+    if (!connection || !connection.oidcIssuerUrl || !connection.oidcClientId) {
       return NextResponse.redirect(
         new URL("/login?error=invalid_connection", request.url),
       );
@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
     const tokens = await exchangeOidcCode(discovery, {
       code,
       clientId: connection.oidcClientId,
-      clientSecret: connection.oidcClientSecret,
+      clientSecret: connection.oidcClientSecret ?? undefined,
+      codeVerifier: oauthState.codeVerifier ?? undefined,
       redirectUri,
     });
 

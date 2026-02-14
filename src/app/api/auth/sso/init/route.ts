@@ -4,6 +4,8 @@ import { ssoConnections } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import {
   createOAuthState,
+  generateCodeVerifier,
+  generateCodeChallenge,
   fetchOidcDiscovery,
   getOidcAuthorizationUrl,
   buildSamlAuthnRequest,
@@ -52,9 +54,13 @@ export async function POST(request: NextRequest) {
 
       const discovery = await fetchOidcDiscovery(connection.oidcIssuerUrl);
 
+      const codeVerifier = generateCodeVerifier();
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+
       const state = await createOAuthState({
         flowType: "customer_oidc",
         connectionId: connection.id,
+        codeVerifier,
       });
 
       const redirectUri = `${origin}/api/auth/sso/callback`;
@@ -63,6 +69,7 @@ export async function POST(request: NextRequest) {
         redirectUri,
         state,
         scopes: connection.oidcScopes || "openid email profile",
+        codeChallenge,
       });
 
       return NextResponse.json({ url });
