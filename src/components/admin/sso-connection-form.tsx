@@ -186,7 +186,7 @@ export function SsoConnectionForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit SSO Connection" : "Add SSO Connection"}
@@ -215,7 +215,7 @@ export function SsoConnectionForm({
               Enter these in your identity provider:
             </p>
             {callbackUrls.map(({ label, value }) => (
-              <div key={label} className="flex items-center gap-2">
+              <div key={label} className="flex items-center gap-2 min-w-0">
                 <span className="text-xs text-muted-foreground shrink-0 w-36">
                   {label}
                 </span>
