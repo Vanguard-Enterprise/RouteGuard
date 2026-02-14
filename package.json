@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && opennextjs-cloudflare build --skipNextBuild",
+    "build": "next build --webpack && opennextjs-cloudflare build --skipNextBuild",
     "start": "next start",
     "lint": "eslint",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
@@ -15,7 +15,7 @@
     "@aliimam/logos": "^0.2.3",
     "@hookform/resolvers": "^5.2.2",
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
-    "@opennextjs/cloudflare": "^1.16.4",
+    "@opennextjs/cloudflare": "^1.16.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
