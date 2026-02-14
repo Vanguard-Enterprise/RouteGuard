@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Download } from "lucide-react";
 import type { SsoConnection } from "@/db/schema";
 
 interface SsoConnectionFormProps {
@@ -33,15 +41,25 @@ export function SsoConnectionForm({
 }: SsoConnectionFormProps) {
   const isEdit = !!connection;
 
+  const [type, setType] = useState<"oidc" | "saml">(connection?.type ?? "oidc");
   const [displayName, setDisplayName] = useState(connection?.displayName ?? "");
   const [domain, setDomain] = useState(connection?.domain ?? "");
   const [enabled, setEnabled] = useState(connection?.enabled ?? true);
+
+  // OIDC fields
   const [oidcIssuerUrl, setOidcIssuerUrl] = useState(connection?.oidcIssuerUrl ?? "");
   const [oidcClientId, setOidcClientId] = useState(connection?.oidcClientId ?? "");
   const [oidcClientSecret, setOidcClientSecret] = useState(connection?.oidcClientSecret ?? "");
   const [oidcScopes, setOidcScopes] = useState(connection?.oidcScopes ?? "openid email profile");
 
+  // SAML fields
+  const [samlMetadataUrl, setSamlMetadataUrl] = useState(connection?.samlMetadataUrl ?? "");
+  const [samlEntityId, setSamlEntityId] = useState(connection?.samlEntityId ?? "");
+  const [samlSsoUrl, setSamlSsoUrl] = useState(connection?.samlSsoUrl ?? "");
+  const [samlCertificate, setSamlCertificate] = useState(connection?.samlCertificate ?? "");
+
   const [loading, setLoading] = useState(false);
+  const [fetchingMetadata, setFetchingMetadata] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,19 +73,29 @@ export function SsoConnectionForm({
         : `/api/admin/organizations/${orgId}/sso`;
       const method = isEdit ? "PUT" : "POST";
 
+      const payload: Record<string, unknown> = {
+        type,
+        displayName,
+        domain,
+        enabled,
+      };
+
+      if (type === "oidc") {
+        payload.oidcIssuerUrl = oidcIssuerUrl;
+        payload.oidcClientId = oidcClientId;
+        payload.oidcClientSecret = oidcClientSecret;
+        payload.oidcScopes = oidcScopes;
+      } else {
+        payload.samlMetadataUrl = samlMetadataUrl;
+        payload.samlEntityId = samlEntityId;
+        payload.samlSsoUrl = samlSsoUrl;
+        payload.samlCertificate = samlCertificate;
+      }
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "oidc",
-          displayName,
-          domain,
-          enabled,
-          oidcIssuerUrl,
-          oidcClientId,
-          oidcClientSecret,
-          oidcScopes,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -96,7 +124,12 @@ export function SsoConnectionForm({
       const data = await res.json();
 
       if (res.ok) {
-        setTestResult({ success: true, message: `Connected to ${data.issuer}` });
+        const detail = type === "oidc"
+          ? `Connected to ${data.issuer}`
+          : data.entityId
+            ? `Verified IdP: ${data.entityId}`
+            : `SSO URL reachable`;
+        setTestResult({ success: true, message: detail });
       } else {
         setTestResult({ success: false, message: data.error || "Test failed" });
       }
@@ -105,20 +138,63 @@ export function SsoConnectionForm({
     }
   }
 
+  async function handleFetchMetadata() {
+    if (!samlMetadataUrl) return;
+    setFetchingMetadata(true);
+    setError(null);
+
+    try {
+      const res = await fetch(
+        `/api/admin/organizations/${orgId}/sso/fetch-metadata`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ metadataUrl: samlMetadataUrl }),
+        },
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch metadata.");
+      }
+
+      if (data.entityId) setSamlEntityId(data.entityId);
+      if (data.ssoUrl) setSamlSsoUrl(data.ssoUrl);
+      if (data.certificate) setSamlCertificate(data.certificate);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch metadata.");
+    } finally {
+      setFetchingMetadata(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit SSO Connection" : "Add SSO Connection"}
           </DialogTitle>
           <DialogDescription>
-            Configure an OIDC identity provider for this organization. SAML
-            support is coming in a future update.
+            Configure an identity provider for this organization.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Protocol</Label>
+            <Select value={type} onValueChange={(v) => setType(v as "oidc" | "saml")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oidc">OIDC (OpenID Connect)</SelectItem>
+                <SelectItem value="saml">SAML 2.0</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="sso-name">Display Name *</Label>
@@ -145,50 +221,125 @@ export function SsoConnectionForm({
             <Label>Enabled</Label>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sso-issuer">OIDC Issuer URL *</Label>
-            <Input
-              id="sso-issuer"
-              value={oidcIssuerUrl}
-              onChange={(e) => setOidcIssuerUrl(e.target.value)}
-              placeholder="https://accounts.google.com"
-            />
-          </div>
+          {/* ── OIDC Fields ── */}
+          {type === "oidc" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="sso-issuer">OIDC Issuer URL *</Label>
+                <Input
+                  id="sso-issuer"
+                  value={oidcIssuerUrl}
+                  onChange={(e) => setOidcIssuerUrl(e.target.value)}
+                  placeholder="https://accounts.google.com"
+                />
+              </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="sso-client-id">Client ID *</Label>
-              <Input
-                id="sso-client-id"
-                value={oidcClientId}
-                onChange={(e) => setOidcClientId(e.target.value)}
-                placeholder="OAuth client ID"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sso-client-secret">Client Secret *</Label>
-              <Input
-                id="sso-client-secret"
-                type="password"
-                value={oidcClientSecret}
-                onChange={(e) => setOidcClientSecret(e.target.value)}
-                placeholder="OAuth client secret"
-              />
-            </div>
-          </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="sso-client-id">Client ID *</Label>
+                  <Input
+                    id="sso-client-id"
+                    value={oidcClientId}
+                    onChange={(e) => setOidcClientId(e.target.value)}
+                    placeholder="OAuth client ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sso-client-secret">Client Secret *</Label>
+                  <Input
+                    id="sso-client-secret"
+                    type="password"
+                    value={oidcClientSecret}
+                    onChange={(e) => setOidcClientSecret(e.target.value)}
+                    placeholder="OAuth client secret"
+                  />
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sso-scopes">Scopes</Label>
-            <Input
-              id="sso-scopes"
-              value={oidcScopes}
-              onChange={(e) => setOidcScopes(e.target.value)}
-              placeholder="openid email profile"
-            />
-            <p className="text-xs text-muted-foreground">
-              Space-separated OIDC scopes. Defaults to &quot;openid email profile&quot;.
-            </p>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="sso-scopes">Scopes</Label>
+                <Input
+                  id="sso-scopes"
+                  value={oidcScopes}
+                  onChange={(e) => setOidcScopes(e.target.value)}
+                  placeholder="openid email profile"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Space-separated OIDC scopes. Defaults to &quot;openid email profile&quot;.
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* ── SAML Fields ── */}
+          {type === "saml" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="saml-metadata-url">Metadata URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="saml-metadata-url"
+                    value={samlMetadataUrl}
+                    onChange={(e) => setSamlMetadataUrl(e.target.value)}
+                    placeholder="https://idp.example.com/metadata"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!samlMetadataUrl || fetchingMetadata}
+                    onClick={handleFetchMetadata}
+                  >
+                    {fetchingMetadata ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Download className="size-4" />
+                    )}
+                    Fetch
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Paste the IdP metadata URL to auto-fill the fields below.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="saml-entity-id">IdP Entity ID</Label>
+                <Input
+                  id="saml-entity-id"
+                  value={samlEntityId}
+                  onChange={(e) => setSamlEntityId(e.target.value)}
+                  placeholder="https://idp.example.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="saml-sso-url">SSO URL *</Label>
+                <Input
+                  id="saml-sso-url"
+                  value={samlSsoUrl}
+                  onChange={(e) => setSamlSsoUrl(e.target.value)}
+                  placeholder="https://idp.example.com/sso/saml"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="saml-certificate">Certificate *</Label>
+                <Textarea
+                  id="saml-certificate"
+                  value={samlCertificate}
+                  onChange={(e) => setSamlCertificate(e.target.value)}
+                  placeholder="Paste the IdP X.509 signing certificate (base64)"
+                  rows={4}
+                  className="font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The IdP&apos;s X.509 signing certificate. PEM format or raw base64.
+                </p>
+              </div>
+            </>
+          )}
 
           {testResult && (
             <div

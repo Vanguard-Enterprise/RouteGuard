@@ -22,8 +22,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "Login session expired. Please try again.",
   missing_params: "Login failed due to missing parameters. Please try again.",
   missing_verifier: "Login session was invalid. Please try again.",
+  missing_connection: "Login session was invalid. Please try again.",
   no_email: "Your identity provider did not return an email address.",
   callback_error: "Something went wrong during login. Please try again.",
+  saml_error: "SAML authentication failed. Please try again or contact your administrator.",
   no_connection: "No SSO connection found for your email domain.",
 };
 

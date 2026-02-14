@@ -6,6 +6,9 @@ import {
   createOAuthState,
   fetchOidcDiscovery,
   getOidcAuthorizationUrl,
+  buildSamlAuthnRequest,
+  buildSamlRedirectUrl,
+  getSamlSpConfig,
 } from "@/lib/sso";
 
 export async function POST(request: NextRequest) {
@@ -36,33 +39,72 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (connection.type !== "oidc" || !connection.oidcIssuerUrl || !connection.oidcClientId) {
-      return NextResponse.json(
-        { error: "SSO is not fully configured for this domain." },
-        { status: 400 },
-      );
+    const origin = request.nextUrl.origin;
+
+    // ── OIDC flow ──
+    if (connection.type === "oidc") {
+      if (!connection.oidcIssuerUrl || !connection.oidcClientId) {
+        return NextResponse.json(
+          { error: "SSO is not fully configured for this domain." },
+          { status: 400 },
+        );
+      }
+
+      const discovery = await fetchOidcDiscovery(connection.oidcIssuerUrl);
+
+      const state = await createOAuthState({
+        flowType: "customer_oidc",
+        connectionId: connection.id,
+      });
+
+      const redirectUri = `${origin}/api/auth/sso/callback`;
+      const url = getOidcAuthorizationUrl(discovery, {
+        clientId: connection.oidcClientId,
+        redirectUri,
+        state,
+        scopes: connection.oidcScopes || "openid email profile",
+      });
+
+      return NextResponse.json({ url });
     }
 
-    // Fetch OIDC discovery
-    const discovery = await fetchOidcDiscovery(connection.oidcIssuerUrl);
+    // ── SAML flow ──
+    if (connection.type === "saml") {
+      if (!connection.samlSsoUrl || !connection.samlCertificate) {
+        return NextResponse.json(
+          { error: "SSO is not fully configured for this domain." },
+          { status: 400 },
+        );
+      }
 
-    // Create OAuth state
-    const state = await createOAuthState({
-      flowType: "customer_oidc",
-      connectionId: connection.id,
-    });
+      const state = await createOAuthState({
+        flowType: "customer_saml",
+        connectionId: connection.id,
+      });
 
-    // Build authorization URL
-    const origin = request.nextUrl.origin;
-    const redirectUri = `${origin}/api/auth/sso/callback`;
-    const url = getOidcAuthorizationUrl(discovery, {
-      clientId: connection.oidcClientId,
-      redirectUri,
-      state,
-      scopes: connection.oidcScopes || "openid email profile",
-    });
+      const { entityId, acsUrl } = getSamlSpConfig(origin);
 
-    return NextResponse.json({ url });
+      const authnRequest = buildSamlAuthnRequest({
+        id: `_${crypto.randomUUID()}`,
+        issueInstant: new Date().toISOString(),
+        acsUrl,
+        entityId,
+        destination: connection.samlSsoUrl,
+      });
+
+      const url = await buildSamlRedirectUrl(
+        connection.samlSsoUrl,
+        authnRequest,
+        state,
+      );
+
+      return NextResponse.json({ url });
+    }
+
+    return NextResponse.json(
+      { error: "SSO is not fully configured for this domain." },
+      { status: 400 },
+    );
   } catch (error) {
     console.error("SSO init error:", error);
     return NextResponse.json(

@@ -58,6 +58,10 @@ export async function PUT(
         oidcClientId: body.oidcClientId !== undefined ? (body.oidcClientId || null) : existing.oidcClientId,
         oidcClientSecret: body.oidcClientSecret !== undefined ? (body.oidcClientSecret || null) : existing.oidcClientSecret,
         oidcScopes: body.oidcScopes !== undefined ? (body.oidcScopes || "openid email profile") : existing.oidcScopes,
+        samlEntityId: body.samlEntityId !== undefined ? (body.samlEntityId || null) : existing.samlEntityId,
+        samlSsoUrl: body.samlSsoUrl !== undefined ? (body.samlSsoUrl || null) : existing.samlSsoUrl,
+        samlCertificate: body.samlCertificate !== undefined ? (body.samlCertificate || null) : existing.samlCertificate,
+        samlMetadataUrl: body.samlMetadataUrl !== undefined ? (body.samlMetadataUrl || null) : existing.samlMetadataUrl,
         updatedAt: new Date(),
       })
       .where(eq(ssoConnections.id, connectionId))

@@ -64,11 +64,18 @@ export async function POST(
       );
     }
 
-    // Validate OIDC fields if type is oidc
+    // Validate type-specific fields
     if (body.type === "oidc") {
       if (!body.oidcIssuerUrl || !body.oidcClientId || !body.oidcClientSecret) {
         return NextResponse.json(
           { error: "OIDC connections require issuer URL, client ID, and client secret." },
+          { status: 400 },
+        );
+      }
+    } else if (body.type === "saml") {
+      if (!body.samlSsoUrl || !body.samlCertificate) {
+        return NextResponse.json(
+          { error: "SAML connections require SSO URL and certificate." },
           { status: 400 },
         );
       }
@@ -86,6 +93,10 @@ export async function POST(
         oidcClientId: body.oidcClientId || null,
         oidcClientSecret: body.oidcClientSecret || null,
         oidcScopes: body.oidcScopes || "openid email profile",
+        samlEntityId: body.samlEntityId || null,
+        samlSsoUrl: body.samlSsoUrl || null,
+        samlCertificate: body.samlCertificate || null,
+        samlMetadataUrl: body.samlMetadataUrl || null,
       })
       .returning();
 

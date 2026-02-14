@@ -3,7 +3,7 @@ import { getAdminSession } from "@/lib/auth";
 import { getDb } from "@/db";
 import { ssoConnections } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { fetchOidcDiscovery } from "@/lib/sso";
+import { fetchOidcDiscovery, fetchSamlMetadata } from "@/lib/sso";
 
 export async function POST(
   _request: Request,
@@ -27,23 +27,53 @@ export async function POST(
       return NextResponse.json({ error: "SSO connection not found." }, { status: 404 });
     }
 
-    if (!connection.oidcIssuerUrl) {
-      return NextResponse.json({ error: "No OIDC issuer URL configured." }, { status: 400 });
+    // OIDC test
+    if (connection.type === "oidc") {
+      if (!connection.oidcIssuerUrl) {
+        return NextResponse.json({ error: "No OIDC issuer URL configured." }, { status: 400 });
+      }
+
+      const discovery = await fetchOidcDiscovery(connection.oidcIssuerUrl);
+
+      return NextResponse.json({
+        success: true,
+        issuer: discovery.issuer,
+        authorization_endpoint: discovery.authorization_endpoint,
+        token_endpoint: discovery.token_endpoint,
+      });
     }
 
-    const discovery = await fetchOidcDiscovery(connection.oidcIssuerUrl);
+    // SAML test
+    if (connection.type === "saml") {
+      if (connection.samlMetadataUrl) {
+        const metadata = await fetchSamlMetadata(connection.samlMetadataUrl);
+        return NextResponse.json({
+          success: true,
+          entityId: metadata.entityId,
+          ssoUrl: metadata.ssoUrl,
+          hasCertificate: !!metadata.certificate,
+        });
+      }
 
-    return NextResponse.json({
-      success: true,
-      issuer: discovery.issuer,
-      authorization_endpoint: discovery.authorization_endpoint,
-      token_endpoint: discovery.token_endpoint,
-    });
+      if (!connection.samlSsoUrl) {
+        return NextResponse.json({ error: "No SAML SSO URL configured." }, { status: 400 });
+      }
+
+      // Verify SSO URL is reachable
+      const res = await fetch(connection.samlSsoUrl, { method: "HEAD" });
+      return NextResponse.json({
+        success: true,
+        ssoUrl: connection.samlSsoUrl,
+        reachable: res.ok || res.status === 405 || res.status === 302,
+      });
+    }
+
+    return NextResponse.json({ error: "Unknown connection type." }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Test SSO connection error:", error);
     return NextResponse.json(
-      { error: `OIDC discovery failed: ${message}` },
+      { error: `SSO test failed: ${message}` },
       { status: 400 },
     );
   }
