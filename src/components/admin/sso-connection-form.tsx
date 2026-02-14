@@ -186,7 +186,7 @@ export function SsoConnectionForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit SSO Connection" : "Add SSO Connection"}
@@ -219,7 +219,7 @@ export function SsoConnectionForm({
                 <span className="text-xs text-muted-foreground shrink-0 w-36">
                   {label}
                 </span>
-                <code className="text-xs bg-background rounded px-1.5 py-0.5 border truncate flex-1">
+                <code className="text-xs bg-background rounded px-1.5 py-0.5 border truncate flex-1 min-w-0">
                   {value}
                 </code>
                 <Button
