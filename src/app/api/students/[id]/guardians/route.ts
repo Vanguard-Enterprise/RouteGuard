@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getOrgSession } from "@/lib/auth";
 import { getDb } from "@/db";
 import { students, guardians, studentGuardians } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -12,7 +12,7 @@ interface RouteContext {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const session = await getSession();
+    const session = await getOrgSession();
     if (!session) {
       return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
     }
@@ -75,7 +75,7 @@ const addGuardianSchema = z.object({
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const session = await getSession();
+    const session = await getOrgSession();
     if (!session) {
       return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
     }

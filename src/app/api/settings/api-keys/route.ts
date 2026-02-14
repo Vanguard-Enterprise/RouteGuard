@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getOrgSession } from "@/lib/auth";
 import { hasPermission } from "@/lib/rbac";
 import { getDb } from "@/db";
 import { apiKeys } from "@/db/schema";
@@ -8,7 +8,7 @@ import { generateApiKey } from "@/lib/api-auth";
 import type { UserRole } from "@/db/schema";
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getOrgSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -35,7 +35,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
+  const session = await getOrgSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

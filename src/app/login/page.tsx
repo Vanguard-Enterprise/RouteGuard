@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,16 +14,46 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Loader2, LogIn, Lock } from "lucide-react";
+import { Shield, Loader2, LogIn, Lock, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  unauthorized: "You are not authorized to access this application. Contact your administrator if you believe this is a mistake.",
+  invalid_state: "Login session expired. Please try again.",
+  missing_params: "Login failed due to missing parameters. Please try again.",
+  missing_verifier: "Login session was invalid. Please try again.",
+  no_email: "Your identity provider did not return an email address.",
+  callback_error: "Something went wrong during login. Please try again.",
+  no_connection: "No SSO connection found for your email domain.",
+};
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const isDev = process.env.NODE_ENV === "development";
+
+  useEffect(() => {
+    const errorCode = searchParams.get("error");
+    if (errorCode) {
+      setAuthError(ERROR_MESSAGES[errorCode] ?? "An unexpected error occurred. Please try again.");
+      // Clean the URL without reloading
+      window.history.replaceState({}, "", "/login");
+    }
+  }, [searchParams]);
 
   async function handleSSOLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -144,6 +174,13 @@ export default function LoginPage() {
             School bus tracking and safety platform
           </p>
         </div>
+
+        {authError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="size-4" />
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
+        )}
 
         <Card>
           <CardHeader>

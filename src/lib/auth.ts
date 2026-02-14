@@ -37,7 +37,9 @@ export async function createSession(userId: string): Promise<string> {
   return token;
 }
 
-export async function getSession(): Promise<{ user: User; orgId: string } | null> {
+// getSession returns the raw session — orgId may be null for staff users without an org.
+// For org-scoped API routes, use getOrgSession() which guarantees orgId is non-null.
+export async function getSession(): Promise<{ user: User; orgId: string | null } | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -67,12 +69,22 @@ export async function getSession(): Promise<{ user: User; orgId: string } | null
   return { user, orgId: user.orgId };
 }
 
+export async function getOrgSession(): Promise<{ user: User; orgId: string } | null> {
+  const session = await getSession();
+  if (!session || !session.orgId) return null;
+  return { user: session.user, orgId: session.orgId };
+}
+
 export async function requireAuth(): Promise<{ user: User; orgId: string }> {
   const session = await getSession();
   if (!session) {
     redirect("/login");
   }
-  return session;
+  // Staff users without an org should use admin routes
+  if (!session.orgId) {
+    redirect("/admin");
+  }
+  return { user: session.user, orgId: session.orgId };
 }
 
 export async function requireRole(allowedRoles: UserRole[]): Promise<{ user: User; orgId: string }> {
@@ -95,15 +107,18 @@ export async function destroySession(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function requireSuperAdmin(): Promise<{ user: User; orgId: string }> {
-  const session = await requireAuth();
+export async function requireSuperAdmin(): Promise<{ user: User; orgId: string | null }> {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
   if (session.user.role !== "super_admin") {
     redirect("/dashboard");
   }
   return session;
 }
 
-export async function getAdminSession(): Promise<{ user: User; orgId: string } | null> {
+export async function getAdminSession(): Promise<{ user: User; orgId: string | null } | null> {
   const session = await getSession();
   if (!session || session.user.role !== "super_admin") {
     return null;

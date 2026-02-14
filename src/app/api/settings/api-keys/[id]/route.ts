@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getOrgSession } from "@/lib/auth";
 import { hasPermission } from "@/lib/rbac";
 import { getDb } from "@/db";
 import { apiKeys } from "@/db/schema";
@@ -11,7 +11,7 @@ interface RouteContext {
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const session = await getSession();
+  const session = await getOrgSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

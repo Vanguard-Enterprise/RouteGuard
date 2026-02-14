@@ -52,30 +52,41 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Look up user — must be super_admin
+    // Find or create staff user
     const db = await getDb();
-    const [user] = await db
+    let [user] = await db
       .select()
       .from(users)
       .where(eq(users.email, userInfo.email))
       .limit(1);
 
-    if (!user || user.role !== "super_admin") {
-      return NextResponse.redirect(
-        new URL("/login?error=unauthorized", request.url),
-      );
+    if (user) {
+      // Update existing user with Zitadel info
+      await db
+        .update(users)
+        .set({
+          ssoId: userInfo.sub,
+          authProvider: "zitadel",
+          lastLoginAt: new Date(),
+          name: userInfo.name || user.name,
+          avatarUrl: userInfo.picture || user.avatarUrl,
+        })
+        .where(eq(users.id, user.id));
+    } else {
+      // Auto-provision staff user from Zitadel
+      [user] = await db
+        .insert(users)
+        .values({
+          email: userInfo.email,
+          name: userInfo.name || userInfo.email,
+          role: "super_admin",
+          ssoId: userInfo.sub,
+          authProvider: "zitadel",
+          avatarUrl: userInfo.picture || null,
+          lastLoginAt: new Date(),
+        })
+        .returning();
     }
-
-    // Update user with Zitadel info
-    await db
-      .update(users)
-      .set({
-        ssoId: userInfo.sub,
-        authProvider: "zitadel",
-        lastLoginAt: new Date(),
-        avatarUrl: userInfo.picture || user.avatarUrl,
-      })
-      .where(eq(users.id, user.id));
 
     // Create session and redirect to admin
     await createSession(user.id);

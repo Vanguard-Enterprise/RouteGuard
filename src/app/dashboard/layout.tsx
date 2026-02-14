@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { getOrgSession } from "@/lib/auth";
 import { getOrganization } from "@/lib/tenant";
 import { redirect } from "next/navigation";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -11,7 +11,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSession();
+  const session = await getOrgSession();
   if (!session) {
     redirect("/login");
   }

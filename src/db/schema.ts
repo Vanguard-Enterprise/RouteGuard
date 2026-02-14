@@ -22,7 +22,7 @@ export const organizations = sqliteTable("organizations", {
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  orgId: text("org_id").notNull().references(() => organizations.id),
+  orgId: text("org_id").references(() => organizations.id),
   email: text("email").notNull(),
   name: text("name").notNull(),
   role: text("role", { enum: ["super_admin", "org_admin", "school_admin", "driver"] }).notNull(),
@@ -31,9 +31,7 @@ export const users = sqliteTable("users", {
   avatarUrl: text("avatar_url"),
   lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
-}, (table) => [
-  uniqueIndex("users_org_email_idx").on(table.orgId, table.email),
-]);
+});
 
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

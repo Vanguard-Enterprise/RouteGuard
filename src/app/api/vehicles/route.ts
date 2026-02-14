@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getOrgSession } from "@/lib/auth";
 import { getDb } from "@/db";
 import { vehicles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const session = await getOrgSession();
     if (!session) {
       return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
     }
@@ -26,7 +26,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getSession();
+    const session = await getOrgSession();
     if (!session) {
       return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
     }
