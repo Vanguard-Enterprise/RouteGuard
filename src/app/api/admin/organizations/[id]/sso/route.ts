@@ -66,9 +66,9 @@ export async function POST(
 
     // Validate type-specific fields
     if (body.type === "oidc") {
-      if (!body.oidcIssuerUrl || !body.oidcClientId || !body.oidcClientSecret) {
+      if (!body.oidcIssuerUrl || !body.oidcClientId) {
         return NextResponse.json(
-          { error: "OIDC connections require issuer URL, client ID, and client secret." },
+          { error: "OIDC connections require issuer URL and client ID." },
           { status: 400 },
         );
       }

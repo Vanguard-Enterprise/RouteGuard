@@ -245,7 +245,7 @@ export function SsoConnectionForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sso-client-secret">Client Secret *</Label>
+                  <Label htmlFor="sso-client-secret">Client Secret</Label>
                   <Input
                     id="sso-client-secret"
                     type="password"
@@ -255,6 +255,11 @@ export function SsoConnectionForm({
                   />
                 </div>
               </div>
+
+              <p className="text-xs text-muted-foreground">
+                PKCE (S256) is used automatically. Client secret is optional for
+                public clients.
+              </p>
 
               <div className="space-y-2">
                 <Label htmlFor="sso-scopes">Scopes</Label>
