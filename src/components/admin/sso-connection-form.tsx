@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, CheckCircle, XCircle, Download } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Download, Copy, Check } from "lucide-react";
 import type { SsoConnection } from "@/db/schema";
 
 interface SsoConnectionFormProps {
@@ -58,10 +58,25 @@ export function SsoConnectionForm({
   const [samlSsoUrl, setSamlSsoUrl] = useState(connection?.samlSsoUrl ?? "");
   const [samlCertificate, setSamlCertificate] = useState(connection?.samlCertificate ?? "");
 
+  const [copied, setCopied] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchingMetadata, setFetchingMetadata] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function copyToClipboard(value: string, key: string) {
+    navigator.clipboard.writeText(value);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const callbackUrls = type === "oidc"
+    ? [{ label: "Redirect URI", value: `${origin}/api/auth/sso/callback` }]
+    : [
+        { label: "ACS URL", value: `${origin}/api/auth/sso/saml/acs` },
+        { label: "SP Entity ID / Metadata", value: `${origin}/api/auth/sso/saml/metadata` },
+      ];
 
   async function handleSave() {
     setError(null);
@@ -193,6 +208,35 @@ export function SsoConnectionForm({
                 <SelectItem value="saml">SAML 2.0</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="rounded-md border bg-muted/50 p-3 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Enter these in your identity provider:
+            </p>
+            {callbackUrls.map(({ label, value }) => (
+              <div key={label} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0 w-36">
+                  {label}
+                </span>
+                <code className="text-xs bg-background rounded px-1.5 py-0.5 border truncate flex-1">
+                  {value}
+                </code>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="size-7 p-0 shrink-0"
+                  onClick={() => copyToClipboard(value, label)}
+                >
+                  {copied === label ? (
+                    <Check className="size-3.5 text-green-600" />
+                  ) : (
+                    <Copy className="size-3.5" />
+                  )}
+                </Button>
+              </div>
+            ))}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
