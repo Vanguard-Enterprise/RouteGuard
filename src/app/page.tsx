@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,7 +15,6 @@ import {
   MessageSquare,
   Bus,
   BarChart3,
-  Shield,
   ArrowRight,
 } from "lucide-react";
 
@@ -64,9 +64,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Shield className="h-4 w-4" />
-            </div>
+            <Image src="/favicon.png" alt="RouteGuard" width={32} height={32} className="h-8 w-8" />
             <span className="text-lg font-bold">RouteGuard</span>
           </Link>
 
@@ -109,7 +107,6 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted px-4 py-1.5 text-sm text-muted-foreground">
-              <Shield className="h-4 w-4" />
               Trusted by school districts nationwide
             </div>
 
@@ -137,6 +134,17 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
+          </div>
+
+          <div className="mx-auto mt-16 flex justify-center">
+            <Image
+              src="/bus-mascot.png"
+              alt="RouteGuard school bus mascot"
+              width={320}
+              height={320}
+              className="h-auto w-64 drop-shadow-lg sm:w-72 lg:w-80"
+              priority
+            />
           </div>
         </div>
 
@@ -226,10 +234,7 @@ export default function Home() {
           <div className="grid gap-8 md:grid-cols-4">
             <div className="space-y-3">
               <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Shield className="h-4 w-4" />
-                </div>
-                <span className="text-lg font-bold">RouteGuard</span>
+                <Image src="/logo.png" alt="RouteGuard" width={160} height={46} className="h-12 w-auto" />
               </Link>
               <p className="text-sm text-muted-foreground">
                 Safe, smart school bus management with RFID tracking and real-time GPS.

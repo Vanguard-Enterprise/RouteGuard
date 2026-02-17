@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Loader2, LogIn, Lock, AlertCircle } from "lucide-react";
+import { Loader2, LogIn, Lock, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -165,14 +166,10 @@ function LoginContent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2.5">
-            <Shield className="size-8 text-primary" />
-            <span className="text-2xl font-bold tracking-tight">
-              RouteGuard
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground">
+        <div className="mb-8 flex flex-col items-center gap-3">
+          <Image src="/bus-icon.png" alt="RouteGuard" width={72} height={72} className="h-18 w-auto" />
+          <span className="text-2xl font-bold tracking-tight">RouteGuard</span>
+          <p className="-mt-1 text-sm text-muted-foreground">
             School bus tracking and safety platform
           </p>
         </div>
