@@ -107,7 +107,7 @@ export function AppSidebar({ user, organization }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <Image src="/bus-icon.png" alt="RouteGuard" width={32} height={32} className="size-8 rounded-lg object-contain" />
+                <Image src="/api/r2/bus-icon.png" alt="RouteGuard" width={32} height={32} className="size-8 rounded-lg object-contain" />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">RouteGuard</span>
                   <span className="truncate text-xs text-muted-foreground">

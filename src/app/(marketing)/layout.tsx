@@ -14,7 +14,7 @@ export default function MarketingLayout({
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/favicon.png" alt="RouteGuard" width={32} height={32} className="h-8 w-8" />
+            <Image src="/api/r2/favicon.png" alt="RouteGuard" width={32} height={32} className="h-8 w-8" />
             <span className="text-lg font-bold">RouteGuard</span>
           </Link>
 
@@ -61,7 +61,7 @@ export default function MarketingLayout({
           <div className="grid gap-8 md:grid-cols-4">
             <div className="space-y-3">
               <Link href="/" className="flex items-center gap-2">
-                <Image src="/logo.png" alt="RouteGuard" width={160} height={46} className="h-12 w-auto" />
+                <Image src="/api/r2/logo.png" alt="RouteGuard" width={160} height={46} className="h-12 w-auto" />
               </Link>
               <p className="text-sm text-muted-foreground">
                 Safe, smart school bus management with RFID tracking and real-time GPS.
