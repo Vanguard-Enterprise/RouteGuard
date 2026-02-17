@@ -15,10 +15,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "RouteGuard - School Bus Fleet Management",
   description: "Safe, smart school bus management with RFID tracking and real-time GPS",
-  icons: {
-    icon: "/api/r2/favicon.png",
-    apple: "/api/r2/favicon.png",
-  },
 };
 
 export default function RootLayout({
