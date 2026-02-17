@@ -8,6 +8,9 @@ if (process.env.NODE_ENV === "development") {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
