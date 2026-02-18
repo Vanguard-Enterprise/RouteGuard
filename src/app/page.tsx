@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ import {
   BarChart3,
   ArrowRight,
 } from "lucide-react";
+import { motion } from "motion/react";
 
 const features = [
   {
@@ -56,6 +59,11 @@ const features = [
       "Generate detailed reports on ridership, on-time performance, route efficiency, and more. Make data-driven decisions for your fleet.",
   },
 ];
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function Home() {
   return (
@@ -106,22 +114,46 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted px-4 py-1.5 text-sm text-muted-foreground">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={fadeInUp}
+              transition={{ duration: 0.5 }}
+              className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted px-4 py-1.5 text-sm text-muted-foreground"
+            >
               Trusted by school districts nationwide
-            </div>
+            </motion.div>
 
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+            <motion.h1
+              initial="hidden"
+              animate="visible"
+              variants={fadeInUp}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"
+            >
               Safe, Smart{" "}
               <span className="text-primary">School Bus Management</span>
-            </h1>
+            </motion.h1>
 
-            <p className="mt-6 text-lg leading-8 text-muted-foreground sm:text-xl">
+            <motion.p
+              initial="hidden"
+              animate="visible"
+              variants={fadeInUp}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mt-6 text-lg leading-8 text-muted-foreground sm:text-xl"
+            >
               The complete platform for school bus fleet management. RFID student tracking,
               real-time GPS monitoring, and automated parent SMS notifications &mdash; all in
               one powerful, easy-to-use dashboard.
-            </p>
+            </motion.p>
 
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={fadeInUp}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+            >
               <Link href="/contact">
                 <Button size="lg" className="gap-2">
                   Request a Demo
@@ -133,19 +165,25 @@ export default function Home() {
                   Explore Features
                 </Button>
               </Link>
-            </div>
+            </motion.div>
           </div>
 
-          <div className="mx-auto mt-16 flex justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mx-auto mt-16 flex justify-center"
+          >
             <Image
               src="/api/r2/bus-mascot.png"
               alt="RouteGuard school bus mascot"
               width={320}
               height={320}
               className="h-auto w-64 drop-shadow-lg sm:w-72 lg:w-80"
+              style={{ animation: "float 3s ease-in-out infinite" }}
               priority
             />
-          </div>
+          </motion.div>
         </div>
 
         {/* Background decoration */}
@@ -158,30 +196,54 @@ export default function Home() {
       <section id="features" className="border-t bg-muted/30 py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <motion.h2
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeInUp}
+              transition={{ duration: 0.5 }}
+              className="text-3xl font-bold tracking-tight sm:text-4xl"
+            >
               Everything you need to manage your fleet
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
+            </motion.h2>
+            <motion.p
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeInUp}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="mt-4 text-lg text-muted-foreground"
+            >
               From route planning to parent communication, RouteGuard covers every aspect
               of school bus operations.
-            </p>
+            </motion.p>
           </div>
 
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature) => (
-              <Card key={feature.title} className="border-0 shadow-sm">
-                <CardHeader>
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <feature.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
+            {features.map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-50px" }}
+                variants={fadeInUp}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                whileHover={{ y: -4 }}
+              >
+                <Card className="h-full border-0 shadow-sm">
+                  <CardHeader>
+                    <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <feature.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {feature.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -191,40 +253,69 @@ export default function Home() {
       <section className="py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-8 text-center sm:grid-cols-3">
-            <div>
-              <p className="text-4xl font-bold text-primary">99.9%</p>
-              <p className="mt-2 text-sm text-muted-foreground">Platform uptime</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-primary">&lt;2s</p>
-              <p className="mt-2 text-sm text-muted-foreground">RFID scan processing</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-primary">24/7</p>
-              <p className="mt-2 text-sm text-muted-foreground">Support available</p>
-            </div>
+            {[
+              { value: "99.9%", label: "Platform uptime" },
+              { value: "<2s", label: "RFID scan processing" },
+              { value: "24/7", label: "Support available" },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-50px" }}
+                variants={fadeInUp}
+                transition={{ duration: 0.4, delay: i * 0.15 }}
+              >
+                <p className="text-4xl font-bold text-primary">{stat.value}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{stat.label}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="border-t bg-primary py-24 text-primary-foreground">
+      <section
+        className="border-t bg-primary py-24 text-primary-foreground"
+        style={{ animation: "pulse-glow 4s ease-in-out infinite" }}
+      >
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          <motion.h2
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInUp}
+            transition={{ duration: 0.5 }}
+            className="text-3xl font-bold tracking-tight sm:text-4xl"
+          >
             Ready to modernize your school bus operations?
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-primary-foreground/80">
+          </motion.h2>
+          <motion.p
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInUp}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mx-auto mt-4 max-w-2xl text-lg text-primary-foreground/80"
+          >
             Join school districts across the country that trust RouteGuard to keep their
             students safe and parents informed.
-          </p>
-          <div className="mt-10">
+          </motion.p>
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInUp}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mt-10"
+          >
             <Link href="/contact">
               <Button size="lg" variant="secondary" className="gap-2">
                 Request a Demo
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </div>
       </section>
 

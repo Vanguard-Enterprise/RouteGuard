@@ -17,6 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Loader2, LogIn, Lock, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { motion } from "motion/react";
 
 const ERROR_MESSAGES: Record<string, string> = {
   unauthorized: "You are not authorized to access this application. Contact your administrator if you believe this is a mistake.",
@@ -165,7 +166,12 @@ function LoginContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-      <div className="w-full max-w-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm"
+      >
         <div className="mb-8 flex flex-col items-center gap-3">
           <Image src="/api/r2/bus-icon.png" alt="RouteGuard" width={72} height={72} className="h-18 w-auto" />
           <span className="text-2xl font-bold tracking-tight">RouteGuard</span>
@@ -283,7 +289,7 @@ function LoginContent() {
           </a>
           .
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
