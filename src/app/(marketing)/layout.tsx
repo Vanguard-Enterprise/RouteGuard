@@ -61,7 +61,7 @@ export default function MarketingLayout({
           <div className="grid gap-8 md:grid-cols-4">
             <div className="space-y-3">
               <Link href="/" className="flex items-center gap-2">
-                <Image src="/api/r2/logo.png" alt="RouteGuard" width={160} height={46} className="h-12 w-auto" />
+                <Image src="/api/r2/logo.png" alt="RouteGuard" width={160} height={50} className="h-12 w-auto" />
               </Link>
               <p className="text-sm text-muted-foreground">
                 Safe, smart school bus management with RFID tracking and real-time GPS.
