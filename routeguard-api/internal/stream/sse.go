@@ -32,7 +32,9 @@ func (s *Writer) Send(event string, data any) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(s.w, "event: %s\ndata: %s\n\n", event, b)
+	if _, err := fmt.Fprintf(s.w, "event: %s\ndata: %s\n\n", event, b); err != nil {
+		return err
+	}
 	s.flusher.Flush()
 	return nil
 }

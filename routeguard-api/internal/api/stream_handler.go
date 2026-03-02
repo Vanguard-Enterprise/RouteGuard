@@ -73,7 +73,10 @@ func (h *Handler) StreamTrips(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Forward the pre-encoded JSON payload without double-encoding.
-			_ = sse.Send(eventName, json.RawMessage(msg.Payload))
+			// Return on write error — the client has likely disconnected.
+			if err := sse.Send(eventName, json.RawMessage(msg.Payload)); err != nil {
+				return
+			}
 
 		case <-ctx.Done():
 			return

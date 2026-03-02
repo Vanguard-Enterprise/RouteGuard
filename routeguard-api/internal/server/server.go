@@ -173,7 +173,7 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("trips:write")).Patch("/trips/{id}", h.UpdateMyTrip)
 
 		// SSE streaming
-		r.Get("/stream/trips", h.StreamTrips)
+		r.With(middleware.RequirePermission("trips:read")).Get("/stream/trips", h.StreamTrips)
 
 		// Reports
 		r.With(middleware.RequirePermission("reports:read")).Get("/reports/daily-summaries", h.ListDailySummaries)
