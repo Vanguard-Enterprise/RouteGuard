@@ -129,6 +129,14 @@ func (s *Server) buildRouter() chi.Router {
 		// Guardians (nested under students)
 		r.With(middleware.RequirePermission("guardians:read")).Get("/students/{studentId}/guardians", h.ListStudentGuardians)
 		r.With(middleware.RequirePermission("guardians:write")).Post("/students/{studentId}/guardians", h.CreateStudentGuardian)
+
+		// Drivers
+		r.With(middleware.RequirePermission("drivers:read")).Get("/drivers", h.ListMyDrivers)
+		r.With(middleware.RequirePermission("drivers:write")).Post("/drivers", h.CreateMyDriver)
+		r.With(middleware.RequirePermission("drivers:read")).Get("/drivers/{id}", h.GetMyDriver)
+		r.With(middleware.RequirePermission("drivers:write")).Patch("/drivers/{id}", h.UpdateMyDriver)
+		r.With(middleware.RequirePermission("drivers:write")).Delete("/drivers/{id}", h.DeleteMyDriver)
+		r.With(middleware.RequirePermission("drivers:write")).Post("/drivers/{id}/set-pin", h.SetDriverPIN)
 	})
 
 	return r
