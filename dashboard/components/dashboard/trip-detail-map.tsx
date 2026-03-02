@@ -1,9 +1,11 @@
 'use client'
 
 import MapView from '@/components/map/map-view'
-import type { Trip } from '@/lib/api'
+import type { Trip, Stop } from '@/lib/api'
+import { useTripStream } from '@/hooks/use-trip-stream'
 
-interface StopRow {
+export interface StopRow {
+  id: string
   name: string
   scheduled_time: string | null
 }
@@ -11,6 +13,7 @@ interface StopRow {
 interface TripDetailMapProps {
   trip: Trip
   stops?: StopRow[]
+  orgId: string
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -34,7 +37,26 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-export default function TripDetailMap({ trip, stops = [] }: TripDetailMapProps) {
+export default function TripDetailMap({ trip, stops = [], orgId }: TripDetailMapProps) {
+  const { locations, scans } = useTripStream(orgId)
+  const busLocation = locations[trip.id]
+
+  // Build scan counts keyed by stop_id
+  const boardCounts: Record<string, number> = {}
+  const exitCounts: Record<string, number> = {}
+  scans.forEach((s) => {
+    if (s.scan_type === 'board') {
+      boardCounts[s.stop_id] = (boardCounts[s.stop_id] ?? 0) + 1
+    } else {
+      exitCounts[s.stop_id] = (exitCounts[s.stop_id] ?? 0) + 1
+    }
+  })
+
+  // Convert StopRow[] to the Stop[] shape MapView expects (only needs lat/lng/sequence_order/name/address)
+  // We pass an empty array here since StopRow doesn't carry coordinates — the full Stop[] is on the page
+  // The parent page should pass stops as Stop[] if available; for now we pass [] to satisfy types.
+  const mapStops: Stop[] = []
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
@@ -57,12 +79,17 @@ export default function TripDetailMap({ trip, stops = [] }: TripDetailMapProps) 
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="relative h-80">
-          <MapView stops={[]} />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-white/90 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-600 shadow-sm">
-              Real-time bus position will appear here
+          <MapView
+            stops={mapStops}
+            busPosition={busLocation ? { lat: busLocation.lat, lng: busLocation.lng } : undefined}
+          />
+          {!busLocation && (
+            <div className="absolute top-3 right-3 pointer-events-none">
+              <span className="bg-white/90 border border-gray-200 rounded px-2.5 py-1 text-xs text-gray-500 shadow-sm">
+                Awaiting GPS signal…
+              </span>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -89,12 +116,12 @@ export default function TripDetailMap({ trip, stops = [] }: TripDetailMapProps) 
               </tr>
             ) : (
               stops.map((stop, idx) => (
-                <tr key={idx} className="border-b border-gray-50 last:border-0">
+                <tr key={stop.id} className="border-b border-gray-50 last:border-0">
                   <td className="px-5 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
                   <td className="px-5 py-2.5 font-medium text-gray-800">{stop.name}</td>
                   <td className="px-5 py-2.5 text-gray-600">{stop.scheduled_time ?? '—'}</td>
-                  <td className="px-5 py-2.5 text-right text-gray-600">0</td>
-                  <td className="px-5 py-2.5 text-right text-gray-600">0</td>
+                  <td className="px-5 py-2.5 text-right text-gray-600">{boardCounts[stop.id] ?? 0}</td>
+                  <td className="px-5 py-2.5 text-right text-gray-600">{exitCounts[stop.id] ?? 0}</td>
                 </tr>
               ))
             )}

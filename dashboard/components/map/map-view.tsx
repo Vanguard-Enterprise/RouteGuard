@@ -12,6 +12,7 @@ interface MapViewProps {
   center?: [number, number]
   zoom?: number
   className?: string
+  busPosition?: { lat: number; lng: number }
 }
 
 export default function MapView({
@@ -19,10 +20,12 @@ export default function MapView({
   center = [-98.5, 39.5],
   zoom = 4,
   className = '',
+  busPosition,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markersRef = useRef<mapboxgl.Marker[]>([])
+  const busMarkerRef = useRef<mapboxgl.Marker | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -98,6 +101,53 @@ export default function MapView({
       map.once('load', addMarkers)
     }
   }, [stops])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    if (!busPosition) {
+      if (busMarkerRef.current) {
+        busMarkerRef.current.remove()
+        busMarkerRef.current = null
+      }
+      return
+    }
+
+    const updateBusMarker = () => {
+      if (busMarkerRef.current) {
+        busMarkerRef.current.setLngLat([busPosition.lng, busPosition.lat])
+      } else {
+        const el = document.createElement('div')
+        el.style.cssText = [
+          'width:34px',
+          'height:34px',
+          'border-radius:50%',
+          'background:#d97706',
+          'color:#fff',
+          'display:flex',
+          'align-items:center',
+          'justify-content:center',
+          'font-size:18px',
+          'border:3px solid #fff',
+          'box-shadow:0 2px 6px rgba(0,0,0,0.4)',
+          'cursor:default',
+          'z-index:10',
+        ].join(';')
+        el.textContent = '\uD83D\uDE8C'
+
+        busMarkerRef.current = new mapboxgl.Marker({ element: el })
+          .setLngLat([busPosition.lng, busPosition.lat])
+          .addTo(map)
+      }
+    }
+
+    if (map.loaded()) {
+      updateBusMarker()
+    } else {
+      map.once('load', updateBusMarker)
+    }
+  }, [busPosition])
 
   return <div ref={containerRef} className={`w-full h-full ${className}`} />
 }

@@ -64,7 +64,8 @@ export default async function TripDetailPage({ params }: PageProps) {
 
       <TripDetailMap
         trip={trip}
-        stops={stops.map((s) => ({ name: s.name, scheduled_time: s.scheduled_time }))}
+        stops={stops.map((s) => ({ id: s.id, name: s.name, scheduled_time: s.scheduled_time }))}
+        orgId={trip.org_id ?? ''}
       />
     </div>
   )
