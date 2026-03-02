@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/repository"
 )
@@ -53,6 +54,9 @@ func (h *Handler) ListMySchools(w http.ResponseWriter, r *http.Request) {
 	offset, _ := strconv.Atoi(offsetStr)
 	if limit <= 0 {
 		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
 	}
 
 	repo := repository.NewSchoolRepo(h.pool)
@@ -157,7 +161,7 @@ func (h *Handler) DeleteMySchool(w http.ResponseWriter, r *http.Request) {
 
 	var studentCount int
 	err := h.pool.QueryRow(r.Context(),
-		"SELECT COUNT(*) FROM students WHERE school_id = $1", id,
+		"SELECT COUNT(*) FROM students WHERE school_id = $1 AND org_id = $2", id, orgID,
 	).Scan(&studentCount)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
@@ -172,6 +176,11 @@ func (h *Handler) DeleteMySchool(w http.ResponseWriter, r *http.Request) {
 	if err := repo.Delete(r.Context(), id, orgID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "school not found")
+			return
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+			Error(w, http.StatusConflict, "school has enrolled students; reassign them before deleting")
 			return
 		}
 		Error(w, http.StatusInternalServerError, "internal server error")
