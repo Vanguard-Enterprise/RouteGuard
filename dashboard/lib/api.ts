@@ -261,8 +261,11 @@ export const api = {
     },
     devices: {
       list: () => request<Device[]>('/admin/devices'),
-      create: (data: Partial<Device>) =>
-        request<Device>('/admin/devices', { method: 'POST', body: JSON.stringify(data) }),
+      create: (data: { serial: string }) =>
+        request<{ device_id: string; serial: string; provisioning_token: string; expires_at: string }>(
+          '/admin/devices',
+          { method: 'POST', body: JSON.stringify(data) },
+        ),
       update: (id: string, data: Partial<Device>) =>
         request<Device>(`/admin/devices/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
       delete: (id: string) => request<void>(`/admin/devices/${id}`, { method: 'DELETE' }),
