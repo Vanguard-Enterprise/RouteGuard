@@ -30,7 +30,8 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const lastPingRef = useRef<number>(0)
   const watchIdRef = useRef<number | null>(null)
 
-  // Load trip manifest from localStorage
+  // Load trip manifest from localStorage (external system → state init)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const raw = localStorage.getItem('trip_manifest')
     if (raw) {
