@@ -24,6 +24,7 @@ export default function DashboardHeader({ user, title = 'Dashboard', orgId }: Da
 
   // Track the timestamp of the last alert we already toasted to avoid re-firing on re-render
   const lastSeenTimestampRef = useRef<string | null>(null)
+  const dismissedRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (streamAlerts.length === 0) return
@@ -48,11 +49,16 @@ export default function DashboardHeader({ user, title = 'Dashboard', orgId }: Da
     })
 
     lastSeenTimestampRef.current = newest.timestamp
-    setLocalAlerts(streamAlerts)
+    // Filter out dismissed alerts when syncing from stream
+    setLocalAlerts(streamAlerts.filter(a => !dismissedRef.current.has(`${a.type}-${a.timestamp}-${a.trip_id}`)))
   }, [streamAlerts])
 
   function handleDismiss(idx: number) {
-    setLocalAlerts((prev) => prev.filter((_, i) => i !== idx))
+    const dismissed = localAlerts[idx]
+    if (dismissed) {
+      dismissedRef.current.add(`${dismissed.type}-${dismissed.timestamp}-${dismissed.trip_id}`)
+    }
+    setLocalAlerts(prev => prev.filter((_, i) => i !== idx))
   }
 
   useEffect(() => {

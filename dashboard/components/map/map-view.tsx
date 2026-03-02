@@ -39,6 +39,13 @@ export default function MapView({
     mapRef.current = map
 
     return () => {
+      // Clean up stop markers
+      markersRef.current.forEach((m) => m.remove())
+      markersRef.current = []
+      // Clean up bus marker
+      busMarkerRef.current?.remove()
+      busMarkerRef.current = null
+      // Remove the map instance
       map.remove()
       mapRef.current = null
     }
