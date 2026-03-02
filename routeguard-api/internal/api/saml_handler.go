@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -254,7 +255,10 @@ func (h *Handler) buildSP(idpMeta *crewsaml.EntityDescriptor) crewsaml.ServicePr
 	metadataURL, _ := url.Parse(h.cfg.APIBaseURL + "/auth/sso/saml/metadata")
 	acsURL, _ := url.Parse(h.cfg.APIBaseURL + "/auth/sso/saml/acs")
 
-	privKey, _ := h.samlKeyPair.PrivateKey.(*rsa.PrivateKey)
+	privKey, ok := h.samlKeyPair.PrivateKey.(*rsa.PrivateKey)
+	if !ok {
+		panic("saml: SP key pair private key is not *rsa.PrivateKey")
+	}
 
 	return crewsaml.ServiceProvider{
 		EntityID:    metadataURL.String(),
@@ -274,7 +278,10 @@ func (h *Handler) resolveIDPMetadata(r *http.Request, conn *domain.SSOConnection
 	if conn.SAMLMetadataURL != nil && *conn.SAMLMetadataURL != "" {
 		u, err := url.Parse(*conn.SAMLMetadataURL)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid saml metadata URL: %w", err)
+		}
+		if u.Scheme != "https" {
+			return nil, fmt.Errorf("saml metadata URL must use HTTPS, got %q", u.Scheme)
 		}
 		return samlsp.FetchMetadata(r.Context(), http.DefaultClient, *u)
 	}
@@ -298,6 +305,17 @@ func (h *Handler) resolveIDPMetadata(r *http.Request, conn *domain.SSOConnection
 
 	if _, err := base64.StdEncoding.DecodeString(certData); err != nil {
 		return nil, errors.New("saml certificate is not valid base64")
+	}
+
+	if conn.SAMLSSOUrl == nil || *conn.SAMLSSOUrl == "" {
+		return nil, fmt.Errorf("SAML connection has no SSO URL")
+	}
+	ssoURL, err := url.Parse(*conn.SAMLSSOUrl)
+	if err != nil {
+		return nil, fmt.Errorf("invalid saml sso URL: %w", err)
+	}
+	if ssoURL.Scheme != "https" {
+		return nil, fmt.Errorf("SAML SSO URL must use HTTPS, got %q", ssoURL.Scheme)
 	}
 
 	return &crewsaml.EntityDescriptor{
@@ -324,7 +342,7 @@ func (h *Handler) resolveIDPMetadata(r *http.Request, conn *domain.SSOConnection
 				SingleSignOnServices: []crewsaml.Endpoint{
 					{
 						Binding:  crewsaml.HTTPRedirectBinding,
-						Location: *conn.SAMLSSOUrl,
+						Location: ssoURL.String(),
 					},
 				},
 			},
