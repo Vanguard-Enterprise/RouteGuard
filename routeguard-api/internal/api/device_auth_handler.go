@@ -168,19 +168,13 @@ func (h *Handler) DriverPINAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	driverRepo := repository.NewDriverRepo(h.pool)
-	driver, err := driverRepo.FindByID(r.Context(), req.DriverID)
+	driver, err := driverRepo.FindByIDAndOrg(r.Context(), req.DriverID, device.OrgID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusUnauthorized, "invalid credentials")
 		} else {
 			Error(w, http.StatusInternalServerError, "internal server error")
 		}
-		return
-	}
-
-	// Enforce org scoping — the driver must belong to the same org as the device.
-	if driver.OrgID != device.OrgID {
-		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

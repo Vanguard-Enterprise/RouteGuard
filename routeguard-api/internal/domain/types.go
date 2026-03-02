@@ -120,7 +120,7 @@ type Device struct {
 	ID              string          `json:"id"`
 	OrgID           string          `json:"org_id"`
 	Serial          string          `json:"serial"`
-	DeviceTokenHash string          `json:"device_token_hash"`
+	DeviceTokenHash string          `json:"-"`
 	Status          string          `json:"status"`
 	VehicleID       *string         `json:"vehicle_id"`
 	SeatCount       *int            `json:"seat_count"`

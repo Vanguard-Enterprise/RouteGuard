@@ -38,6 +38,27 @@ func (r *DriverRepo) FindByID(ctx context.Context, id string) (*domain.Driver, e
 	return &d, nil
 }
 
+// FindByIDAndOrg looks up an active driver by ID scoped to the given org.
+// Returns pgx.ErrNoRows if not found OR if the driver belongs to a different org.
+func (r *DriverRepo) FindByIDAndOrg(ctx context.Context, id, orgID string) (*domain.Driver, error) {
+	var d domain.Driver
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, user_id, first_name, last_name, phone,
+		       license_number, license_expiry, pin_hash,
+		       rfid_badge_id, rfid_badge_id_hash, status, created_at, updated_at
+		FROM drivers
+		WHERE id = $1 AND org_id = $2
+	`, id, orgID).Scan(
+		&d.ID, &d.OrgID, &d.UserID, &d.FirstName, &d.LastName, &d.Phone,
+		&d.LicenseNumber, &d.LicenseExpiry, &d.PinHash,
+		&d.RFIDBadgeID, &d.RFIDBadgeIDHash, &d.Status, &d.CreatedAt, &d.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &d, nil
+}
+
 // FindByRFIDHash looks up an active driver by their RFID badge ID hash within an org.
 // Returns pgx.ErrNoRows if no active driver with that hash exists in the org.
 func (r *DriverRepo) FindByRFIDHash(ctx context.Context, rfidHash, orgID string) (*domain.Driver, error) {

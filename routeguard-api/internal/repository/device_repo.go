@@ -107,6 +107,16 @@ func (r *DeviceRepo) Create(ctx context.Context, orgID, serial, tokenHash string
 	return &d, nil
 }
 
+// FindTokenHash returns the device_token_hash for a device by ID.
+// Used exclusively for credential verification — bypasses cache.
+func (r *DeviceRepo) FindTokenHash(ctx context.Context, id string) (string, error) {
+	var hash string
+	err := r.pool.QueryRow(ctx,
+		"SELECT device_token_hash FROM devices WHERE id = $1", id,
+	).Scan(&hash)
+	return hash, err
+}
+
 // UpdateLastSeen records the current unix timestamp for the device in Redis.
 // Key: "device_last_seen:<id>", TTL: 2 minutes.
 func (r *DeviceRepo) UpdateLastSeen(ctx context.Context, id string, c *cache.Cache) error {

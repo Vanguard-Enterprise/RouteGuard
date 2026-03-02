@@ -62,7 +62,7 @@ func DeviceAuthenticate(pool *pgxpool.Pool, c *cache.Cache) func(http.Handler) h
 			deviceID := credential[:colonIdx]
 			rawToken := credential[colonIdx+1:]
 
-			// Look up device using the cache-first strategy.
+			// Look up device metadata using the cache-first strategy.
 			deviceRepo := repository.NewDeviceRepo(pool)
 			device, err := deviceRepo.FindByIDAndCache(r.Context(), deviceID, c)
 			if err != nil {
@@ -74,8 +74,20 @@ func DeviceAuthenticate(pool *pgxpool.Pool, c *cache.Cache) func(http.Handler) h
 				return
 			}
 
+			// Load the token hash directly from the DB — it is excluded from cache
+			// (json:"-") to prevent the bcrypt hash from being stored in Redis.
+			tokenHash, err := deviceRepo.FindTokenHash(r.Context(), deviceID)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					api.Error(w, http.StatusUnauthorized, "unauthorized")
+				} else {
+					api.Error(w, http.StatusInternalServerError, "internal server error")
+				}
+				return
+			}
+
 			// Validate the raw token against the stored bcrypt hash.
-			if err := crypto.CheckPassword(rawToken, device.DeviceTokenHash); err != nil {
+			if err := crypto.CheckPassword(rawToken, tokenHash); err != nil {
 				api.Error(w, http.StatusUnauthorized, "unauthorized")
 				return
 			}
