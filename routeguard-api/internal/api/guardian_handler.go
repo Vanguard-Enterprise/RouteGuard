@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/repository"
@@ -20,6 +22,25 @@ type createGuardianRequest struct {
 	Language     string  `json:"language"`
 	Relationship string  `json:"relationship"`
 	IsPrimary    bool    `json:"is_primary"`
+}
+
+// decryptGuardian decrypts the encrypted phone fields on a GuardianWithLink in-place.
+func (h *Handler) decryptGuardian(g *repository.GuardianWithLink) error {
+	if g.Phone != "" {
+		plain, err := h.decryptOptional(&g.Phone)
+		if err != nil {
+			return err
+		}
+		if plain != nil {
+			g.Phone = *plain
+		}
+	}
+	dec, err := h.decryptOptional(g.AltPhone)
+	if err != nil {
+		return err
+	}
+	g.AltPhone = dec
+	return nil
 }
 
 // ListStudentGuardians handles GET /dashboard/students/{studentId}/guardians
@@ -40,27 +61,10 @@ func (h *Handler) ListStudentGuardians(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range guardians {
-		g := &guardians[i]
-
-		// Decrypt Phone (required, non-pointer string).
-		if g.Phone != "" {
-			plain, err := h.decryptOptional(&g.Phone)
-			if err != nil {
-				Error(w, http.StatusInternalServerError, "internal server error")
-				return
-			}
-			if plain != nil {
-				g.Phone = *plain
-			}
-		}
-
-		// Decrypt AltPhone (optional pointer).
-		decAltPhone, err := h.decryptOptional(g.AltPhone)
-		if err != nil {
+		if err := h.decryptGuardian(&guardians[i]); err != nil {
 			Error(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
-		g.AltPhone = decAltPhone
 	}
 
 	JSON(w, http.StatusOK, guardians)
@@ -117,28 +121,18 @@ func (h *Handler) CreateStudentGuardian(w http.ResponseWriter, r *http.Request) 
 		req.Language, req.Relationship, req.IsPrimary,
 	)
 	if err != nil {
-		Error(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
-	// Decrypt phone fields before returning.
-	if gwl.Phone != "" {
-		plain, err := h.decryptOptional(&gwl.Phone)
-		if err != nil {
-			Error(w, http.StatusInternalServerError, "internal server error")
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusNotFound, "student not found")
 			return
 		}
-		if plain != nil {
-			gwl.Phone = *plain
-		}
-	}
-
-	decAltPhone, err := h.decryptOptional(gwl.AltPhone)
-	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	gwl.AltPhone = decAltPhone
+
+	if err := h.decryptGuardian(gwl); err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
 
 	JSON(w, http.StatusCreated, gwl)
 }

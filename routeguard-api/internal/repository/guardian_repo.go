@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/domain"
 )
@@ -75,6 +76,18 @@ func (r *GuardianRepo) CreateWithLink(
 		return nil, fmt.Errorf("guardian create: begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Step 0: Verify student belongs to this org.
+	var exists bool
+	if err := tx.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM students WHERE id = $1 AND org_id = $2)`,
+		studentID, orgID,
+	).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("guardian create: verify student: %w", err)
+	}
+	if !exists {
+		return nil, pgx.ErrNoRows
+	}
 
 	var gwl GuardianWithLink
 

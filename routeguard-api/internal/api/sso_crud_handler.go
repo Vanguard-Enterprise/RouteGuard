@@ -98,7 +98,7 @@ type updateSSOBody struct {
 // encryptOptional encrypts a plaintext pointer if non-nil and non-empty.
 // Returns nil if the input is nil (no change intended).
 func (h *Handler) encryptOptional(plaintext *string) (*string, error) {
-	if plaintext == nil {
+	if plaintext == nil || *plaintext == "" {
 		return nil, nil
 	}
 	enc, err := crypto.Encrypt(h.cfg.DataEncryptionKey, *plaintext)
