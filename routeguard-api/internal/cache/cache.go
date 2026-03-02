@@ -50,12 +50,19 @@ func (c *Cache) Publish(ctx context.Context, channel string, payload any) error 
 	return c.client.Publish(ctx, channel, data).Err()
 }
 
+// Subscribe subscribes to the given channels. The caller is responsible
+// for calling Close() on the returned *redis.PubSub when done to avoid
+// connection and goroutine leaks.
 func (c *Cache) Subscribe(ctx context.Context, channels ...string) *redis.PubSub {
 	return c.client.Subscribe(ctx, channels...)
 }
 
 func (c *Cache) Ping(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()
+}
+
+func (c *Cache) Close() error {
+	return c.client.Close()
 }
 
 // IsNotFound returns true if the error is a cache miss

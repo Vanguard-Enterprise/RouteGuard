@@ -4,6 +4,8 @@ package domain
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // ============================================================
@@ -226,7 +228,7 @@ type Driver struct {
 	LastName        string     `json:"last_name"`
 	Phone           *string    `json:"phone"`
 	LicenseNumber   *string    `json:"license_number"`
-	LicenseExpiry   *time.Time `json:"license_expiry"`
+	LicenseExpiry   *pgtype.Date `json:"license_expiry"`
 	PinHash         *string    `json:"pin_hash"`
 	RFIDBadgeID     *string    `json:"rfid_badge_id"`
 	RFIDBadgeIDHash *string    `json:"rfid_badge_id_hash"`
@@ -272,8 +274,8 @@ type StudentStop struct {
 	StudentID     string     `json:"student_id"`
 	StopID        string     `json:"stop_id"`
 	RouteID       string     `json:"route_id"`
-	EffectiveDate *time.Time `json:"effective_date"`
-	EndDate       *time.Time `json:"end_date"`
+	EffectiveDate *pgtype.Date `json:"effective_date"`
+	EndDate       *pgtype.Date `json:"end_date"`
 }
 
 // RouteAssignment maps to the route_assignments table.
@@ -282,9 +284,9 @@ type RouteAssignment struct {
 	RouteID       string     `json:"route_id"`
 	VehicleID     string     `json:"vehicle_id"`
 	DriverID      string     `json:"driver_id"`
-	EffectiveDate *time.Time `json:"effective_date"`
-	EndDate       *time.Time `json:"end_date"`
-	DaysOfWeek    string     `json:"days_of_week"`
+	EffectiveDate *pgtype.Date `json:"effective_date"`
+	EndDate       *pgtype.Date `json:"end_date"`
+	DaysOfWeek    string       `json:"days_of_week"`
 	CreatedAt     time.Time  `json:"created_at"`
 }
 
@@ -297,9 +299,9 @@ type Trip struct {
 	ID                string     `json:"id"`
 	RouteAssignmentID string     `json:"route_assignment_id"`
 	OrgID             string     `json:"org_id"`
-	Date              time.Time  `json:"date"`
-	Status            string     `json:"status"`
-	StartedAt         *time.Time `json:"started_at"`
+	Date              pgtype.Date `json:"date"`
+	Status            string      `json:"status"`
+	StartedAt         *time.Time  `json:"started_at"`
 	CompletedAt       *time.Time `json:"completed_at"`
 	Notes             *string    `json:"notes"`
 	CreatedAt         time.Time  `json:"created_at"`
@@ -351,8 +353,8 @@ type DailySummary struct {
 	ID            string     `json:"id"`
 	OrgID         string     `json:"org_id"`
 	RouteID       string     `json:"route_id"`
-	Date          time.Time  `json:"date"`
-	TotalStudents int        `json:"total_students"`
+	Date          pgtype.Date `json:"date"`
+	TotalStudents int         `json:"total_students"`
 	BoardedCount  int        `json:"boarded_count"`
 	OnTime        bool       `json:"on_time"`
 	DelayMinutes  *int       `json:"delay_minutes"`
