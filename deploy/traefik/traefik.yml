@@ -1,0 +1,42 @@
+api:
+  insecure: false
+  dashboard: false
+
+log:
+  level: INFO
+
+accessLog: {}
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@route-guard.com
+      storage: /certs/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: rg-net
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+serversTransport:
+  insecureSkipVerify: false
