@@ -1,3 +1,14 @@
+# Environment files (anywhere in repo)
+.env
+.env.*
+!.env.example
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
 # Dashboard
 dashboard/node_modules/
 dashboard/.next/
