@@ -70,6 +70,12 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/pin", h.DriverPINAuth)
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/rfid", h.DriverRFIDAuth)
 
+	// Trip lifecycle — trip session auth (issued after driver PIN/RFID auth)
+	tripSessionAuth := middleware.TripSessionAuthenticate(s.cache)
+	r.With(tripSessionAuth).Post("/api/v1/trips/start", h.StartTrip)
+	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/location", h.RecordLocation)
+	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/end", h.EndTrip)
+
 	// Admin routes — staff only
 	r.Route("/admin", func(r chi.Router) {
 		r.Use(middleware.Authenticate(s.cache))

@@ -14,6 +14,7 @@ import (
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/deviceauth"
 	"github.com/routeguard/api/internal/repository"
+	"github.com/routeguard/api/internal/tripauth"
 )
 
 const (
@@ -26,14 +27,6 @@ const (
 type provisionTokenPayload struct {
 	OrgID  string `json:"org_id"`
 	Serial string `json:"serial"`
-}
-
-// TripSessionPayload is stored in Redis under "trip_session:<token>" after a driver
-// authenticates via PIN or RFID.
-type TripSessionPayload struct {
-	DriverID string `json:"driver_id"`
-	DeviceID string `json:"device_id"`
-	OrgID    string `json:"org_id"`
 }
 
 // provisionRequest is the request body for POST /api/v1/devices/provision.
@@ -249,7 +242,7 @@ func issueTripSession(r *http.Request, c *cache.Cache, driverID, deviceID, orgID
 	if err != nil {
 		return "", err
 	}
-	payload := TripSessionPayload{
+	payload := tripauth.TripSessionPayload{
 		DriverID: driverID,
 		DeviceID: deviceID,
 		OrgID:    orgID,
