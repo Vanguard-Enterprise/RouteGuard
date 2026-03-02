@@ -237,7 +237,7 @@ func (r *TripDeviceRepo) ListStopsWithStudents(ctx context.Context, routeID, org
 	studentRows, err := r.pool.Query(ctx, `
 		SELECT ss.stop_id,
 		       s.id, s.org_id, s.school_id, s.first_name, s.last_name,
-		       s.student_number, s.grade, s.rfid_tag_id, s.address,
+		       s.student_number, s.grade, s.rfid_tag_id, s.rfid_tag_id_hash, s.address,
 		       s.city, s.state, s.zip, s.lat, s.lng,
 		       s.status, s.medical_notes, s.created_at, s.updated_at
 		FROM students s
@@ -260,7 +260,7 @@ func (r *TripDeviceRepo) ListStopsWithStudents(ctx context.Context, routeID, org
 		if err := studentRows.Scan(
 			&stopID,
 			&st.ID, &st.OrgID, &st.SchoolID, &st.FirstName, &st.LastName,
-			&st.StudentNumber, &st.Grade, &st.RFIDTagID, &st.Address,
+			&st.StudentNumber, &st.Grade, &st.RFIDTagID, &st.RFIDTagIDHash, &st.Address,
 			&st.City, &st.State, &st.Zip, &st.Lat, &st.Lng,
 			&st.Status, &st.MedicalNotes, &st.CreatedAt, &st.UpdatedAt,
 		); err != nil {

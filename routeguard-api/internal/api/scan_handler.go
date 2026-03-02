@@ -129,6 +129,13 @@ func (h *Handler) RecordScan(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
+	if student != nil {
+		if err := h.decryptStudent(student); err != nil {
+			Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+
 	resp := recordScanResponse{
 		Authorized: authorized,
 		ScanEvent:  scanEvent,

@@ -325,7 +325,7 @@ type ScanEvent struct {
 	TripID     string    `json:"trip_id"`
 	StudentID  *string   `json:"student_id"`
 	StopID     *string   `json:"stop_id"`
-	RFIDTagID  string    `json:"rfid_tag_id"`
+	RFIDTagID  string    `json:"-"`
 	ScanType   string    `json:"scan_type"`
 	Authorized bool      `json:"authorized"`
 	RecordedAt time.Time `json:"recorded_at"`

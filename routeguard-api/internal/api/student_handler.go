@@ -144,7 +144,7 @@ func (h *Handler) CreateMyStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var rfidHash *string
-	if req.RFIDTagID != nil {
+	if req.RFIDTagID != nil && *req.RFIDTagID != "" {
 		hv := hashRFID(*req.RFIDTagID)
 		rfidHash = &hv
 	}
@@ -222,7 +222,7 @@ func (h *Handler) UpdateMyStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var rfidHash *string
-	if req.RFIDTagID != nil {
+	if req.RFIDTagID != nil && *req.RFIDTagID != "" {
 		hv := hashRFID(*req.RFIDTagID)
 		rfidHash = &hv
 	}
@@ -363,7 +363,7 @@ func (h *Handler) ImportStudents(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		var rfidHash *string
-		if rfidTagID != nil {
+		if rfidTagID != nil && *rfidTagID != "" {
 			hv := hashRFID(*rfidTagID)
 			rfidHash = &hv
 		}
