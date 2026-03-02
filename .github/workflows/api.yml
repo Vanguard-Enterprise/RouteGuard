@@ -1,0 +1,47 @@
+name: Build & Deploy API
+
+on:
+  push:
+    branches: [main, feature/rework]
+    paths:
+      - "routeguard-api/**"
+      - ".github/workflows/api.yml"
+
+jobs:
+  build-deploy:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: routeguard-api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: routeguard-api/go.sum
+
+      - name: Run tests
+        run: go test ./... -v -count=1
+
+      - name: Build Docker image
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker build \
+            -t localhost:5000/routeguard-api:latest \
+            -t localhost:5000/routeguard-api:${{ github.sha }} \
+            routeguard-api/
+
+      - name: Push to local registry
+        run: |
+          docker push localhost:5000/routeguard-api:latest
+          docker push localhost:5000/routeguard-api:${{ github.sha }}
+
+      - name: Deploy
+        working-directory: ${{ github.workspace }}/deploy
+        run: |
+          docker compose pull routeguard-api
+          docker compose up -d --no-deps --force-recreate routeguard-api

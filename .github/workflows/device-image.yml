@@ -1,0 +1,30 @@
+name: Build Device Image
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build RPi image via pi-gen Docker
+        run: |
+          cd device/pi-gen
+          docker build -t routeguard-pi-gen-builder .
+          mkdir -p output
+          docker run --rm --privileged \
+            -v "$(pwd)/output:/pi-gen/deploy" \
+            routeguard-pi-gen-builder
+
+      - name: Upload image to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: device/pi-gen/output/*.img.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
