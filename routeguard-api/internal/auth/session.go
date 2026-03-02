@@ -93,11 +93,12 @@ func SetSessionCookie(w http.ResponseWriter, token string, secure bool) {
 // Domain and Path must match the original cookie exactly for browsers to delete it.
 func ClearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   SessionCookieName,
-		Value:  "",
-		Path:   "/",
-		Domain: ".route-guard.com",
-		MaxAge: -1,
+		Name:     SessionCookieName,
+		Value:    "",
+		Path:     "/",
+		Domain:   ".route-guard.com",
+		HttpOnly: true,
+		MaxAge:   -1,
 	})
 }
 

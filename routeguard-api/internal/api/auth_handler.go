@@ -10,6 +10,10 @@ import (
 	"github.com/routeguard/api/internal/repository"
 )
 
+// notFoundHash is a pre-computed bcrypt hash used on the "user not found" path
+// to prevent email enumeration via timing side-channel.
+var notFoundHash, _ = crypto.HashPassword("routeguard-dummy-for-timing-safety-do-not-use")
+
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -33,6 +37,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	user, passwordHash, err := userRepo.FindByEmailAndProvider(r.Context(), req.Email, "password")
 	if err != nil {
 		if err == pgx.ErrNoRows {
+			// Dummy comparison to prevent email enumeration via timing side-channel.
+			_ = crypto.CheckPassword(req.Password, notFoundHash)
 			Error(w, http.StatusUnauthorized, "invalid credentials")
 		} else {
 			Error(w, http.StatusInternalServerError, "internal server error")

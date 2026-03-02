@@ -375,17 +375,3 @@ type AuditLog struct {
 	CreatedAt  time.Time       `json:"created_at"`
 }
 
-// ============================================================
-// Redis Session (not a DB table)
-// ============================================================
-
-// Session is stored in Redis and represents an authenticated user session.
-type Session struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
-	OrgID     *string   `json:"org_id"`
-	IsStaff   bool      `json:"is_staff"`
-	Roles     []string  `json:"roles"`
-	CreatedAt time.Time `json:"created_at"`
-	ExpiresAt time.Time `json:"expires_at"`
-}

@@ -69,7 +69,7 @@ func (r *UserRepo) GetUserPermissions(ctx context.Context, userID string) ([]str
 	}
 	defer rows.Close()
 
-	var permissions []string
+	permissions := make([]string, 0)
 	for rows.Next() {
 		var p string
 		if err := rows.Scan(&p); err != nil {
