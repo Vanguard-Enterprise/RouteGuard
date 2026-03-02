@@ -8,16 +8,8 @@ log:
 accessLog: {}
 
 entryPoints:
-  web:
-    address: ":80"
-    http:
-      redirections:
-        entrypoint:
-          to: websecure
-          scheme: https
-          permanent: true
   websecure:
-    address: ":443"
+    address: ":8443"
     http:
       tls:
         certResolver: letsencrypt
@@ -27,8 +19,11 @@ certificatesResolvers:
     acme:
       email: admin@route-guard.com
       storage: /certs/acme.json
-      httpChallenge:
-        entryPoint: web
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
 
 providers:
   docker:

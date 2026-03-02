@@ -5,8 +5,9 @@ services:
     image: traefik:v3.1
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "8443:8443"
+    environment:
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
