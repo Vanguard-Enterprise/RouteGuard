@@ -59,11 +59,11 @@ CREATE TABLE sso_connections (
   enabled             BOOLEAN NOT NULL DEFAULT TRUE,
   oidc_issuer_url     TEXT,
   oidc_client_id      TEXT,
-  oidc_client_secret  TEXT,
+  oidc_client_secret_enc  TEXT, -- AES-256-GCM encrypted
   oidc_scopes         TEXT NOT NULL DEFAULT 'openid email profile',
   saml_entity_id      TEXT,
   saml_sso_url        TEXT,
-  saml_certificate    TEXT,
+  saml_certificate_enc  TEXT, -- AES-256-GCM encrypted
   saml_metadata_url   TEXT,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -148,7 +148,7 @@ CREATE INDEX idx_schools_org_id ON schools(org_id);
 CREATE TABLE students (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id         UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  school_id      UUID NOT NULL REFERENCES schools(id),
+  school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
   first_name     TEXT NOT NULL,
   last_name      TEXT NOT NULL,
   student_number TEXT,
@@ -286,9 +286,9 @@ CREATE INDEX idx_student_stops_stop_id ON student_stops(stop_id);
 
 CREATE TABLE route_assignments (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  route_id       UUID NOT NULL REFERENCES routes(id),
-  vehicle_id     UUID NOT NULL REFERENCES vehicles(id),
-  driver_id      UUID NOT NULL REFERENCES drivers(id),
+  route_id       UUID NOT NULL REFERENCES routes(id) ON DELETE RESTRICT,
+  vehicle_id     UUID NOT NULL REFERENCES vehicles(id) ON DELETE RESTRICT,
+  driver_id      UUID NOT NULL REFERENCES drivers(id) ON DELETE RESTRICT,
   effective_date DATE,
   end_date       DATE,
   days_of_week   TEXT NOT NULL DEFAULT 'MTWRF',
@@ -304,7 +304,7 @@ CREATE INDEX idx_route_assignments_driver_id ON route_assignments(driver_id);
 CREATE TABLE trips (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   route_assignment_id UUID NOT NULL REFERENCES route_assignments(id),
-  org_id              UUID NOT NULL REFERENCES organizations(id),
+  org_id              UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   date                DATE NOT NULL,
   status              TEXT NOT NULL DEFAULT 'scheduled'
                         CHECK (status IN ('scheduled','in_progress','completed','cancelled')),
@@ -364,8 +364,8 @@ CREATE INDEX idx_sms_messages_trip_id ON sms_messages(trip_id);
 
 CREATE TABLE daily_summaries (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id         UUID NOT NULL REFERENCES organizations(id),
-  route_id       UUID NOT NULL REFERENCES routes(id),
+  org_id         UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  route_id       UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
   date           DATE NOT NULL,
   total_students INTEGER NOT NULL DEFAULT 0,
   boarded_count  INTEGER NOT NULL DEFAULT 0,
