@@ -46,8 +46,11 @@ func (s *Server) buildRouter() chi.Router {
 		w.Write([]byte("ok"))
 	})
 
+	// Twilio webhook (no auth — Twilio calls this directly)
+	r.Post("/webhooks/twilio/status", h.TwilioStatusWebhook)
+
 	// Auth routes
-	r.Post("/auth/login", h.Login)
+	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/login", h.Login)
 	r.Post("/auth/logout", h.Logout)
 	r.With(middleware.Authenticate(s.cache)).Get("/auth/me", h.Me)
 
@@ -61,14 +64,14 @@ func (s *Server) buildRouter() chi.Router {
 	r.Post("/auth/sso/saml/acs", h.SAMLACS)
 
 	// Device provisioning (no device auth — this is how devices obtain their credential)
-	r.Post("/api/v1/devices/provision", h.ProvisionDevice)
+	r.With(middleware.RateLimit(s.cache, 20)).Post("/api/v1/devices/provision", h.ProvisionDevice)
 
 	// Device-authenticated routes
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/devices/heartbeat", h.DeviceHeartbeat)
 
 	// Driver auth — PIN and RFID (device auth required; auth comes from the device hardware)
-	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/pin", h.DriverPINAuth)
-	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/rfid", h.DriverRFIDAuth)
+	r.With(middleware.DeviceAuthenticate(s.pool, s.cache), middleware.RateLimit(s.cache, 20)).Post("/api/v1/auth/pin", h.DriverPINAuth)
+	r.With(middleware.DeviceAuthenticate(s.pool, s.cache), middleware.RateLimit(s.cache, 20)).Post("/api/v1/auth/rfid", h.DriverRFIDAuth)
 
 	// Trip lifecycle — trip session auth (issued after driver PIN/RFID auth)
 	tripSessionAuth := middleware.TripSessionAuthenticate(s.cache)

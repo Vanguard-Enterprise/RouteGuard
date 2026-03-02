@@ -77,3 +77,14 @@ func (c *Cache) Close() error {
 func (c *Cache) IsNotFound(err error) bool {
 	return err == redis.Nil
 }
+
+// Incr increments key by 1 and returns the new value.
+func (c *Cache) Incr(ctx context.Context, key string) (int64, error) {
+	return c.client.Incr(ctx, key).Result()
+}
+
+// Expire sets the TTL for a key. This is called after Incr to start the rate
+// limit window on the first request in the window.
+func (c *Cache) Expire(ctx context.Context, key string, ttl time.Duration) error {
+	return c.client.Expire(ctx, key, ttl).Err()
+}
