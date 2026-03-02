@@ -1,0 +1,15 @@
+[Unit]
+Description=RouteGuard Kiosk Mode
+After=routeguard-provision.service
+Requires=routeguard-provision.service
+
+[Service]
+User=routeguard
+Environment=DISPLAY=:0
+ExecStartPre=/usr/bin/Xorg :0 &
+ExecStart=/usr/local/bin/rg-kiosk.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

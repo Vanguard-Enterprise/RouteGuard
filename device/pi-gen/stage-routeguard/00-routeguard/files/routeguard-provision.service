@@ -1,0 +1,15 @@
+[Unit]
+Description=RouteGuard Device Provisioning
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/boot/provision.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rg-provision
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
