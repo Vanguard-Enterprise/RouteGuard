@@ -21,6 +21,22 @@ func NewDriverRepo(pool *pgxpool.Pool) *DriverRepo {
 	return &DriverRepo{pool: pool}
 }
 
+const driverSelectCols = `
+    id, org_id, user_id, first_name, last_name, phone, license_number,
+    license_expiry, pin_hash, rfid_badge_id, rfid_badge_id_hash,
+    status, created_at, updated_at
+`
+
+func scanDriver(row pgx.Row) (*domain.Driver, error) {
+	var d domain.Driver
+	err := row.Scan(
+		&d.ID, &d.OrgID, &d.UserID, &d.FirstName, &d.LastName,
+		&d.Phone, &d.LicenseNumber, &d.LicenseExpiry, &d.PinHash,
+		&d.RFIDBadgeID, &d.RFIDBadgeIDHash, &d.Status, &d.CreatedAt, &d.UpdatedAt,
+	)
+	return &d, err
+}
+
 // FindByID looks up a driver by their primary key.
 // Returns pgx.ErrNoRows if not found.
 func (r *DriverRepo) FindByID(ctx context.Context, id string) (*domain.Driver, error) {
@@ -45,22 +61,6 @@ func (r *DriverRepo) FindByRFIDHash(ctx context.Context, rfidHash, orgID string)
 		`SELECT `+driverSelectCols+` FROM drivers WHERE rfid_badge_id_hash = $1 AND org_id = $2 AND status = 'active'`,
 		rfidHash, orgID)
 	return scanDriver(row)
-}
-
-const driverSelectCols = `
-    id, org_id, user_id, first_name, last_name, phone, license_number,
-    license_expiry, pin_hash, rfid_badge_id, rfid_badge_id_hash,
-    status, created_at, updated_at
-`
-
-func scanDriver(row pgx.Row) (*domain.Driver, error) {
-	var d domain.Driver
-	err := row.Scan(
-		&d.ID, &d.OrgID, &d.UserID, &d.FirstName, &d.LastName,
-		&d.Phone, &d.LicenseNumber, &d.LicenseExpiry, &d.PinHash,
-		&d.RFIDBadgeID, &d.RFIDBadgeIDHash, &d.Status, &d.CreatedAt, &d.UpdatedAt,
-	)
-	return &d, err
 }
 
 // ListByOrg returns drivers for an org ordered by last_name, first_name.
@@ -214,5 +214,3 @@ func (r *DriverRepo) DeleteDriver(ctx context.Context, id, orgID string) error {
 	}
 	return nil
 }
-
-var _ = strings.Join
