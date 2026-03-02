@@ -389,4 +389,4 @@ CREATE TABLE audit_logs (
 );
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
 CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
-CREATE INDEX idx_audit_logs_metadata_org ON audit_logs((metadata->>'org_id'));
+CREATE INDEX idx_audit_logs_org ON audit_logs((metadata->>'org_id'));
