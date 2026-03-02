@@ -103,10 +103,10 @@ func (s *Server) buildRouter() chi.Router {
 		r.Use(middleware.Authenticate(s.cache))
 
 		// SSO settings (org admin permission required)
-		r.Get("/settings/sso", h.ListMySSO)
-		r.Post("/settings/sso", h.CreateMySSO)
-		r.Patch("/settings/sso/{id}", h.UpdateMySSO)
-		r.Delete("/settings/sso/{id}", h.DeleteMySSO)
+		r.With(middleware.RequirePermission("org:manage")).Get("/settings/sso", h.ListMySSO)
+		r.With(middleware.RequirePermission("org:manage")).Post("/settings/sso", h.CreateMySSO)
+		r.With(middleware.RequirePermission("org:manage")).Patch("/settings/sso/{id}", h.UpdateMySSO)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/settings/sso/{id}", h.DeleteMySSO)
 
 		// Audit logs (org admin permission required)
 		r.With(middleware.RequirePermission("org:manage")).Get("/audit-logs", h.ListMyAuditLogs)

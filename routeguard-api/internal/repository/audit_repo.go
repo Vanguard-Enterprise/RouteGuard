@@ -49,7 +49,7 @@ func (r *AuditRepo) List(ctx context.Context, orgID string, limit, offset int) (
 		SELECT id, actor_id, actor_type, action,
 		       target_type, target_id, metadata, ip_address, created_at
 		FROM audit_logs
-		WHERE org_id = $1
+		WHERE metadata->>'org_id' = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`, orgID, limit, offset)
