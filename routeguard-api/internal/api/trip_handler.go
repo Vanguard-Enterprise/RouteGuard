@@ -53,6 +53,10 @@ func (h *Handler) ListMyTrips(w http.ResponseWriter, r *http.Request) {
 	}
 	var dateFilter *string
 	if d := r.URL.Query().Get("date"); d != "" {
+		if _, err := time.Parse("2006-01-02", d); err != nil {
+			Error(w, http.StatusBadRequest, "date must be in YYYY-MM-DD format")
+			return
+		}
 		dateFilter = &d
 	}
 

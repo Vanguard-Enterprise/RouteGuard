@@ -85,7 +85,7 @@ func (r *TripRepo) List(ctx context.Context, orgID string, limit, offset int, st
 			&t.ID, &t.RouteAssignmentID, &t.OrgID, &t.Date, &t.Status,
 			&t.StartedAt, &t.CompletedAt, &t.Notes, &t.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("trip list: %w", err)
 		}
 		trips = append(trips, t)
 	}
