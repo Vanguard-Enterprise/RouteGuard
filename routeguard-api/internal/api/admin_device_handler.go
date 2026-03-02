@@ -58,10 +58,6 @@ func (h *Handler) CreateAdminDevice(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "org_id is required")
 		return
 	}
-	if req.Serial == "" {
-		req.Serial = ""
-	}
-
 	repo := repository.NewDeviceRepo(h.pool)
 	device, err := repo.CreateUnprovisioned(r.Context(), req.OrgID, req.Serial)
 	if err != nil {
