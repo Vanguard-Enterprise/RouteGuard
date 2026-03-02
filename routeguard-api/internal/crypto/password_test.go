@@ -1,6 +1,7 @@
 package crypto_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/routeguard/api/internal/crypto"
@@ -21,8 +22,14 @@ func TestBcryptHashAndVerify(t *testing.T) {
 }
 
 func TestBcryptHashesAreDifferent(t *testing.T) {
-	h1, _ := crypto.HashPassword("password")
-	h2, _ := crypto.HashPassword("password")
+	h1, err := crypto.HashPassword("password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h2, err := crypto.HashPassword("password")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if h1 == h2 {
 		t.Fatal("bcrypt hashes for same password should differ (different salts)")
 	}
@@ -43,8 +50,14 @@ func TestArgon2HashAndVerify(t *testing.T) {
 }
 
 func TestArgon2HashesAreDifferent(t *testing.T) {
-	h1, _ := crypto.HashPIN("1234")
-	h2, _ := crypto.HashPIN("1234")
+	h1, err := crypto.HashPIN("1234")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h2, err := crypto.HashPIN("1234")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if h1 == h2 {
 		t.Fatal("argon2 hashes for same PIN should differ (different salts)")
 	}
@@ -55,9 +68,10 @@ func TestArgon2HashFormat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Must start with $argon2id$
-	if len(hash) < 10 || hash[:9] != "$argon2id" {
-		t.Fatalf("hash does not start with $argon2id: %q", hash)
+	// Must start with the full PHC prefix including parameters
+	prefix := "$argon2id$v=19$m=65536,t=3,p=4$"
+	if !strings.HasPrefix(hash, prefix) {
+		t.Fatalf("hash does not start with %q, got: %q", prefix, hash)
 	}
 }
 
