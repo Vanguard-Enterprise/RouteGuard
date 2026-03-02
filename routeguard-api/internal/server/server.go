@@ -110,6 +110,13 @@ func (s *Server) buildRouter() chi.Router {
 
 		// Audit logs (org admin permission required)
 		r.With(middleware.RequirePermission("org:manage")).Get("/audit-logs", h.ListMyAuditLogs)
+
+		// Schools
+		r.With(middleware.RequirePermission("schools:read")).Get("/schools", h.ListMySchools)
+		r.With(middleware.RequirePermission("schools:write")).Post("/schools", h.CreateMySchool)
+		r.With(middleware.RequirePermission("schools:read")).Get("/schools/{id}", h.GetMySchool)
+		r.With(middleware.RequirePermission("schools:write")).Patch("/schools/{id}", h.UpdateMySchool)
+		r.With(middleware.RequirePermission("schools:write")).Delete("/schools/{id}", h.DeleteMySchool)
 	})
 
 	return r
