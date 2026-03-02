@@ -3,6 +3,8 @@ import { api, APIError, User } from '@/lib/api'
 import AppSidebar from '@/components/dashboard/app-sidebar'
 import DashboardHeader from '@/components/dashboard/header'
 
+export const dynamic = 'force-dynamic'
+
 async function getUser(): Promise<User | null> {
   try {
     return await api.auth.me()

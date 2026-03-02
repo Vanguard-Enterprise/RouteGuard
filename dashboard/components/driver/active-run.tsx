@@ -38,7 +38,6 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setStops(JSON.parse(raw) as Stop[])
       } catch {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStops([])
       }
     }
