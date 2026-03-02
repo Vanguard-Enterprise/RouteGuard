@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -36,7 +37,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	userRepo := repository.NewUserRepo(h.pool)
 	user, passwordHash, err := userRepo.FindByEmailAndProvider(r.Context(), req.Email, "password")
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			// Dummy comparison to prevent email enumeration via timing side-channel.
 			_ = crypto.CheckPassword(req.Password, notFoundHash)
 			Error(w, http.StatusUnauthorized, "invalid credentials")
