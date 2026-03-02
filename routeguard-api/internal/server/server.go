@@ -70,6 +70,48 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/pin", h.DriverPINAuth)
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/rfid", h.DriverRFIDAuth)
 
+	// Admin routes — staff only
+	r.Route("/admin", func(r chi.Router) {
+		r.Use(middleware.Authenticate(s.cache))
+		r.Use(middleware.RequireStaff)
+
+		// Organization CRUD
+		r.Get("/organizations", h.ListOrgs)
+		r.Post("/organizations", h.CreateOrg)
+		r.Get("/organizations/{id}", h.GetOrg)
+		r.Patch("/organizations/{id}", h.UpdateOrg)
+		r.Delete("/organizations/{id}", h.DeleteOrg)
+
+		// SSO connections (admin manages by org)
+		r.Get("/organizations/{id}/sso", h.ListOrgSSO)
+		r.Post("/organizations/{id}/sso", h.CreateOrgSSO)
+		r.Patch("/organizations/{id}/sso/{connectionId}", h.UpdateOrgSSO)
+		r.Delete("/organizations/{id}/sso/{connectionId}", h.DeleteOrgSSO)
+
+		// Device admin
+		r.Get("/devices", h.ListAdminDevices)
+		r.Post("/devices", h.CreateAdminDevice)
+		r.Patch("/devices/{id}", h.UpdateAdminDevice)
+		r.Delete("/devices/{id}", h.DeleteAdminDevice)
+
+		// Audit logs
+		r.Get("/audit-logs", h.ListAuditLogs)
+	})
+
+	// Dashboard routes — authenticated org users
+	r.Route("/dashboard", func(r chi.Router) {
+		r.Use(middleware.Authenticate(s.cache))
+
+		// SSO settings (org admin permission required)
+		r.Get("/settings/sso", h.ListMySSO)
+		r.Post("/settings/sso", h.CreateMySSO)
+		r.Patch("/settings/sso/{id}", h.UpdateMySSO)
+		r.Delete("/settings/sso/{id}", h.DeleteMySSO)
+
+		// Audit logs (org admin permission required)
+		r.With(middleware.RequirePermission("org:manage")).Get("/audit-logs", h.ListMyAuditLogs)
+	})
+
 	return r
 }
 
