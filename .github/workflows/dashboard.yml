@@ -46,12 +46,14 @@ jobs:
             dashboard/
 
       - name: Push to local registry
+        working-directory: ${{ github.workspace }}
         run: |
           docker push localhost:5000/routeguard-dashboard:latest
           docker push localhost:5000/routeguard-dashboard:${{ github.sha }}
 
       - name: Deploy
-        working-directory: ${{ github.workspace }}/deploy
+        working-directory: /opt/routeguard/deploy
         run: |
+          git -C /opt/routeguard pull
           docker compose pull dashboard
           docker compose up -d --no-deps --force-recreate dashboard

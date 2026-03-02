@@ -36,12 +36,14 @@ jobs:
             routeguard-api/
 
       - name: Push to local registry
+        working-directory: ${{ github.workspace }}
         run: |
           docker push localhost:5000/routeguard-api:latest
           docker push localhost:5000/routeguard-api:${{ github.sha }}
 
       - name: Deploy
-        working-directory: ${{ github.workspace }}/deploy
+        working-directory: /opt/routeguard/deploy
         run: |
+          git -C /opt/routeguard pull
           docker compose pull routeguard-api
           docker compose up -d --no-deps --force-recreate routeguard-api
