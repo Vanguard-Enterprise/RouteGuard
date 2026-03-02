@@ -59,6 +59,6 @@ func (c *Cache) Ping(ctx context.Context) error {
 }
 
 // IsNotFound returns true if the error is a cache miss
-func IsNotFound(err error) bool {
+func (c *Cache) IsNotFound(err error) bool {
 	return err == redis.Nil
 }
