@@ -52,7 +52,7 @@ type APIKey struct {
 	ID         string     `json:"id"`
 	OrgID      string     `json:"org_id"`
 	Name       string     `json:"name"`
-	KeyHash    string     `json:"key_hash"`
+	KeyHash    string     `json:"-"`
 	KeyPrefix  string     `json:"key_prefix"`
 	Scopes     []string   `json:"scopes"`
 	LastUsedAt *time.Time `json:"last_used_at"`

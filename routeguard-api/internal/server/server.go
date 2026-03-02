@@ -164,6 +164,22 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("trips:write")).Post("/trips", h.CreateMyTrip)
 		r.With(middleware.RequirePermission("trips:read")).Get("/trips/{id}", h.GetMyTrip)
 		r.With(middleware.RequirePermission("trips:write")).Patch("/trips/{id}", h.UpdateMyTrip)
+
+		// Settings — org:manage permission required for all
+		r.With(middleware.RequirePermission("org:manage")).Get("/settings/users", h.ListOrgUsers)
+		r.With(middleware.RequirePermission("org:manage")).Get("/settings/users/{id}/roles", h.ListUserRoles)
+		r.With(middleware.RequirePermission("org:manage")).Post("/settings/users/{id}/roles", h.AssignUserRole)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/settings/users/{id}/roles/{roleId}", h.UnassignUserRole)
+
+		r.With(middleware.RequirePermission("org:manage")).Get("/settings/roles", h.ListMyRoles)
+		r.With(middleware.RequirePermission("org:manage")).Post("/settings/roles", h.CreateMyRole)
+		r.With(middleware.RequirePermission("org:manage")).Get("/settings/roles/{id}", h.GetMyRole)
+		r.With(middleware.RequirePermission("org:manage")).Patch("/settings/roles/{id}", h.UpdateMyRole)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/settings/roles/{id}", h.DeleteMyRole)
+
+		r.With(middleware.RequirePermission("org:manage")).Get("/settings/api-keys", h.ListMyAPIKeys)
+		r.With(middleware.RequirePermission("org:manage")).Post("/settings/api-keys", h.CreateMyAPIKey)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/settings/api-keys/{id}", h.DeleteMyAPIKey)
 	})
 
 	return r
