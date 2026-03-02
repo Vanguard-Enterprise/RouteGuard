@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LogOut, ChevronDown } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { User } from '@/lib/api'
@@ -12,6 +12,15 @@ interface DashboardHeaderProps {
 
 export default function DashboardHeader({ user, title = 'Dashboard' }: DashboardHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menuOpen])
 
   async function handleLogout() {
     try {
@@ -31,6 +40,8 @@ export default function DashboardHeader({ user, title = 'Dashboard' }: Dashboard
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
         >
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"

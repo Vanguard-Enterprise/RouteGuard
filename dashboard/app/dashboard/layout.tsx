@@ -7,10 +7,8 @@ async function getUser(): Promise<User | null> {
   try {
     return await api.auth.me()
   } catch (err) {
-    if (err instanceof APIError && err.status === 401) {
-      return null
-    }
-    return null
+    if (err instanceof APIError && err.status === 401) return null
+    throw err
   }
 }
 

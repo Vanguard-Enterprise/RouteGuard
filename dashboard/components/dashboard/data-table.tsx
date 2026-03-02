@@ -37,7 +37,9 @@ interface DataTableProps<T> {
   onSearch?: (query: string) => void
   searchValue?: string
   onSort?: (key: string, direction: 'asc' | 'desc') => void
+  onClearSort?: () => void
   pagination?: PaginationProps
+  rowKey: (row: T) => string
 }
 
 type SortDirection = 'asc' | 'desc' | null
@@ -50,7 +52,9 @@ export function DataTable<T>({
   onSearch,
   searchValue = '',
   onSort,
+  onClearSort,
   pagination,
+  rowKey,
 }: DataTableProps<T>) {
   const [localSearch, setLocalSearch] = useState(searchValue)
   const [sortKey, setSortKey] = useState<string | null>(null)
@@ -61,6 +65,13 @@ export function DataTable<T>({
   useEffect(() => {
     setLocalSearch(searchValue)
   }, [searchValue])
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value
@@ -77,12 +88,18 @@ export function DataTable<T>({
       nextDir = 'asc'
     } else if (sortDir === 'asc') {
       nextDir = 'desc'
+    } else if (sortDir === 'desc') {
+      nextDir = null
     } else {
       nextDir = 'asc'
     }
-    setSortKey(key)
+    setSortKey(nextDir === null ? null : key)
     setSortDir(nextDir)
-    onSort?.(key, nextDir)
+    if (nextDir === null) {
+      onClearSort?.()
+    } else {
+      onSort?.(key, nextDir)
+    }
   }
 
   const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize)) : 1
@@ -154,8 +171,8 @@ export function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row, rowIdx) => (
-                <TableRow key={rowIdx}>
+              data.map((row) => (
+                <TableRow key={rowKey(row)}>
                   {columns.map((col) => (
                     <TableCell key={col.key} className={col.className}>
                       {col.render
