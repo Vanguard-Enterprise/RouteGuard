@@ -116,6 +116,33 @@ func (r *UserRepo) FindSSOConnectionBySlugAndID(ctx context.Context, slug, conne
 	return &c, nil
 }
 
+// FindSAMLConnectionBySlugAndID looks up an enabled SAML SSO connection by org slug and connection ID.
+// Returns pgx.ErrNoRows if not found, not enabled, or not of type "saml".
+func (r *UserRepo) FindSAMLConnectionBySlugAndID(ctx context.Context, slug, connectionID string) (*domain.SSOConnection, error) {
+	var c domain.SSOConnection
+	err := r.pool.QueryRow(ctx, `
+		SELECT sc.id, sc.org_id, sc.type, sc.display_name, sc.domain, sc.enabled,
+		       sc.oidc_issuer_url, sc.oidc_client_id, sc.oidc_client_secret_enc, sc.oidc_scopes,
+		       sc.saml_entity_id, sc.saml_sso_url, sc.saml_certificate_enc, sc.saml_metadata_url,
+		       sc.created_at, sc.updated_at
+		FROM sso_connections sc
+		JOIN organizations o ON o.id = sc.org_id
+		WHERE o.slug = $1
+		  AND sc.id = $2
+		  AND sc.type = 'saml'
+		  AND sc.enabled = true
+	`, slug, connectionID).Scan(
+		&c.ID, &c.OrgID, &c.Type, &c.DisplayName, &c.Domain, &c.Enabled,
+		&c.OIDCIssuerURL, &c.OIDCClientID, &c.OIDCClientSecretEnc, &c.OIDCScopes,
+		&c.SAMLEntityID, &c.SAMLSSOUrl, &c.SAMLCertificateEnc, &c.SAMLMetadataURL,
+		&c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // FindSSOConnectionByID looks up any SSO connection by its primary key.
 // Returns pgx.ErrNoRows if not found.
 func (r *UserRepo) FindSSOConnectionByID(ctx context.Context, connectionID string) (*domain.SSOConnection, error) {
@@ -191,6 +218,62 @@ func (r *UserRepo) UpsertOIDCUser(ctx context.Context, sub, email, name, orgID s
 	`, userID, sub)
 	if err != nil {
 		return "", fmt.Errorf("upsert oidc user: insert identity: %w", err)
+	}
+	return userID, tx.Commit(ctx)
+}
+
+// UpsertSAMLUser finds an existing user by SAML (provider=saml, provider_user_id=nameID) or by
+// email within the same org, creating a new user + identity row if neither exists.
+// Returns the user ID. All writes are performed inside a single transaction.
+func (r *UserRepo) UpsertSAMLUser(ctx context.Context, nameID, email, name, orgID string) (string, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("upsert saml user: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// 1. Try to find by provider identity (nameID).
+	var userID string
+	err = tx.QueryRow(ctx, `
+		SELECT user_id FROM user_identities
+		WHERE provider = 'saml' AND provider_user_id = $1
+	`, nameID).Scan(&userID)
+	if err == nil {
+		return userID, tx.Commit(ctx)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("upsert saml user: lookup by name_id: %w", err)
+	}
+
+	// 2. Try to find by email within the org — link this IdP identity to the existing user.
+	err = tx.QueryRow(ctx, `
+		SELECT id FROM users WHERE email = $1 AND org_id = $2
+	`, email, orgID).Scan(&userID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("upsert saml user: lookup by email: %w", err)
+	}
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		// 3. Create brand-new user row.
+		err = tx.QueryRow(ctx, `
+			INSERT INTO users (org_id, email, name)
+			VALUES ($1, $2, $3)
+			RETURNING id
+		`, orgID, email, name).Scan(&userID)
+		if err != nil {
+			return "", fmt.Errorf("upsert saml user: create user: %w", err)
+		}
+	}
+
+	// 4. Insert user_identity linking this nameID to the user.
+	_, err = tx.Exec(ctx, `
+		INSERT INTO user_identities (user_id, provider, provider_user_id)
+		VALUES ($1, 'saml', $2)
+		ON CONFLICT (user_id, provider) DO UPDATE
+		    SET provider_user_id = EXCLUDED.provider_user_id
+	`, userID, nameID)
+	if err != nil {
+		return "", fmt.Errorf("upsert saml user: insert identity: %w", err)
 	}
 	return userID, tx.Commit(ctx)
 }
