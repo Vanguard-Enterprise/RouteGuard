@@ -160,10 +160,25 @@ func (r *TripDeviceRepo) CountRouteStudents(ctx context.Context, routeID string)
 	return count, nil
 }
 
+// GetRouteIDForAssignment returns the route_id for a given route_assignment ID.
+// Returns pgx.ErrNoRows if the assignment does not exist.
+func (r *TripDeviceRepo) GetRouteIDForAssignment(ctx context.Context, assignmentID string) (string, error) {
+	var routeID string
+	err := r.pool.QueryRow(ctx,
+		"SELECT route_id FROM route_assignments WHERE id = $1",
+		assignmentID,
+	).Scan(&routeID)
+	if err != nil {
+		return "", fmt.Errorf("trip device get route for assignment: %w", err)
+	}
+	return routeID, nil
+}
+
 // ListStopsWithStudents returns stops for a route with their assigned students.
-// Uses two queries: stops ordered by sequence_order, then students per stop via student_stops.
+// Uses two queries (not N+1): one for stops, one for all students in the route,
+// then assembles them in Go by grouping on stop_id.
 func (r *TripDeviceRepo) ListStopsWithStudents(ctx context.Context, routeID, orgID string) ([]StopWithStudents, error) {
-	// First: get all stops for the route (org check via JOIN on routes).
+	// Query 1: all stops for the route, org-scoped via EXISTS on routes.
 	rows, err := r.pool.Query(ctx, `
 		SELECT `+stopSelectCols+`
 		FROM stops s
@@ -192,51 +207,57 @@ func (r *TripDeviceRepo) ListStopsWithStudents(ctx context.Context, routeID, org
 		return nil, fmt.Errorf("trip device list stops rows: %w", err)
 	}
 
-	result := make([]StopWithStudents, 0, len(stops))
-
-	// Second: for each stop, get its active students.
-	for _, stop := range stops {
-		studentRows, err := r.pool.Query(ctx, `
-			SELECT s.id, s.org_id, s.school_id, s.first_name, s.last_name,
-			       s.student_number, s.grade, s.rfid_tag_id, s.address,
-			       s.city, s.state, s.zip, s.lat, s.lng,
-			       s.status, s.medical_notes, s.created_at, s.updated_at
-			FROM students s
-			JOIN student_stops ss ON ss.student_id = s.id
-			WHERE ss.stop_id  = $1
-			  AND ss.route_id = $2
-			  AND (ss.effective_date IS NULL OR ss.effective_date <= CURRENT_DATE)
-			  AND (ss.end_date       IS NULL OR ss.end_date       >= CURRENT_DATE)
-			ORDER BY s.last_name, s.first_name
-		`, stop.ID, routeID)
-		if err != nil {
-			return nil, fmt.Errorf("trip device list students for stop: %w", err)
-		}
-
-		students := make([]domain.Student, 0)
-		for studentRows.Next() {
-			var st domain.Student
-			if err := studentRows.Scan(
-				&st.ID, &st.OrgID, &st.SchoolID, &st.FirstName, &st.LastName,
-				&st.StudentNumber, &st.Grade, &st.RFIDTagID, &st.Address,
-				&st.City, &st.State, &st.Zip, &st.Lat, &st.Lng,
-				&st.Status, &st.MedicalNotes, &st.CreatedAt, &st.UpdatedAt,
-			); err != nil {
-				studentRows.Close()
-				return nil, fmt.Errorf("trip device list students scan: %w", err)
-			}
-			students = append(students, st)
-		}
-		studentRows.Close()
-		if err := studentRows.Err(); err != nil {
-			return nil, fmt.Errorf("trip device list students rows: %w", err)
-		}
-
-		result = append(result, StopWithStudents{
-			Stop:     stop,
-			Students: students,
-		})
+	if len(stops) == 0 {
+		return []StopWithStudents{}, nil
 	}
 
+	// Query 2: all active students across all stops for this route in a single query.
+	studentRows, err := r.pool.Query(ctx, `
+		SELECT ss.stop_id,
+		       s.id, s.org_id, s.school_id, s.first_name, s.last_name,
+		       s.student_number, s.grade, s.rfid_tag_id, s.address,
+		       s.city, s.state, s.zip, s.lat, s.lng,
+		       s.status, s.medical_notes, s.created_at, s.updated_at
+		FROM students s
+		JOIN student_stops ss ON ss.student_id = s.id
+		WHERE ss.route_id = $1
+		  AND (ss.effective_date IS NULL OR ss.effective_date <= CURRENT_DATE)
+		  AND (ss.end_date       IS NULL OR ss.end_date       >= CURRENT_DATE)
+		ORDER BY ss.stop_id, s.last_name, s.first_name
+	`, routeID)
+	if err != nil {
+		return nil, fmt.Errorf("trip device list students for route: %w", err)
+	}
+	defer studentRows.Close()
+
+	// Group students by stop_id.
+	studentsByStop := make(map[string][]domain.Student)
+	for studentRows.Next() {
+		var stopID string
+		var st domain.Student
+		if err := studentRows.Scan(
+			&stopID,
+			&st.ID, &st.OrgID, &st.SchoolID, &st.FirstName, &st.LastName,
+			&st.StudentNumber, &st.Grade, &st.RFIDTagID, &st.Address,
+			&st.City, &st.State, &st.Zip, &st.Lat, &st.Lng,
+			&st.Status, &st.MedicalNotes, &st.CreatedAt, &st.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("trip device list students scan: %w", err)
+		}
+		studentsByStop[stopID] = append(studentsByStop[stopID], st)
+	}
+	if err := studentRows.Err(); err != nil {
+		return nil, fmt.Errorf("trip device list students rows: %w", err)
+	}
+
+	// Assemble result in stop order.
+	result := make([]StopWithStudents, 0, len(stops))
+	for _, stop := range stops {
+		students := studentsByStop[stop.ID]
+		if students == nil {
+			students = []domain.Student{}
+		}
+		result = append(result, StopWithStudents{Stop: stop, Students: students})
+	}
 	return result, nil
 }

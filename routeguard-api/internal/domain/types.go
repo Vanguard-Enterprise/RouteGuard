@@ -42,7 +42,7 @@ type UserIdentity struct {
 	UserID         string          `json:"user_id"`
 	Provider       string          `json:"provider"`
 	ProviderUserID *string         `json:"provider_user_id"`
-	PasswordHash   *string         `json:"password_hash"`
+	PasswordHash   *string         `json:"-"`
 	Metadata       json.RawMessage `json:"metadata"`
 	CreatedAt      time.Time       `json:"created_at"`
 }

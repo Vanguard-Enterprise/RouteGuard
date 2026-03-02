@@ -16,20 +16,25 @@ import (
 // TripManifest is the full trip manifest returned on trip start.
 // It bundles all data the device needs to run an active trip.
 type TripManifest struct {
-	Trip    *domain.Trip                       `json:"trip"`
-	Route   *domain.Route                      `json:"route"`
-	Stops   []repository.StopWithStudents      `json:"stops"`
-	Vehicle *domain.Vehicle                    `json:"vehicle"`
-	Driver  *domain.Driver                     `json:"driver"`
+	Trip    *domain.Trip                  `json:"trip"`
+	Route   *domain.Route                 `json:"route"`
+	Stops   []repository.StopWithStudents `json:"stops"`
+	Vehicle *domain.Vehicle               `json:"vehicle"`
+	Driver  *domain.Driver                `json:"driver"`
+}
+
+// endTripResponse is returned by EndTrip. Summary is omitted if computation fails.
+type endTripResponse struct {
+	Trip    *domain.Trip         `json:"trip"`
+	Summary *domain.DailySummary `json:"summary,omitempty"`
 }
 
 // recordLocationRequest is the request body for POST /api/v1/trips/{id}/location.
 type recordLocationRequest struct {
-	Lat        float64  `json:"lat"`
-	Lng        float64  `json:"lng"`
-	Speed      *float64 `json:"speed"`
-	Heading    *float64 `json:"heading"`
-	RecordedAt *string  `json:"recorded_at"` // optional RFC3339; defaults to NOW() in the DB
+	Lat     float64  `json:"lat"`
+	Lng     float64  `json:"lng"`
+	Speed   *float64 `json:"speed"`
+	Heading *float64 `json:"heading"`
 }
 
 // StartTrip handles POST /api/v1/trips/start.
@@ -74,7 +79,11 @@ func (h *Handler) StartTrip(w http.ResponseWriter, r *http.Request) {
 	// 3. Create the trip (status=in_progress, started_at=NOW()).
 	trip, err := tripDeviceRepo.StartTrip(r.Context(), session.OrgID, assignment.ID)
 	if err != nil {
-		Error(w, http.StatusInternalServerError, "internal server error")
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusConflict, "route assignment no longer active")
+		} else {
+			Error(w, http.StatusInternalServerError, "internal server error")
+		}
 		return
 	}
 
@@ -115,7 +124,11 @@ func (h *Handler) StartTrip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Cache manifest in Redis: "trip:manifest:{trip_id}" TTL=12h.
-	_ = h.cache.Set(r.Context(), "trip:manifest:"+trip.ID, manifest, 12*time.Hour)
+	// Non-fatal: device has manifest in response body. A cache failure degrades
+	// live-tracking features but does not prevent the trip from proceeding.
+	if err := h.cache.Set(r.Context(), "trip:manifest:"+trip.ID, manifest, 12*time.Hour); err != nil {
+		_ = err // cache miss is non-fatal; caller receives manifest in response body
+	}
 
 	JSON(w, http.StatusCreated, manifest)
 }
@@ -135,6 +148,14 @@ func (h *Handler) RecordLocation(w http.ResponseWriter, r *http.Request) {
 	var req recordLocationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Lat < -90 || req.Lat > 90 {
+		Error(w, http.StatusBadRequest, "lat must be between -90 and 90")
+		return
+	}
+	if req.Lng < -180 || req.Lng > 180 {
+		Error(w, http.StatusBadRequest, "lng must be between -180 and 180")
 		return
 	}
 
@@ -185,25 +206,22 @@ func (h *Handler) EndTrip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove cached manifest from Redis.
+	// Remove cached manifest from Redis (non-fatal).
 	_ = h.cache.Del(r.Context(), "trip:manifest:"+tripID)
 
-	// Resolve route_id from the route_assignment.
-	var routeID string
-	_ = h.pool.QueryRow(r.Context(),
-		"SELECT route_id FROM route_assignments WHERE id = $1",
-		trip.RouteAssignmentID,
-	).Scan(&routeID)
+	// Compute and upsert daily summary. Failures are non-fatal — the trip is
+	// already completed. Summary is omitted from the response if computation fails.
+	var summary *domain.DailySummary
+	routeID, routeErr := tripDeviceRepo.GetRouteIDForAssignment(r.Context(), trip.RouteAssignmentID)
+	if routeErr == nil {
+		boardedCount, err1 := tripDeviceRepo.CountBoardings(r.Context(), tripID)
+		totalStudents, err2 := tripDeviceRepo.CountRouteStudents(r.Context(), routeID)
+		if err1 == nil && err2 == nil {
+			reportRepo := repository.NewReportRepo(h.pool)
+			summary, _ = reportRepo.UpsertSummary(r.Context(), session.OrgID, routeID, trip.Date,
+				totalStudents, boardedCount, true, nil, nil)
+		}
+	}
 
-	boardedCount, _ := tripDeviceRepo.CountBoardings(r.Context(), tripID)
-	totalStudents, _ := tripDeviceRepo.CountRouteStudents(r.Context(), routeID)
-
-	reportRepo := repository.NewReportRepo(h.pool)
-	summary, _ := reportRepo.UpsertSummary(r.Context(), session.OrgID, routeID, trip.Date,
-		totalStudents, boardedCount, true, nil, nil)
-
-	JSON(w, http.StatusOK, map[string]any{
-		"trip":    trip,
-		"summary": summary,
-	})
+	JSON(w, http.StatusOK, endTripResponse{Trip: trip, Summary: summary})
 }
