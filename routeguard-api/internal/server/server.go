@@ -5,16 +5,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/config"
 )
 
 type Server struct {
 	router chi.Router
 	cfg    *config.Config
+	pool   *pgxpool.Pool
 }
 
-func New(cfg *config.Config) (*Server, error) {
-	s := &Server{cfg: cfg}
+func New(cfg *config.Config, pool *pgxpool.Pool) (*Server, error) {
+	s := &Server{cfg: cfg, pool: pool}
 	s.router = s.buildRouter()
 	return s, nil
 }

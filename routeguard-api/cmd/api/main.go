@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/routeguard/api/internal/config"
+	"github.com/routeguard/api/internal/db"
 	"github.com/routeguard/api/internal/server"
 )
 
@@ -23,7 +24,24 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
 
-	srv, err := server.New(cfg)
+	// Run database migrations
+	migrationsPath := envOr("MIGRATIONS_PATH", "./migrations")
+	log.Info().Str("path", migrationsPath).Msg("running database migrations")
+	if err := db.RunMigrations(cfg.DatabaseURL, migrationsPath); err != nil {
+		log.Fatal().Err(err).Msg("failed to run migrations")
+	}
+	log.Info().Msg("migrations complete")
+
+	// Connect to database
+	ctx := context.Background()
+	pool, err := db.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to database")
+	}
+	defer pool.Close()
+	log.Info().Msg("database connected")
+
+	srv, err := server.New(cfg, pool)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize server")
 	}
@@ -48,11 +66,18 @@ func main() {
 	<-quit
 
 	log.Info().Msg("shutting down server")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := httpSrv.Shutdown(ctx); err != nil {
+	if err := httpSrv.Shutdown(ctx2); err != nil {
 		log.Error().Err(err).Msg("shutdown error")
 	}
 	log.Info().Msg("server stopped")
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }
