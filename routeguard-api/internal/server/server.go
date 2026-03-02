@@ -117,6 +117,14 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("schools:read")).Get("/schools/{id}", h.GetMySchool)
 		r.With(middleware.RequirePermission("schools:write")).Patch("/schools/{id}", h.UpdateMySchool)
 		r.With(middleware.RequirePermission("schools:write")).Delete("/schools/{id}", h.DeleteMySchool)
+
+		// Students
+		r.With(middleware.RequirePermission("students:read")).Get("/students", h.ListMyStudents)
+		r.With(middleware.RequirePermission("students:write")).Post("/students", h.CreateMyStudent)
+		r.With(middleware.RequirePermission("students:write")).Post("/students/import", h.ImportStudents)
+		r.With(middleware.RequirePermission("students:read")).Get("/students/{id}", h.GetMyStudent)
+		r.With(middleware.RequirePermission("students:write")).Patch("/students/{id}", h.UpdateMyStudent)
+		r.With(middleware.RequirePermission("students:write")).Delete("/students/{id}", h.DeleteMyStudent)
 	})
 
 	return r

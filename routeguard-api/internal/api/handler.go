@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
+	"github.com/routeguard/api/internal/crypto"
 )
 
 // Handler holds all shared dependencies for HTTP handlers.
@@ -75,4 +76,17 @@ func generateSAMLKeyPair() (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	return kp, nil
+}
+
+// decryptOptional decrypts a ciphertext pointer if non-nil and non-empty.
+// Returns nil if the input is nil (nothing stored).
+func (h *Handler) decryptOptional(enc *string) (*string, error) {
+	if enc == nil || *enc == "" {
+		return enc, nil
+	}
+	plain, err := crypto.Decrypt(h.cfg.DataEncryptionKey, *enc)
+	if err != nil {
+		return nil, err
+	}
+	return &plain, nil
 }
