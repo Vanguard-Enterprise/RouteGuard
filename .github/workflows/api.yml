@@ -2,7 +2,7 @@ name: Build & Deploy API
 
 on:
   push:
-    branches: [main, feature/rework]
+    branches: [main]
     paths:
       - "routeguard-api/**"
       - ".github/workflows/api.yml"
