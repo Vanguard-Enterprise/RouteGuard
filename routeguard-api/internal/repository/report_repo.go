@@ -111,7 +111,7 @@ func (r *ReportRepo) GetSummary(ctx context.Context, id, orgID string) (*domain.
 	`, id, orgID)
 	s, err := scanSummary(row)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("report get: %w", err)
 	}
 	return s, nil
 }
