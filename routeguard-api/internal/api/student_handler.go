@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -280,10 +281,16 @@ func (h *Handler) ImportStudents(w http.ResponseWriter, r *http.Request) {
 	}
 	orgID := session.OrgID
 
+	r.Body = http.MaxBytesReader(w, r.Body, 10<<20) // 10 MB limit
 	reader := csv.NewReader(r.Body)
 
 	headerRow, err := reader.Read()
 	if err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			Error(w, http.StatusRequestEntityTooLarge, "CSV file too large (max 10MB)")
+			return
+		}
 		Error(w, http.StatusBadRequest, "failed to read CSV headers")
 		return
 	}
@@ -309,8 +316,16 @@ func (h *Handler) ImportStudents(w http.ResponseWriter, r *http.Request) {
 	rowNum := 1
 	for {
 		record, err := reader.Read()
-		if err != nil {
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			var maxErr *http.MaxBytesError
+			if errors.As(err, &maxErr) {
+				Error(w, http.StatusRequestEntityTooLarge, "CSV file too large (max 10MB)")
+				return
+			}
+			break // CSV parse error — stop processing
 		}
 		rowNum++
 
@@ -357,10 +372,21 @@ func (h *Handler) ImportStudents(w http.ResponseWriter, r *http.Request) {
 			studentNumber, grade, encRFID, address, city, state, zip,
 			nil, nil, "active", encMedical)
 		if err != nil {
-			result.Errors = append(result.Errors, importError{
-				Row:   rowNum,
-				Error: err.Error(),
-			})
+			var pgErr *pgconn.PgError
+			var rowErrMsg string
+			if errors.As(err, &pgErr) {
+				switch pgErr.Code {
+				case "23503":
+					rowErrMsg = "invalid school_id"
+				case "23505":
+					rowErrMsg = "duplicate student_number or rfid_tag_id"
+				default:
+					rowErrMsg = "database error"
+				}
+			} else {
+				rowErrMsg = "database error"
+			}
+			result.Errors = append(result.Errors, importError{Row: rowNum, Error: rowErrMsg})
 			continue
 		}
 
