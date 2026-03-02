@@ -60,6 +60,16 @@ func (s *Server) buildRouter() chi.Router {
 	r.Get("/auth/sso/{slug}/saml/init", h.SAMLInit)
 	r.Post("/auth/sso/saml/acs", h.SAMLACS)
 
+	// Device provisioning (no device auth — this is how devices obtain their credential)
+	r.Post("/api/v1/devices/provision", h.ProvisionDevice)
+
+	// Device-authenticated routes
+	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/devices/heartbeat", h.DeviceHeartbeat)
+
+	// Driver auth — PIN and RFID (device auth required; auth comes from the device hardware)
+	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/pin", h.DriverPINAuth)
+	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/auth/rfid", h.DriverRFIDAuth)
+
 	return r
 }
 
