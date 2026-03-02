@@ -27,23 +27,18 @@ const vehicleSelectCols = `
 
 func scanVehicle(row pgx.Row) (*domain.Vehicle, error) {
 	var v domain.Vehicle
-	err := row.Scan(
+	if err := row.Scan(
 		&v.ID, &v.OrgID, &v.Name, &v.Number, &v.Capacity, &v.Year,
 		&v.Make, &v.Model, &v.VIN, &v.LicensePlate, &v.Status,
 		&v.CreatedAt, &v.UpdatedAt,
-	)
-	return &v, err
+	); err != nil {
+		return nil, err
+	}
+	return &v, nil
 }
 
 // List returns a paginated list of vehicles for the given org, ordered by name.
-// Default limit 50, max 500.
 func (r *VehicleRepo) List(ctx context.Context, orgID string, limit, offset int) ([]domain.Vehicle, error) {
-	if limit <= 0 {
-		limit = 50
-	}
-	if limit > 500 {
-		limit = 500
-	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT `+vehicleSelectCols+`
 		FROM vehicles
@@ -52,7 +47,7 @@ func (r *VehicleRepo) List(ctx context.Context, orgID string, limit, offset int)
 		LIMIT $2 OFFSET $3
 	`, orgID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("vehicle list: %w", err)
 	}
 	defer rows.Close()
 
@@ -64,7 +59,7 @@ func (r *VehicleRepo) List(ctx context.Context, orgID string, limit, offset int)
 			&v.Make, &v.Model, &v.VIN, &v.LicensePlate, &v.Status,
 			&v.CreatedAt, &v.UpdatedAt,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("vehicle list scan: %w", err)
 		}
 		vehicles = append(vehicles, v)
 	}
@@ -89,7 +84,11 @@ func (r *VehicleRepo) Create(ctx context.Context, orgID, name string, number *st
 		RETURNING `+vehicleSelectCols,
 		orgID, name, number, capacity, year, make_, model, vin, licensePlate, status,
 	)
-	return scanVehicle(row)
+	v, err := scanVehicle(row)
+	if err != nil {
+		return nil, fmt.Errorf("vehicle create: %w", err)
+	}
+	return v, nil
 }
 
 // Update applies a partial update to a vehicle scoped to orgID. Only non-nil fields are updated.
@@ -153,7 +152,11 @@ func (r *VehicleRepo) Update(ctx context.Context, id, orgID string, name, number
 		strings.Join(setClauses, ", "), idParam, orgParam,
 	)
 	row := r.pool.QueryRow(ctx, query, args...)
-	return scanVehicle(row)
+	v, err := scanVehicle(row)
+	if err != nil {
+		return nil, fmt.Errorf("vehicle update: %w", err)
+	}
+	return v, nil
 }
 
 // Delete hard-deletes a vehicle by ID scoped to orgID.
@@ -162,7 +165,7 @@ func (r *VehicleRepo) Update(ctx context.Context, id, orgID string, name, number
 func (r *VehicleRepo) Delete(ctx context.Context, id, orgID string) error {
 	tag, err := r.pool.Exec(ctx, "DELETE FROM vehicles WHERE id = $1 AND org_id = $2", id, orgID)
 	if err != nil {
-		return err
+		return fmt.Errorf("vehicle delete: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return pgx.ErrNoRows
