@@ -1,45 +1,27 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Environment files (anywhere in repo)
+.env
+.env.*
+!.env.example
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# testing
-/coverage
+# Dashboard
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.env.local
 
-# next.js
-/.next/
-/out/
+# Go API
+routeguard-api/bin/
+routeguard-api/.env
 
-# production
-/build
+# Deploy
+deploy/.env
 
-# misc
+# OS
 .DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# cloudflare
-.open-next/
-.wrangler/
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+Thumbs.db
+*.log

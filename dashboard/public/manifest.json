@@ -1,0 +1,12 @@
+{
+  "name": "RouteGuard Driver",
+  "short_name": "RouteGuard",
+  "description": "RouteGuard driver tablet app",
+  "start_url": "/driver",
+  "display": "standalone",
+  "background_color": "#1B3A5C",
+  "theme_color": "#1B3A5C",
+  "icons": [
+    { "src": "/assets/Logo_Transparent.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

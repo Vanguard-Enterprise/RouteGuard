@@ -1,0 +1,57 @@
+name: Build & Deploy Dashboard
+
+on:
+  push:
+    branches: [main, feature/rework]
+    paths:
+      - "dashboard/**"
+      - ".github/workflows/dashboard.yml"
+
+jobs:
+  build-deploy:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: dashboard
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.route-guard.com
+          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+
+      - name: Build Docker image
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker build \
+            -t localhost:5000/routeguard-dashboard:latest \
+            -t localhost:5000/routeguard-dashboard:${{ github.sha }} \
+            dashboard/
+
+      - name: Push to local registry
+        run: |
+          docker push localhost:5000/routeguard-dashboard:latest
+          docker push localhost:5000/routeguard-dashboard:${{ github.sha }}
+
+      - name: Deploy
+        working-directory: ${{ github.workspace }}/deploy
+        run: |
+          docker compose pull dashboard
+          docker compose up -d --no-deps --force-recreate dashboard

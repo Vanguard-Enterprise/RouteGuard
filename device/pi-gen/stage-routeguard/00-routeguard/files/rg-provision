@@ -1,0 +1,25 @@
+#!/bin/bash
+# Reads /boot/provision.json and sets the device_token in the kiosk browser's localStorage.
+# This runs once on first boot if /boot/provision.json exists.
+
+set -e
+
+PROVISION_FILE="/boot/provision.json"
+TOKEN=$(python3 -c "import json,sys; d=json.load(open('$PROVISION_FILE')); print(d['device_token'])")
+ORG_URL=$(python3 -c "import json,sys; d=json.load(open('$PROVISION_FILE')); print(d['org_url'])")
+
+# Write the org_url for the kiosk script
+echo "$ORG_URL" > /home/routeguard/.config/org_url
+
+# Write a localStorage bootstrap script that Chromium will execute via --load-extension
+# or via a startup page trick. We store it for use by the kiosk script.
+mkdir -p /home/routeguard/.config/chromium-bootstrap
+cat > /home/routeguard/.config/chromium-bootstrap/bootstrap.js << JSEOF
+localStorage.setItem('device_token', '${TOKEN}');
+localStorage.setItem('org_url', '${ORG_URL}');
+JSEOF
+
+chown -R routeguard:routeguard /home/routeguard/.config
+
+echo "Provisioned device with token ${TOKEN:0:8}..."
+rm -f "$PROVISION_FILE"  # Remove provision file after use

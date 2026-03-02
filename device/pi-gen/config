@@ -1,0 +1,7 @@
+IMG_NAME="routeguard-device"
+RELEASE=bookworm
+DEPLOY_COMPRESSION=gz
+ENABLE_SSH=0
+FIRST_USER_NAME=routeguard
+FIRST_USER_PASS=routeguard
+STAGE_LIST="stage0 stage1 stage2 stage-routeguard"
