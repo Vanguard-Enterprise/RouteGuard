@@ -80,7 +80,7 @@ async function networkFirstWithQueue(request) {
   try {
     const response = await fetch(request.clone())
     return response
-  } catch (err) {
+  } catch {
     // Only queue on network error (not 4xx/5xx — those return a Response, not throw)
     if (isTripsPost) {
       try {

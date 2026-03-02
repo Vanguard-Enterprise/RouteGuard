@@ -20,7 +20,7 @@ interface OrgSettingsFormProps {
   orgName?: string | null
 }
 
-export default function OrgSettingsForm({ user, orgName }: OrgSettingsFormProps) {
+export default function OrgSettingsForm({ orgName }: OrgSettingsFormProps) {
   return (
     <div className="max-w-lg">
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">

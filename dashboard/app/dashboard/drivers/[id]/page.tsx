@@ -1,7 +1,7 @@
 import { api, APIError } from '@/lib/api'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import DriverDetailActions from '@/components/dashboard/driver-detail-actions'
 
 interface PageProps {

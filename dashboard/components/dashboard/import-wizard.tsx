@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Link from 'next/link'
 import Papa from 'papaparse'
 import { api } from '@/lib/api'
 
@@ -244,13 +245,13 @@ export default function ImportWizard() {
           </div>
         )}
       </div>
-      <a
+      <Link
         href="/dashboard/students"
         className="inline-flex items-center px-5 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-90"
         style={{ backgroundColor: 'var(--color-brand-navy)' }}
       >
         View Students
-      </a>
+      </Link>
     </div>
   )
 }
