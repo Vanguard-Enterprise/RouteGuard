@@ -240,21 +240,16 @@ func (r *RouteRepo) ListStops(ctx context.Context, routeID, orgID string) ([]dom
 	return stops, rows.Err()
 }
 
-// CreateStop inserts a new stop on a route. Verifies route belongs to orgID first.
+// CreateStop inserts a new stop on a route. Atomically verifies route belongs to orgID.
+// Returns pgx.ErrNoRows if the route does not exist or belongs to a different org.
 func (r *RouteRepo) CreateStop(ctx context.Context, routeID, orgID, name string, address *string, lat, lng *float64, sequenceOrder int, scheduledTime *string) (*domain.Stop, error) {
-	ok, err := r.routeBelongsToOrg(ctx, routeID, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("stop create org check: %w", err)
-	}
-	if !ok {
-		return nil, pgx.ErrNoRows
-	}
-
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO stops (id, route_id, name, address, lat, lng, sequence_order, scheduled_time)
-		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+		SELECT gen_random_uuid(), r.id, $2, $3, $4, $5, $6, $7
+		FROM routes r
+		WHERE r.id = $1 AND r.org_id = $8
 		RETURNING `+stopSelectCols,
-		routeID, name, address, lat, lng, sequenceOrder, scheduledTime,
+		routeID, name, address, lat, lng, sequenceOrder, scheduledTime, orgID,
 	)
 	s, err := scanStop(row)
 	if err != nil {
@@ -301,7 +296,11 @@ func (r *RouteRepo) UpdateStop(ctx context.Context, stopID, routeID, orgID strin
 			WHERE id = $1 AND route_id = $2
 			  AND EXISTS (SELECT 1 FROM routes WHERE id = $2 AND org_id = $3)
 		`, stopID, routeID, orgID)
-		return scanStop(row)
+		s, err := scanStop(row)
+		if err != nil {
+			return nil, fmt.Errorf("stop update: %w", err)
+		}
+		return s, nil
 	}
 
 	args = append(args, stopID)
@@ -380,21 +379,16 @@ func (r *RouteRepo) ListAssignments(ctx context.Context, routeID, orgID string) 
 	return assignments, rows.Err()
 }
 
-// CreateAssignment inserts a new route assignment. Verifies route belongs to orgID first.
+// CreateAssignment inserts a new route assignment. Atomically verifies route belongs to orgID.
+// Returns pgx.ErrNoRows if the route does not exist or belongs to a different org.
 func (r *RouteRepo) CreateAssignment(ctx context.Context, routeID, orgID, vehicleID, driverID, daysOfWeek string, effectiveDate, endDate *pgtype.Date) (*domain.RouteAssignment, error) {
-	ok, err := r.routeBelongsToOrg(ctx, routeID, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("assignment create org check: %w", err)
-	}
-	if !ok {
-		return nil, pgx.ErrNoRows
-	}
-
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO route_assignments (id, route_id, vehicle_id, driver_id, effective_date, end_date, days_of_week)
-		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
+		SELECT gen_random_uuid(), r.id, $2, $3, $4, $5, $6
+		FROM routes r
+		WHERE r.id = $1 AND r.org_id = $7
 		RETURNING `+routeAssignmentSelectCols,
-		routeID, vehicleID, driverID, effectiveDate, endDate, daysOfWeek,
+		routeID, vehicleID, driverID, effectiveDate, endDate, daysOfWeek, orgID,
 	)
 	ra, err := scanRouteAssignment(row)
 	if err != nil {

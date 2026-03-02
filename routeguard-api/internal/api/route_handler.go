@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -50,11 +51,11 @@ type updateStopRequest struct {
 }
 
 type createAssignmentRequest struct {
-	VehicleID     string       `json:"vehicle_id"`
-	DriverID      string       `json:"driver_id"`
-	DaysOfWeek    string       `json:"days_of_week"`
-	EffectiveDate *pgtype.Date `json:"effective_date"`
-	EndDate       *pgtype.Date `json:"end_date"`
+	VehicleID     string  `json:"vehicle_id"`
+	DriverID      string  `json:"driver_id"`
+	DaysOfWeek    string  `json:"days_of_week"`
+	EffectiveDate *string `json:"effective_date"` // ISO-8601 date string e.g. "2025-08-20"
+	EndDate       *string `json:"end_date"`       // ISO-8601 date string e.g. "2026-05-30"
 }
 
 // ── Route handlers ───────────────────────────────────────────────────────────
@@ -75,6 +76,9 @@ func (h *Handler) ListMyRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 	if limit > 500 {
 		limit = 500
+	}
+	if offset < 0 {
+		offset = 0
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
@@ -350,8 +354,19 @@ func (h *Handler) CreateRouteAssignment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	effectiveDate, err := parseOptionalDate(req.EffectiveDate)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "effective_date must be ISO-8601 format (YYYY-MM-DD)")
+		return
+	}
+	endDate, err := parseOptionalDate(req.EndDate)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "end_date must be ISO-8601 format (YYYY-MM-DD)")
+		return
+	}
+
 	repo := repository.NewRouteRepo(h.pool)
-	assignment, err := repo.CreateAssignment(r.Context(), routeID, orgID, req.VehicleID, req.DriverID, req.DaysOfWeek, req.EffectiveDate, req.EndDate)
+	assignment, err := repo.CreateAssignment(r.Context(), routeID, orgID, req.VehicleID, req.DriverID, req.DaysOfWeek, effectiveDate, endDate)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "route not found")
@@ -394,5 +409,21 @@ func (h *Handler) ListRouteStudents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, students)
+}
+
+// parseOptionalDate converts an ISO-8601 date string pointer to a *pgtype.Date.
+// Returns nil if the input is nil. Returns an error if the string is not a valid date.
+func parseOptionalDate(s *string) (*pgtype.Date, error) {
+	if s == nil {
+		return nil, nil
+	}
+	t, err := time.Parse("2006-01-02", *s)
+	if err != nil {
+		return nil, err
+	}
+	d := &pgtype.Date{}
+	d.Time = t
+	d.Valid = true
+	return d, nil
 }
 
