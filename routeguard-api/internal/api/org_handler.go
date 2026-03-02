@@ -111,8 +111,34 @@ func (h *Handler) UpdateOrg(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteOrg(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	repo := repository.NewOrgRepo(h.pool)
-	err := repo.Delete(r.Context(), id)
+
+	// Guard: reject if org has users or devices
+	var userCount int
+	err := h.pool.QueryRow(r.Context(),
+		"SELECT COUNT(*) FROM users WHERE org_id = $1", id,
+	).Scan(&userCount)
 	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	if userCount > 0 {
+		Error(w, http.StatusConflict, "organization has active users; remove them before deleting")
+		return
+	}
+	var deviceCount int
+	err = h.pool.QueryRow(r.Context(),
+		"SELECT COUNT(*) FROM devices WHERE org_id = $1 AND status != 'revoked'", id,
+	).Scan(&deviceCount)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	if deviceCount > 0 {
+		Error(w, http.StatusConflict, "organization has active devices; revoke them before deleting")
+		return
+	}
+
+	if err := repo.Delete(r.Context(), id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "organization not found")
 			return

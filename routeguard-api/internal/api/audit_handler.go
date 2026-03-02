@@ -37,6 +37,8 @@ func (h *Handler) LogAudit(ctx context.Context, action, targetType, targetID str
 			metadata = make(map[string]any)
 		}
 		metadata["org_id"] = device.OrgID
+	} else {
+		entry.ActorType = "system"
 	}
 
 	if targetType != "" {

@@ -85,6 +85,11 @@ func DeviceAuthenticate(pool *pgxpool.Pool, c *cache.Cache) func(http.Handler) h
 				}
 				return
 			}
+			// Guard: unprovisioned devices have a NULL hash — deny access.
+			if tokenHash == "" {
+				api.Error(w, http.StatusUnauthorized, "unauthorized")
+				return
+			}
 
 			// Validate the raw token against the stored bcrypt hash.
 			if err := crypto.CheckPassword(rawToken, tokenHash); err != nil {

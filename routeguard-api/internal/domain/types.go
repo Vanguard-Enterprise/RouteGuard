@@ -71,11 +71,11 @@ type SSOConnection struct {
 	Enabled              bool       `json:"enabled"`
 	OIDCIssuerURL        *string    `json:"oidc_issuer_url"`
 	OIDCClientID         *string    `json:"oidc_client_id"`
-	OIDCClientSecretEnc  *string    `json:"oidc_client_secret_enc"`
+	OIDCClientSecretEnc  *string    `json:"-"`
 	OIDCScopes           string     `json:"oidc_scopes"`
 	SAMLEntityID         *string    `json:"saml_entity_id"`
 	SAMLSSOUrl           *string    `json:"saml_sso_url"`
-	SAMLCertificateEnc   *string    `json:"saml_certificate_enc"`
+	SAMLCertificateEnc   *string    `json:"-"`
 	SAMLMetadataURL      *string    `json:"saml_metadata_url"`
 	CreatedAt            time.Time  `json:"created_at"`
 	UpdatedAt            time.Time  `json:"updated_at"`
@@ -120,7 +120,7 @@ type Device struct {
 	ID              string          `json:"id"`
 	OrgID           string          `json:"org_id"`
 	Serial          string          `json:"serial"`
-	DeviceTokenHash string          `json:"-"`
+	DeviceTokenHash *string         `json:"-"`
 	Status          string          `json:"status"`
 	VehicleID       *string         `json:"vehicle_id"`
 	SeatCount       *int            `json:"seat_count"`

@@ -110,12 +110,19 @@ func (r *DeviceRepo) Create(ctx context.Context, orgID, serial, tokenHash string
 
 // FindTokenHash returns the device_token_hash for a device by ID.
 // Used exclusively for credential verification — bypasses cache.
+// Returns an empty string when the column is NULL (unprovisioned device).
 func (r *DeviceRepo) FindTokenHash(ctx context.Context, id string) (string, error) {
-	var hash string
+	var hash *string
 	err := r.pool.QueryRow(ctx,
 		"SELECT device_token_hash FROM devices WHERE id = $1", id,
 	).Scan(&hash)
-	return hash, err
+	if err != nil {
+		return "", err
+	}
+	if hash == nil {
+		return "", nil
+	}
+	return *hash, nil
 }
 
 // UpdateLastSeen records the current unix timestamp for the device in Redis.
@@ -189,11 +196,12 @@ func (r *DeviceRepo) ListAll(ctx context.Context, orgID string) ([]domain.Device
 }
 
 // CreateUnprovisioned inserts a new device with status 'unprovisioned'.
+// device_token_hash is stored as NULL because no token has been issued yet.
 func (r *DeviceRepo) CreateUnprovisioned(ctx context.Context, orgID, serial string) (*domain.Device, error) {
 	var d domain.Device
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO devices (id, org_id, serial, device_token_hash, status)
-		VALUES (gen_random_uuid(), $1, $2, '', 'unprovisioned')
+		INSERT INTO devices (org_id, serial, device_token_hash, status, provisioned_at, created_at)
+		VALUES ($1, $2, NULL, 'unprovisioned', NULL, NOW())
 		RETURNING id, org_id, serial, device_token_hash, status, vehicle_id,
 		          seat_count, bus_layout, provisioned_at, created_at
 	`, orgID, serial).Scan(
