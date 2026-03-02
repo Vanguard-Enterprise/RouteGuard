@@ -14,11 +14,12 @@ interface ReportFiltersProps {
 }
 
 export default function ReportFilters({ onFilter }: ReportFiltersProps) {
-  const today = new Date().toISOString().slice(0, 10)
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-
-  const [startDate, setStartDate] = useState(thirtyDaysAgo)
-  const [endDate, setEndDate] = useState(today)
+  const [startDate, setStartDate] = useState(
+    () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  )
+  const [endDate, setEndDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  )
   const [routeId, setRouteId] = useState('')
   const [routes, setRoutes] = useState<Route[]>([])
   const [loadingRoutes, setLoadingRoutes] = useState(true)

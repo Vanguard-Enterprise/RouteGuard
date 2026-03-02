@@ -29,6 +29,7 @@ export default function RunPage() {
         router.replace('/driver')
         return
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReady(true)
     } catch {
       router.replace('/driver')

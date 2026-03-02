@@ -27,6 +27,7 @@ export default function RunCompletePage() {
     }
     try {
       const s = JSON.parse(raw) as DriverSession
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSession(s)
 
       // Compute duration if started_at is present

@@ -31,13 +31,14 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const watchIdRef = useRef<number | null>(null)
 
   // Load trip manifest from localStorage (external system → state init)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const raw = localStorage.getItem('trip_manifest')
     if (raw) {
       try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStops(JSON.parse(raw) as Stop[])
       } catch {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStops([])
       }
     }

@@ -13,10 +13,10 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
   const [digits, setDigits] = useState('')
   const [shake, setShake] = useState(false)
 
-  // Trigger shake animation on error (intentional setState in effect for animation)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Trigger shake animation on error
   useEffect(() => {
     if (error) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShake(true)
       const timer = setTimeout(() => setShake(false), 600)
       return () => clearTimeout(timer)
