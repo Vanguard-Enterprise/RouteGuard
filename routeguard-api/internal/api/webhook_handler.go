@@ -51,7 +51,7 @@ func (h *Handler) TwilioStatusWebhook(w http.ResponseWriter, r *http.Request) {
 
 	// Validate Twilio signature when an auth token is configured (skip in dev).
 	if h.cfg.TwilioAuthToken != "" {
-		webhookURL := h.cfg.APIBaseURL + r.URL.Path
+		webhookURL := h.cfg.APIBaseURL + r.URL.RequestURI()
 		if !validateTwilioSignatureHeader(h.cfg.TwilioAuthToken, webhookURL, r.PostForm, r.Header.Get("X-Twilio-Signature")) {
 			Error(w, http.StatusForbidden, "invalid signature")
 			return

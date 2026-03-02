@@ -39,6 +39,10 @@ func RateLimit(c *cache.Cache, limit int) func(http.Handler) http.Handler {
 
 			if count == 1 {
 				// First request in this window — start the 1-minute TTL.
+				// If Expire fails, the key persists without TTL and the counter
+				// never resets, permanently blocking that IP+endpoint once the
+				// limit is reached. This is an accepted trade-off: Redis errors
+				// causing Incr to succeed but Expire to fail are extremely rare.
 				_ = c.Expire(r.Context(), key, time.Minute)
 			}
 
