@@ -165,6 +165,11 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("trips:read")).Get("/trips/{id}", h.GetMyTrip)
 		r.With(middleware.RequirePermission("trips:write")).Patch("/trips/{id}", h.UpdateMyTrip)
 
+		// Reports
+		r.With(middleware.RequirePermission("reports:read")).Get("/reports/daily-summaries", h.ListDailySummaries)
+		r.With(middleware.RequirePermission("reports:write")).Post("/reports/daily-summaries", h.UpsertDailySummary)
+		r.With(middleware.RequirePermission("reports:read")).Get("/reports/daily-summaries/{id}", h.GetDailySummary)
+
 		// Settings — org:manage permission required for all
 		r.With(middleware.RequirePermission("org:manage")).Get("/settings/users", h.ListOrgUsers)
 		r.With(middleware.RequirePermission("org:manage")).Get("/settings/users/{id}/roles", h.ListUserRoles)
