@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
 	"github.com/routeguard/api/internal/db"
 	"github.com/routeguard/api/internal/server"
@@ -41,7 +42,15 @@ func main() {
 	defer pool.Close()
 	log.Info().Msg("database connected")
 
-	srv, err := server.New(cfg, pool)
+	// Connect to Redis cache
+	c := cache.New(cfg.RedisAddr, cfg.RedisPassword)
+	if err := c.Ping(ctx); err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to Redis")
+	}
+	defer c.Close()
+	log.Info().Msg("Redis connected")
+
+	srv, err := server.New(cfg, pool, c)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize server")
 	}

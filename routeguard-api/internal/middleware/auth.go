@@ -9,9 +9,9 @@ import (
 	"github.com/routeguard/api/internal/cache"
 )
 
-type contextKey string
-
-const SessionKey contextKey = "session"
+// SessionKey is the context key used to store the SessionPayload.
+// It is re-exported from auth for use in tests and other packages.
+var SessionKey = auth.SessionContextKey
 
 // Authenticate validates the session cookie and injects the SessionPayload into context.
 // Returns 401 if the cookie is missing or the session is not found in Redis.
@@ -32,7 +32,7 @@ func Authenticate(c *cache.Cache) func(http.Handler) http.Handler {
 				}
 				return
 			}
-			ctx := context.WithValue(r.Context(), SessionKey, session)
+			ctx := context.WithValue(r.Context(), auth.SessionContextKey, session)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -41,6 +41,5 @@ func Authenticate(c *cache.Cache) func(http.Handler) http.Handler {
 // SessionFromContext retrieves the SessionPayload from the request context.
 // Returns nil if the session is not present (e.g., unauthenticated route).
 func SessionFromContext(ctx context.Context) *auth.SessionPayload {
-	s, _ := ctx.Value(SessionKey).(*auth.SessionPayload)
-	return s
+	return auth.SessionFromContext(ctx)
 }

@@ -6,17 +6,21 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/routeguard/api/internal/api"
+	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
+	"github.com/routeguard/api/internal/middleware"
 )
 
 type Server struct {
 	router chi.Router
 	cfg    *config.Config
 	pool   *pgxpool.Pool
+	cache  *cache.Cache
 }
 
-func New(cfg *config.Config, pool *pgxpool.Pool) (*Server, error) {
-	s := &Server{cfg: cfg, pool: pool}
+func New(cfg *config.Config, pool *pgxpool.Pool, c *cache.Cache) (*Server, error) {
+	s := &Server{cfg: cfg, pool: pool, cache: c}
 	s.router = s.buildRouter()
 	return s, nil
 }
@@ -30,16 +34,22 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(corsMiddleware(s.cfg))
 
-	// Health check
+	h := api.NewHandler(s.pool, s.cache, s.cfg)
+
+	// Health checks
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-
 	r.Get("/ready", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
+
+	// Auth routes
+	r.Post("/auth/login", h.Login)
+	r.Post("/auth/logout", h.Logout)
+	r.With(middleware.Authenticate(s.cache)).Get("/auth/me", h.Me)
 
 	return r
 }

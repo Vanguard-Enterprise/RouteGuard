@@ -16,6 +16,18 @@ const (
 	sessionKeyPrefix  = "session:"
 )
 
+type contextKey string
+
+// SessionContextKey is the context key used to store the SessionPayload.
+const SessionContextKey contextKey = "session"
+
+// SessionFromContext retrieves the SessionPayload from the request context.
+// Returns nil if the session is not present (e.g., unauthenticated route).
+func SessionFromContext(ctx context.Context) *SessionPayload {
+	s, _ := ctx.Value(SessionContextKey).(*SessionPayload)
+	return s
+}
+
 // SessionPayload is the data stored in Redis for each user session.
 type SessionPayload struct {
 	UserID    string   `json:"user_id"`
