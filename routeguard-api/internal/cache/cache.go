@@ -38,6 +38,14 @@ func (c *Cache) Get(ctx context.Context, key string, dest any) error {
 	return json.Unmarshal(data, dest)
 }
 
+func (c *Cache) GetDel(ctx context.Context, key string, dest any) error {
+	data, err := c.client.GetDel(ctx, key).Bytes()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, dest)
+}
+
 func (c *Cache) Del(ctx context.Context, keys ...string) error {
 	return c.client.Del(ctx, keys...).Err()
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -33,6 +34,9 @@ func (h *Handler) OIDCInit(w http.ResponseWriter, r *http.Request) {
 	redirectAfter := r.URL.Query().Get("redirect_after")
 	if redirectAfter == "" {
 		redirectAfter = "/dashboard"
+	} else if !isValidRedirectPath(redirectAfter) {
+		Error(w, http.StatusBadRequest, "invalid redirect_after value")
+		return
 	}
 
 	if slug == "" || connectionID == "" {
@@ -43,7 +47,7 @@ func (h *Handler) OIDCInit(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewUserRepo(h.pool)
 	conn, err := repo.FindSSOConnectionBySlugAndID(r.Context(), slug, connectionID)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "SSO connection not found")
 			return
 		}
@@ -129,10 +133,10 @@ func (h *Handler) OIDCCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Look up and immediately delete the state from Redis (one-time use).
+	// Look up and atomically delete the state from Redis (one-time use, prevents replay).
 	var oauthState auth.OAuthState
 	stateKey := auth.OAuthStateKey(stateToken)
-	if err := h.cache.Get(r.Context(), stateKey, &oauthState); err != nil {
+	if err := h.cache.GetDel(r.Context(), stateKey, &oauthState); err != nil {
 		if h.cache.IsNotFound(err) {
 			Error(w, http.StatusBadRequest, "invalid or expired state")
 			return
@@ -141,13 +145,11 @@ func (h *Handler) OIDCCallback(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	// Delete unconditionally — if the delete fails the state will expire naturally.
-	_ = h.cache.Del(r.Context(), stateKey)
 
 	repo := repository.NewUserRepo(h.pool)
 	conn, err := repo.FindSSOConnectionByID(r.Context(), oauthState.ConnectionID)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "SSO connection not found")
 			return
 		}
@@ -274,7 +276,7 @@ func (h *Handler) OIDCCallback(w http.ResponseWriter, r *http.Request) {
 	_ = repo.UpdateLastLogin(r.Context(), userID)
 
 	redirectTo := oauthState.RedirectAfter
-	if redirectTo == "" {
+	if redirectTo == "" || !isValidRedirectPath(redirectTo) {
 		redirectTo = "/dashboard"
 	}
 	http.Redirect(w, r, h.cfg.BaseURL+redirectTo, http.StatusFound)
@@ -326,4 +328,11 @@ func generateRandomHex(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// isValidRedirectPath returns true if s is a safe relative redirect path:
+// it must start with "/" but must NOT start with "//" (protocol-relative URL)
+// or "/\" (backslash bypass variant).
+func isValidRedirectPath(s string) bool {
+	return strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "//") && !strings.HasPrefix(s, `/\`)
 }

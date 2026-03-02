@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -140,32 +141,38 @@ func (r *UserRepo) FindSSOConnectionByID(ctx context.Context, connectionID strin
 
 // UpsertOIDCUser finds an existing user by OIDC (provider=oidc, provider_user_id=sub) or by
 // email within the same org, creating a new user + identity row if neither exists.
-// Returns the user ID.
+// Returns the user ID. All writes are performed inside a single transaction.
 func (r *UserRepo) UpsertOIDCUser(ctx context.Context, sub, email, name, orgID string) (string, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("upsert oidc user: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
 	// 1. Try to find by provider identity (sub).
 	var userID string
-	err := r.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		SELECT user_id FROM user_identities
 		WHERE provider = 'oidc' AND provider_user_id = $1
 	`, sub).Scan(&userID)
 	if err == nil {
-		return userID, nil
+		return userID, tx.Commit(ctx)
 	}
-	if err != pgx.ErrNoRows {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return "", fmt.Errorf("upsert oidc user: lookup by sub: %w", err)
 	}
 
 	// 2. Try to find by email within the org — link this IdP identity to the existing user.
-	err = r.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		SELECT id FROM users WHERE email = $1 AND org_id = $2
 	`, email, orgID).Scan(&userID)
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return "", fmt.Errorf("upsert oidc user: lookup by email: %w", err)
 	}
 
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		// 3. Create brand-new user row.
-		err = r.pool.QueryRow(ctx, `
+		err = tx.QueryRow(ctx, `
 			INSERT INTO users (org_id, email, name)
 			VALUES ($1, $2, $3)
 			RETURNING id
@@ -176,7 +183,7 @@ func (r *UserRepo) UpsertOIDCUser(ctx context.Context, sub, email, name, orgID s
 	}
 
 	// 4. Insert user_identity linking this sub to the user.
-	_, err = r.pool.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 		INSERT INTO user_identities (user_id, provider, provider_user_id)
 		VALUES ($1, 'oidc', $2)
 		ON CONFLICT (user_id, provider) DO UPDATE
@@ -185,16 +192,23 @@ func (r *UserRepo) UpsertOIDCUser(ctx context.Context, sub, email, name, orgID s
 	if err != nil {
 		return "", fmt.Errorf("upsert oidc user: insert identity: %w", err)
 	}
-	return userID, nil
+	return userID, tx.Commit(ctx)
 }
 
 // SyncSSOUserRoles deletes all existing role assignments for the user that belong to the
 // connection's org, then re-inserts any roles whose sso_role_mapping claim matches the
-// provided claims map (string equality on claim_value).
+// provided claims map (string equality on claim_value). All operations are performed
+// inside a single transaction so the delete and all inserts are atomic.
 func (r *UserRepo) SyncSSOUserRoles(ctx context.Context, userID, connectionID string, claims map[string]any) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("sync sso roles: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
 	// Fetch the org_id for this connection so we only touch roles in the right org.
 	var orgID string
-	err := r.pool.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		"SELECT org_id FROM sso_connections WHERE id = $1", connectionID,
 	).Scan(&orgID)
 	if err != nil {
@@ -202,7 +216,7 @@ func (r *UserRepo) SyncSSOUserRoles(ctx context.Context, userID, connectionID st
 	}
 
 	// Delete all role assignments for this user that belong to the org.
-	_, err = r.pool.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 		DELETE FROM user_roles
 		WHERE user_id = $1
 		  AND role_id IN (SELECT id FROM org_roles WHERE org_id = $2)
@@ -212,7 +226,7 @@ func (r *UserRepo) SyncSSOUserRoles(ctx context.Context, userID, connectionID st
 	}
 
 	// Fetch all role mappings for this connection.
-	rows, err := r.pool.Query(ctx, `
+	rows, err := tx.Query(ctx, `
 		SELECT claim_key, claim_value, org_role_id
 		FROM sso_role_mappings
 		WHERE sso_connection_id = $1
@@ -230,7 +244,7 @@ func (r *UserRepo) SyncSSOUserRoles(ctx context.Context, userID, connectionID st
 		// Check if the claim matches (string comparison).
 		if val, ok := claims[claimKey]; ok {
 			if fmt.Sprintf("%v", val) == claimValue {
-				_, err = r.pool.Exec(ctx, `
+				_, err = tx.Exec(ctx, `
 					INSERT INTO user_roles (user_id, role_id)
 					VALUES ($1, $2)
 					ON CONFLICT DO NOTHING
@@ -241,5 +255,8 @@ func (r *UserRepo) SyncSSOUserRoles(ctx context.Context, userID, connectionID st
 			}
 		}
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
