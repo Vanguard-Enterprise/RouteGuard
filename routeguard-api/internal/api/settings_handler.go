@@ -344,10 +344,14 @@ func (h *Handler) CreateMyAPIKey(w http.ResponseWriter, r *http.Request) {
 			Error(w, http.StatusBadRequest, "expires_at must be RFC3339 format")
 			return
 		}
+		if !t.After(time.Now()) {
+			Error(w, http.StatusBadRequest, "expires_at must be in the future")
+			return
+		}
 		expiresAt = &t
 	}
 
-	rawKey, keyHash, keyPrefix, err := crypto.GenerateAPIKey()
+	rawKey, keyHash, keyPrefix, err := crypto.GenerateAPIKey(h.cfg.APIKeySecret)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return

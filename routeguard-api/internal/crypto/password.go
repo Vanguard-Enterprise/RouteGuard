@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -45,14 +46,16 @@ func HashPIN(pin string) (string, error) {
 // GenerateAPIKey generates a cryptographically random API key.
 // Returns (rawKey, keyHash, keyPrefix, error).
 // rawKey should be shown to the caller once; keyHash is stored in DB; keyPrefix is for display.
-func GenerateAPIKey() (rawKey, keyHash, keyPrefix string, err error) {
+// The keyHash is HMAC-SHA256 keyed with secret so a DB-only breach does not expose usable hashes.
+func GenerateAPIKey(secret []byte) (rawKey, keyHash, keyPrefix string, err error) {
 	b := make([]byte, 32)
 	if _, err = rand.Read(b); err != nil {
 		return
 	}
 	rawKey = "rg_" + base64.RawURLEncoding.EncodeToString(b)
-	h := sha256.Sum256([]byte(rawKey))
-	keyHash = hex.EncodeToString(h[:])
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(rawKey))
+	keyHash = hex.EncodeToString(mac.Sum(nil))
 	keyPrefix = rawKey[:12]
 	return
 }

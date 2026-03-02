@@ -13,6 +13,7 @@ type Config struct {
 	RedisPassword     string
 	SessionKey        []byte
 	DataEncryptionKey []byte
+	APIKeySecret      []byte
 	TwilioAccountSID  string
 	TwilioAuthToken   string
 	TwilioFromNumber  string
@@ -30,6 +31,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("DATA_ENCRYPTION_KEY: %w", err)
 	}
+	apiKeySecret, err := decodeHexKey("API_KEY_SECRET")
+	if err != nil {
+		return nil, fmt.Errorf("API_KEY_SECRET: %w", err)
+	}
 
 	return &Config{
 		Port:              envOr("PORT", "8080"),
@@ -38,6 +43,7 @@ func Load() (*Config, error) {
 		RedisPassword:     os.Getenv("REDIS_PASSWORD"),
 		SessionKey:        sessionKey,
 		DataEncryptionKey: dataKey,
+		APIKeySecret:      apiKeySecret,
 		TwilioAccountSID:  os.Getenv("TWILIO_ACCOUNT_SID"),
 		TwilioAuthToken:   os.Getenv("TWILIO_AUTH_TOKEN"),
 		TwilioFromNumber:  os.Getenv("TWILIO_FROM_NUMBER"),

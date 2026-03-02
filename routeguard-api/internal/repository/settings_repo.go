@@ -104,8 +104,8 @@ func (r *SettingsUserRepo) ListUserRoles(ctx context.Context, userID, orgID stri
 }
 
 // AssignRole atomically assigns a role to a user, verifying both belong to orgID.
-// If already assigned, returns the existing assignment. Returns pgx.ErrNoRows if user
-// or role not found in org.
+// If already assigned, the existing assignment is returned (idempotent).
+// Returns pgx.ErrNoRows if user or role not found in org.
 func (r *SettingsUserRepo) AssignRole(ctx context.Context, userID, roleID, orgID string) (*domain.UserRole, error) {
 	var ur domain.UserRole
 	err := r.pool.QueryRow(ctx, `
@@ -114,26 +114,12 @@ func (r *SettingsUserRepo) AssignRole(ctx context.Context, userID, roleID, orgID
 		FROM users u, org_roles ro
 		WHERE u.id = $1 AND u.org_id = $3
 		  AND ro.id = $2 AND ro.org_id = $3
-		ON CONFLICT (user_id, role_id) DO NOTHING
+		ON CONFLICT (user_id, role_id) DO UPDATE SET user_id = EXCLUDED.user_id
 		RETURNING id, user_id, role_id
 	`, userID, roleID, orgID).Scan(&ur.ID, &ur.UserID, &ur.RoleID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// Either conflict (DO NOTHING returned no rows) or user/role not in org.
-			// Try to fetch existing assignment first.
-			err2 := r.pool.QueryRow(ctx, `
-				SELECT ur.id, ur.user_id, ur.role_id
-				FROM user_roles ur
-				JOIN users u ON u.id = ur.user_id
-				JOIN org_roles ro ON ro.id = ur.role_id
-				WHERE ur.user_id = $1 AND ur.role_id = $2
-				  AND u.org_id = $3 AND ro.org_id = $3
-			`, userID, roleID, orgID).Scan(&ur.ID, &ur.UserID, &ur.RoleID)
-			if err2 != nil {
-				// Either not found at all (pgx.ErrNoRows) or another error.
-				return nil, err2
-			}
-			return &ur, nil
+			return nil, err // user or role not found in org
 		}
 		return nil, fmt.Errorf("settings assign role: %w", err)
 	}
@@ -235,15 +221,6 @@ func (r *RoleRepo) Create(ctx context.Context, orgID, name string, permissions [
 // Update applies a partial update to a role. Returns ErrSystemRole if the role is a system role.
 // name and permissions are optional — nil means no change.
 func (r *RoleRepo) Update(ctx context.Context, id, orgID string, name *string, permissions []string) (*domain.OrgRole, error) {
-	// Check if it's a system role first.
-	existing, err := r.Get(ctx, id, orgID)
-	if err != nil {
-		return nil, err
-	}
-	if existing.IsSystem {
-		return nil, ErrSystemRole
-	}
-
 	setClauses := make([]string, 0)
 	args := make([]any, 0)
 
@@ -257,6 +234,14 @@ func (r *RoleRepo) Update(ctx context.Context, id, orgID string, name *string, p
 	}
 
 	if len(setClauses) == 0 {
+		// No fields to update — fetch current state. ErrSystemRole checked inline.
+		existing, err := r.Get(ctx, id, orgID)
+		if err != nil {
+			return nil, err
+		}
+		if existing.IsSystem {
+			return nil, ErrSystemRole
+		}
 		return existing, nil
 	}
 
@@ -268,13 +253,24 @@ func (r *RoleRepo) Update(ctx context.Context, id, orgID string, name *string, p
 	query := fmt.Sprintf(`
 		UPDATE org_roles
 		SET %s
-		WHERE id = %s AND org_id = %s
+		WHERE id = %s AND org_id = %s AND is_system = false
 		RETURNING id, org_id, name, permissions, is_system, created_at
 	`, strings.Join(setClauses, ", "), idParam, orgParam)
 
 	row := r.pool.QueryRow(ctx, query, args...)
 	role, err := scanRole(row)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Distinguish not-found vs system-role
+			existing, getErr := r.Get(ctx, id, orgID)
+			if getErr != nil {
+				return nil, getErr
+			}
+			if existing.IsSystem {
+				return nil, ErrSystemRole
+			}
+			return nil, pgx.ErrNoRows
+		}
 		return nil, fmt.Errorf("role update: %w", err)
 	}
 	return role, nil
@@ -283,21 +279,21 @@ func (r *RoleRepo) Update(ctx context.Context, id, orgID string, name *string, p
 // Delete removes a role by ID scoped to orgID. Returns ErrSystemRole if system role,
 // pgx.ErrNoRows if not found.
 func (r *RoleRepo) Delete(ctx context.Context, id, orgID string) error {
-	existing, err := r.Get(ctx, id, orgID)
-	if err != nil {
-		return err
-	}
-	if existing.IsSystem {
-		return ErrSystemRole
-	}
-
 	tag, err := r.pool.Exec(ctx, `
-		DELETE FROM org_roles WHERE id = $1 AND org_id = $2
+		DELETE FROM org_roles WHERE id = $1 AND org_id = $2 AND is_system = false
 	`, id, orgID)
 	if err != nil {
 		return fmt.Errorf("role delete: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
+		// Distinguish not-found vs system-role
+		existing, getErr := r.Get(ctx, id, orgID)
+		if getErr != nil {
+			return getErr
+		}
+		if existing.IsSystem {
+			return ErrSystemRole
+		}
 		return pgx.ErrNoRows
 	}
 	return nil
