@@ -17,9 +17,10 @@ const TIMEZONES = [
 
 interface OrgSettingsFormProps {
   user: User
+  orgName?: string | null
 }
 
-export default function OrgSettingsForm({ user }: OrgSettingsFormProps) {
+export default function OrgSettingsForm({ user, orgName }: OrgSettingsFormProps) {
   return (
     <div className="max-w-lg">
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
@@ -37,7 +38,7 @@ export default function OrgSettingsForm({ user }: OrgSettingsFormProps) {
             </label>
             <input
               readOnly
-              value={user.name}
+              value={orgName ?? '(not available)'}
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm bg-gray-50 outline-none cursor-not-allowed"
             />
           </div>

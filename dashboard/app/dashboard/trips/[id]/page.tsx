@@ -1,4 +1,4 @@
-import { api, APIError } from '@/lib/api'
+import { api, APIError, RouteAssignment, Stop } from '@/lib/api'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -20,17 +20,22 @@ async function getTrip(id: string) {
   }
 }
 
-async function getStopsForAssignment(routeAssignmentId: string) {
+async function getStopsForAssignment(routeAssignmentId: string): Promise<Stop[]> {
   try {
     const routes = await api.routes.list()
-    for (const route of routes) {
-      const assignments = await api.routes.assignments.list(route.id)
-      const match = assignments.find((a) => a.id === routeAssignmentId)
-      if (match) {
-        return await api.routes.stops.list(route.id)
-      }
-    }
-    return []
+    // Fetch all assignments in parallel
+    const results = await Promise.all(
+      routes.map((route) =>
+        api.routes.assignments.list(route.id)
+          .then((assignments) => ({ route, assignments }))
+          .catch(() => ({ route, assignments: [] as RouteAssignment[] }))
+      )
+    )
+    const match = results.find(({ assignments }) =>
+      assignments.some((a) => a.id === routeAssignmentId)
+    )
+    if (!match) return []
+    return await api.routes.stops.list(match.route.id)
   } catch {
     return []
   }

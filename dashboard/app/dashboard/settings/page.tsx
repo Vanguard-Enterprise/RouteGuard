@@ -50,6 +50,10 @@ export default async function SettingsPage() {
   const user = await getUser()
   if (!user) return null
 
+  const org = user.org_id
+    ? await api.admin.organizations.get(user.org_id).catch(() => null)
+    : null
+
   return (
     <div className="space-y-8">
       <div>
@@ -68,7 +72,7 @@ export default async function SettingsPage() {
             Organization
           </h2>
         </div>
-        <OrgSettingsForm user={user} />
+        <OrgSettingsForm user={user} orgName={org?.name ?? null} />
       </div>
 
       <div>
