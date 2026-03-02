@@ -144,6 +144,20 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("vehicles:read")).Get("/vehicles/{id}", h.GetMyVehicle)
 		r.With(middleware.RequirePermission("vehicles:write")).Patch("/vehicles/{id}", h.UpdateMyVehicle)
 		r.With(middleware.RequirePermission("vehicles:write")).Delete("/vehicles/{id}", h.DeleteMyVehicle)
+
+		// Routes
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes", h.ListMyRoutes)
+		r.With(middleware.RequirePermission("routes:write")).Post("/routes", h.CreateMyRoute)
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes/{id}", h.GetMyRoute)
+		r.With(middleware.RequirePermission("routes:write")).Patch("/routes/{id}", h.UpdateMyRoute)
+		r.With(middleware.RequirePermission("routes:write")).Delete("/routes/{id}", h.DeleteMyRoute)
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes/{id}/stops", h.ListRouteStops)
+		r.With(middleware.RequirePermission("routes:write")).Post("/routes/{id}/stops", h.CreateRouteStop)
+		r.With(middleware.RequirePermission("routes:write")).Patch("/routes/{id}/stops/{stopId}", h.UpdateRouteStop)
+		r.With(middleware.RequirePermission("routes:write")).Delete("/routes/{id}/stops/{stopId}", h.DeleteRouteStop)
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes/{id}/assignments", h.ListRouteAssignments)
+		r.With(middleware.RequirePermission("routes:write")).Post("/routes/{id}/assignments", h.CreateRouteAssignment)
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes/{id}/students", h.ListRouteStudents)
 	})
 
 	return r
