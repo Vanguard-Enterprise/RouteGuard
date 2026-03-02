@@ -51,6 +51,10 @@ func (s *Server) buildRouter() chi.Router {
 	r.Post("/auth/logout", h.Logout)
 	r.With(middleware.Authenticate(s.cache)).Get("/auth/me", h.Me)
 
+	// SSO routes
+	r.Get("/auth/sso/{slug}/init", h.OIDCInit)
+	r.Get("/auth/sso/callback", h.OIDCCallback)
+
 	return r
 }
 

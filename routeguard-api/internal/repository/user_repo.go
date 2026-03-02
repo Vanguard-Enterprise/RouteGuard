@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/domain"
 )
@@ -85,4 +86,160 @@ func (r *UserRepo) UpdateLastLogin(ctx context.Context, userID string) error {
 	_, err := r.pool.Exec(ctx,
 		"UPDATE users SET last_login_at = NOW() WHERE id = $1", userID)
 	return err
+}
+
+// FindSSOConnectionBySlugAndID looks up an enabled OIDC SSO connection by org slug and connection ID.
+// Returns pgx.ErrNoRows if not found, not enabled, or not of type "oidc".
+func (r *UserRepo) FindSSOConnectionBySlugAndID(ctx context.Context, slug, connectionID string) (*domain.SSOConnection, error) {
+	var c domain.SSOConnection
+	err := r.pool.QueryRow(ctx, `
+		SELECT sc.id, sc.org_id, sc.type, sc.display_name, sc.domain, sc.enabled,
+		       sc.oidc_issuer_url, sc.oidc_client_id, sc.oidc_client_secret_enc, sc.oidc_scopes,
+		       sc.saml_entity_id, sc.saml_sso_url, sc.saml_certificate_enc, sc.saml_metadata_url,
+		       sc.created_at, sc.updated_at
+		FROM sso_connections sc
+		JOIN organizations o ON o.id = sc.org_id
+		WHERE o.slug = $1
+		  AND sc.id = $2
+		  AND sc.type = 'oidc'
+		  AND sc.enabled = true
+	`, slug, connectionID).Scan(
+		&c.ID, &c.OrgID, &c.Type, &c.DisplayName, &c.Domain, &c.Enabled,
+		&c.OIDCIssuerURL, &c.OIDCClientID, &c.OIDCClientSecretEnc, &c.OIDCScopes,
+		&c.SAMLEntityID, &c.SAMLSSOUrl, &c.SAMLCertificateEnc, &c.SAMLMetadataURL,
+		&c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// FindSSOConnectionByID looks up any SSO connection by its primary key.
+// Returns pgx.ErrNoRows if not found.
+func (r *UserRepo) FindSSOConnectionByID(ctx context.Context, connectionID string) (*domain.SSOConnection, error) {
+	var c domain.SSOConnection
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, type, display_name, domain, enabled,
+		       oidc_issuer_url, oidc_client_id, oidc_client_secret_enc, oidc_scopes,
+		       saml_entity_id, saml_sso_url, saml_certificate_enc, saml_metadata_url,
+		       created_at, updated_at
+		FROM sso_connections
+		WHERE id = $1
+	`, connectionID).Scan(
+		&c.ID, &c.OrgID, &c.Type, &c.DisplayName, &c.Domain, &c.Enabled,
+		&c.OIDCIssuerURL, &c.OIDCClientID, &c.OIDCClientSecretEnc, &c.OIDCScopes,
+		&c.SAMLEntityID, &c.SAMLSSOUrl, &c.SAMLCertificateEnc, &c.SAMLMetadataURL,
+		&c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// UpsertOIDCUser finds an existing user by OIDC (provider=oidc, provider_user_id=sub) or by
+// email within the same org, creating a new user + identity row if neither exists.
+// Returns the user ID.
+func (r *UserRepo) UpsertOIDCUser(ctx context.Context, sub, email, name, orgID string) (string, error) {
+	// 1. Try to find by provider identity (sub).
+	var userID string
+	err := r.pool.QueryRow(ctx, `
+		SELECT user_id FROM user_identities
+		WHERE provider = 'oidc' AND provider_user_id = $1
+	`, sub).Scan(&userID)
+	if err == nil {
+		return userID, nil
+	}
+	if err != pgx.ErrNoRows {
+		return "", fmt.Errorf("upsert oidc user: lookup by sub: %w", err)
+	}
+
+	// 2. Try to find by email within the org — link this IdP identity to the existing user.
+	err = r.pool.QueryRow(ctx, `
+		SELECT id FROM users WHERE email = $1 AND org_id = $2
+	`, email, orgID).Scan(&userID)
+	if err != nil && err != pgx.ErrNoRows {
+		return "", fmt.Errorf("upsert oidc user: lookup by email: %w", err)
+	}
+
+	if err == pgx.ErrNoRows {
+		// 3. Create brand-new user row.
+		err = r.pool.QueryRow(ctx, `
+			INSERT INTO users (org_id, email, name)
+			VALUES ($1, $2, $3)
+			RETURNING id
+		`, orgID, email, name).Scan(&userID)
+		if err != nil {
+			return "", fmt.Errorf("upsert oidc user: create user: %w", err)
+		}
+	}
+
+	// 4. Insert user_identity linking this sub to the user.
+	_, err = r.pool.Exec(ctx, `
+		INSERT INTO user_identities (user_id, provider, provider_user_id)
+		VALUES ($1, 'oidc', $2)
+		ON CONFLICT (user_id, provider) DO UPDATE
+		    SET provider_user_id = EXCLUDED.provider_user_id
+	`, userID, sub)
+	if err != nil {
+		return "", fmt.Errorf("upsert oidc user: insert identity: %w", err)
+	}
+	return userID, nil
+}
+
+// SyncSSOUserRoles deletes all existing role assignments for the user that belong to the
+// connection's org, then re-inserts any roles whose sso_role_mapping claim matches the
+// provided claims map (string equality on claim_value).
+func (r *UserRepo) SyncSSOUserRoles(ctx context.Context, userID, connectionID string, claims map[string]any) error {
+	// Fetch the org_id for this connection so we only touch roles in the right org.
+	var orgID string
+	err := r.pool.QueryRow(ctx,
+		"SELECT org_id FROM sso_connections WHERE id = $1", connectionID,
+	).Scan(&orgID)
+	if err != nil {
+		return fmt.Errorf("sync sso roles: fetch org: %w", err)
+	}
+
+	// Delete all role assignments for this user that belong to the org.
+	_, err = r.pool.Exec(ctx, `
+		DELETE FROM user_roles
+		WHERE user_id = $1
+		  AND role_id IN (SELECT id FROM org_roles WHERE org_id = $2)
+	`, userID, orgID)
+	if err != nil {
+		return fmt.Errorf("sync sso roles: delete existing: %w", err)
+	}
+
+	// Fetch all role mappings for this connection.
+	rows, err := r.pool.Query(ctx, `
+		SELECT claim_key, claim_value, org_role_id
+		FROM sso_role_mappings
+		WHERE sso_connection_id = $1
+	`, connectionID)
+	if err != nil {
+		return fmt.Errorf("sync sso roles: fetch mappings: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var claimKey, claimValue, roleID string
+		if err := rows.Scan(&claimKey, &claimValue, &roleID); err != nil {
+			return fmt.Errorf("sync sso roles: scan mapping: %w", err)
+		}
+		// Check if the claim matches (string comparison).
+		if val, ok := claims[claimKey]; ok {
+			if fmt.Sprintf("%v", val) == claimValue {
+				_, err = r.pool.Exec(ctx, `
+					INSERT INTO user_roles (user_id, role_id)
+					VALUES ($1, $2)
+					ON CONFLICT DO NOTHING
+				`, userID, roleID)
+				if err != nil {
+					return fmt.Errorf("sync sso roles: insert role %s: %w", roleID, err)
+				}
+			}
+		}
+	}
+	return rows.Err()
 }
