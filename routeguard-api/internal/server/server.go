@@ -137,6 +137,13 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("drivers:write")).Patch("/drivers/{id}", h.UpdateMyDriver)
 		r.With(middleware.RequirePermission("drivers:write")).Delete("/drivers/{id}", h.DeleteMyDriver)
 		r.With(middleware.RequirePermission("drivers:write")).Post("/drivers/{id}/set-pin", h.SetDriverPIN)
+
+		// Vehicles
+		r.With(middleware.RequirePermission("vehicles:read")).Get("/vehicles", h.ListMyVehicles)
+		r.With(middleware.RequirePermission("vehicles:write")).Post("/vehicles", h.CreateMyVehicle)
+		r.With(middleware.RequirePermission("vehicles:read")).Get("/vehicles/{id}", h.GetMyVehicle)
+		r.With(middleware.RequirePermission("vehicles:write")).Patch("/vehicles/{id}", h.UpdateMyVehicle)
+		r.With(middleware.RequirePermission("vehicles:write")).Delete("/vehicles/{id}", h.DeleteMyVehicle)
 	})
 
 	return r
