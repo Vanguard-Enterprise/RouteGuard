@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"unicode"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -303,9 +304,15 @@ func (h *Handler) SetDriverPIN(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.PIN == "" {
-		Error(w, http.StatusBadRequest, "pin is required")
+	if len(req.PIN) < 4 || len(req.PIN) > 8 {
+		Error(w, http.StatusBadRequest, "pin must be 4-8 digits")
 		return
+	}
+	for _, ch := range req.PIN {
+		if !unicode.IsDigit(ch) {
+			Error(w, http.StatusBadRequest, "pin must be 4-8 digits")
+			return
+		}
 	}
 
 	pinHash, err := crypto.HashPIN(req.PIN)

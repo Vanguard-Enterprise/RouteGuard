@@ -229,9 +229,9 @@ type Driver struct {
 	Phone           *string    `json:"phone"`
 	LicenseNumber   *string    `json:"license_number"`
 	LicenseExpiry   *pgtype.Date `json:"license_expiry"`
-	PinHash         *string    `json:"pin_hash"`
+	PinHash         *string    `json:"-"`
 	RFIDBadgeID     *string    `json:"rfid_badge_id"`
-	RFIDBadgeIDHash *string    `json:"rfid_badge_id_hash"`
+	RFIDBadgeIDHash *string    `json:"-"`
 	Status          string     `json:"status"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
