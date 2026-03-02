@@ -125,6 +125,10 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("students:read")).Get("/students/{id}", h.GetMyStudent)
 		r.With(middleware.RequirePermission("students:write")).Patch("/students/{id}", h.UpdateMyStudent)
 		r.With(middleware.RequirePermission("students:write")).Delete("/students/{id}", h.DeleteMyStudent)
+
+		// Guardians (nested under students)
+		r.With(middleware.RequirePermission("guardians:read")).Get("/students/{studentId}/guardians", h.ListStudentGuardians)
+		r.With(middleware.RequirePermission("guardians:write")).Post("/students/{studentId}/guardians", h.CreateStudentGuardian)
 	})
 
 	return r
