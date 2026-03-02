@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
+	"fmt"
 	"io"
 )
 
@@ -52,7 +52,7 @@ func Decrypt(key []byte, ciphertext string) (string, error) {
 		return "", err
 	}
 	if len(data) < gcm.NonceSize() {
-		return "", errors.New("ciphertext too short")
+		return "", fmt.Errorf("ciphertext too short: need at least %d bytes, got %d", gcm.NonceSize()+gcm.Overhead(), len(data))
 	}
 	nonce, ciphertextBytes := data[:gcm.NonceSize()], data[gcm.NonceSize():]
 	plaintext, err := gcm.Open(nil, nonce, ciphertextBytes, nil)

@@ -1,6 +1,7 @@
 package crypto_test
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/routeguard/api/internal/crypto"
@@ -101,10 +102,17 @@ func TestDecryptTamperedCiphertext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Tamper with the last byte of the base64 string
-	tampered := []byte(ct)
-	tampered[len(tampered)-2] ^= 0xFF
-	_, err = crypto.Decrypt(key, string(tampered))
+	// Decode to raw bytes, flip a byte in the ciphertext portion (past the 12-byte nonce),
+	// then re-encode so the test exercises GCM authentication tag rejection,
+	// not just base64 decode failure.
+	raw, err := base64.StdEncoding.DecodeString(ct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw[len(raw)-1] ^= 0x01
+	tampered := base64.StdEncoding.EncodeToString(raw)
+
+	_, err = crypto.Decrypt(key, tampered)
 	if err == nil {
 		t.Fatal("decrypting tampered ciphertext should return error")
 	}
