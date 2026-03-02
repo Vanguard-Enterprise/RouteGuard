@@ -158,6 +158,12 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("routes:read")).Get("/routes/{id}/assignments", h.ListRouteAssignments)
 		r.With(middleware.RequirePermission("routes:write")).Post("/routes/{id}/assignments", h.CreateRouteAssignment)
 		r.With(middleware.RequirePermission("routes:read")).Get("/routes/{id}/students", h.ListRouteStudents)
+
+		// Trips
+		r.With(middleware.RequirePermission("trips:read")).Get("/trips", h.ListMyTrips)
+		r.With(middleware.RequirePermission("trips:write")).Post("/trips", h.CreateMyTrip)
+		r.With(middleware.RequirePermission("trips:read")).Get("/trips/{id}", h.GetMyTrip)
+		r.With(middleware.RequirePermission("trips:write")).Patch("/trips/{id}", h.UpdateMyTrip)
 	})
 
 	return r
