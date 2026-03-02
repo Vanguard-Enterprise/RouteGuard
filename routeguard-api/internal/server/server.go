@@ -75,6 +75,7 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(tripSessionAuth).Post("/api/v1/trips/start", h.StartTrip)
 	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/location", h.RecordLocation)
 	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/end", h.EndTrip)
+	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/scan", h.RecordScan)
 
 	// Admin routes — staff only
 	r.Route("/admin", func(r chi.Router) {

@@ -143,6 +143,11 @@ func (h *Handler) CreateMyStudent(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
+	var rfidHash *string
+	if req.RFIDTagID != nil {
+		hv := hashRFID(*req.RFIDTagID)
+		rfidHash = &hv
+	}
 	encMedical, err := h.encryptOptional(req.MedicalNotes)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
@@ -151,7 +156,7 @@ func (h *Handler) CreateMyStudent(w http.ResponseWriter, r *http.Request) {
 
 	repo := repository.NewStudentRepo(h.pool)
 	student, err := repo.Create(r.Context(), orgID, req.SchoolID, req.FirstName, req.LastName,
-		req.StudentNumber, req.Grade, encRFID, req.Address, req.City, req.State, req.Zip,
+		req.StudentNumber, req.Grade, encRFID, rfidHash, req.Address, req.City, req.State, req.Zip,
 		req.Lat, req.Lng, req.Status, encMedical)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
@@ -216,6 +221,11 @@ func (h *Handler) UpdateMyStudent(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
+	var rfidHash *string
+	if req.RFIDTagID != nil {
+		hv := hashRFID(*req.RFIDTagID)
+		rfidHash = &hv
+	}
 	encMedical, err := h.encryptOptional(req.MedicalNotes)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
@@ -225,7 +235,7 @@ func (h *Handler) UpdateMyStudent(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewStudentRepo(h.pool)
 	student, err := repo.Update(r.Context(), id, orgID,
 		req.SchoolID, req.FirstName, req.LastName, req.StudentNumber, req.Grade,
-		encRFID, req.Address, req.City, req.State, req.Zip,
+		encRFID, rfidHash, req.Address, req.City, req.State, req.Zip,
 		req.Lat, req.Lng, req.Status, encMedical)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -352,6 +362,11 @@ func (h *Handler) ImportStudents(w http.ResponseWriter, r *http.Request) {
 			})
 			continue
 		}
+		var rfidHash *string
+		if rfidTagID != nil {
+			hv := hashRFID(*rfidTagID)
+			rfidHash = &hv
+		}
 		encMedical, err := h.encryptOptional(medicalNotes)
 		if err != nil {
 			result.Errors = append(result.Errors, importError{
@@ -369,7 +384,7 @@ func (h *Handler) ImportStudents(w http.ResponseWriter, r *http.Request) {
 		zip := getCSVFieldPtr(record, headers, "zip")
 
 		_, err = repo.Create(r.Context(), orgID, schoolID, firstName, lastName,
-			studentNumber, grade, encRFID, address, city, state, zip,
+			studentNumber, grade, encRFID, rfidHash, address, city, state, zip,
 			nil, nil, "active", encMedical)
 		if err != nil {
 			var pgErr *pgconn.PgError

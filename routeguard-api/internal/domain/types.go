@@ -162,6 +162,7 @@ type Student struct {
 	StudentNumber *string    `json:"student_number"`
 	Grade         *string    `json:"grade"`
 	RFIDTagID     *string    `json:"rfid_tag_id"`
+	RFIDTagIDHash *string    `json:"-"`
 	Address       *string    `json:"address"`
 	City          *string    `json:"city"`
 	State         *string    `json:"state"`

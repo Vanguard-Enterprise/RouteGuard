@@ -129,6 +129,28 @@ func (r *TripDeviceRepo) CompleteTrip(ctx context.Context, tripID, orgID string)
 	return t, nil
 }
 
+// InsertScanEvent records an RFID scan event for a trip.
+// studentID and stopID are optional (nil if student not found / no stop specified).
+// rfidTagID is the plaintext tag ID (stored as scanned for audit purposes).
+// Returns pgx.ErrNoRows if the trip does not belong to orgID or is not in_progress.
+func (r *TripDeviceRepo) InsertScanEvent(ctx context.Context, tripID, orgID, rfidTagID, scanType string, studentID, stopID *string, authorized bool) (*domain.ScanEvent, error) {
+	row := r.pool.QueryRow(ctx, `
+		INSERT INTO scan_events (trip_id, student_id, stop_id, rfid_tag_id, scan_type, authorized)
+		SELECT $1, $2, $3, $4, $5, $6
+		FROM trips
+		WHERE id = $1 AND org_id = $7 AND status = 'in_progress'
+		RETURNING id, trip_id, student_id, stop_id, rfid_tag_id, scan_type, authorized, recorded_at
+	`, tripID, studentID, stopID, rfidTagID, scanType, authorized, orgID)
+	var e domain.ScanEvent
+	if err := row.Scan(&e.ID, &e.TripID, &e.StudentID, &e.StopID, &e.RFIDTagID, &e.ScanType, &e.Authorized, &e.RecordedAt); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("insert scan event: %w", err)
+	}
+	return &e, nil
+}
+
 // CountBoardings returns the count of DISTINCT students with scan_type='board' for the trip.
 func (r *TripDeviceRepo) CountBoardings(ctx context.Context, tripID string) (int, error) {
 	var count int

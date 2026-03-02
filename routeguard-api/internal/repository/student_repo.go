@@ -23,7 +23,7 @@ func NewStudentRepo(pool *pgxpool.Pool) *StudentRepo {
 
 const studentSelectCols = `
 	id, org_id, school_id, first_name, last_name, student_number, grade,
-	rfid_tag_id, address, city, state, zip, lat, lng,
+	rfid_tag_id, rfid_tag_id_hash, address, city, state, zip, lat, lng,
 	status, medical_notes, created_at, updated_at
 `
 
@@ -31,7 +31,7 @@ func scanStudent(row pgx.Row) (*domain.Student, error) {
 	var s domain.Student
 	err := row.Scan(
 		&s.ID, &s.OrgID, &s.SchoolID, &s.FirstName, &s.LastName,
-		&s.StudentNumber, &s.Grade, &s.RFIDTagID, &s.Address,
+		&s.StudentNumber, &s.Grade, &s.RFIDTagID, &s.RFIDTagIDHash, &s.Address,
 		&s.City, &s.State, &s.Zip, &s.Lat, &s.Lng,
 		&s.Status, &s.MedicalNotes, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -63,7 +63,7 @@ func (r *StudentRepo) List(ctx context.Context, orgID string, limit, offset int)
 		var s domain.Student
 		if err := rows.Scan(
 			&s.ID, &s.OrgID, &s.SchoolID, &s.FirstName, &s.LastName,
-			&s.StudentNumber, &s.Grade, &s.RFIDTagID, &s.Address,
+			&s.StudentNumber, &s.Grade, &s.RFIDTagID, &s.RFIDTagIDHash, &s.Address,
 			&s.City, &s.State, &s.Zip, &s.Lat, &s.Lng,
 			&s.Status, &s.MedicalNotes, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
@@ -90,17 +90,18 @@ func (r *StudentRepo) Get(ctx context.Context, id, orgID string) (*domain.Studen
 
 // Create inserts a new student and returns the created row.
 // rfidTagID and medicalNotes must be already encrypted before this call.
-func (r *StudentRepo) Create(ctx context.Context, orgID, schoolID, firstName, lastName string, studentNumber, grade, rfidTagID, address, city, state, zip *string, lat, lng *float64, status string, medicalNotes *string) (*domain.Student, error) {
+// rfidTagIDHash is the SHA-256 hex hash of the plaintext RFID tag ID (nil if no RFID).
+func (r *StudentRepo) Create(ctx context.Context, orgID, schoolID, firstName, lastName string, studentNumber, grade, rfidTagID, rfidTagIDHash, address, city, state, zip *string, lat, lng *float64, status string, medicalNotes *string) (*domain.Student, error) {
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO students (
 			id, org_id, school_id, first_name, last_name,
-			student_number, grade, rfid_tag_id, address, city, state, zip,
+			student_number, grade, rfid_tag_id, rfid_tag_id_hash, address, city, state, zip,
 			lat, lng, status, medical_notes
 		)
-		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING `+studentSelectCols,
 		orgID, schoolID, firstName, lastName,
-		studentNumber, grade, rfidTagID, address, city, state, zip,
+		studentNumber, grade, rfidTagID, rfidTagIDHash, address, city, state, zip,
 		lat, lng, status, medicalNotes,
 	)
 	s, err := scanStudent(row)
@@ -112,8 +113,9 @@ func (r *StudentRepo) Create(ctx context.Context, orgID, schoolID, firstName, la
 
 // Update applies a partial update to a student scoped to orgID. Only non-nil fields are updated.
 // rfidTagID and medicalNotes must be already encrypted before this call.
+// rfidTagIDHash is the SHA-256 hex hash of the plaintext RFID tag ID (nil if not changing).
 // If no fields are provided, returns the current student via Get.
-func (r *StudentRepo) Update(ctx context.Context, id, orgID string, schoolID, firstName, lastName, studentNumber, grade, rfidTagID, address, city, state, zip *string, lat, lng *float64, status, medicalNotes *string) (*domain.Student, error) {
+func (r *StudentRepo) Update(ctx context.Context, id, orgID string, schoolID, firstName, lastName, studentNumber, grade, rfidTagID, rfidTagIDHash, address, city, state, zip *string, lat, lng *float64, status, medicalNotes *string) (*domain.Student, error) {
 	setClauses := make([]string, 0)
 	args := make([]any, 0)
 
@@ -140,6 +142,10 @@ func (r *StudentRepo) Update(ctx context.Context, id, orgID string, schoolID, fi
 	if rfidTagID != nil {
 		args = append(args, *rfidTagID)
 		setClauses = append(setClauses, fmt.Sprintf("rfid_tag_id = $%d", len(args)))
+	}
+	if rfidTagIDHash != nil {
+		args = append(args, *rfidTagIDHash)
+		setClauses = append(setClauses, fmt.Sprintf("rfid_tag_id_hash = $%d", len(args)))
 	}
 	if address != nil {
 		args = append(args, *address)
@@ -198,6 +204,19 @@ func (r *StudentRepo) Update(ctx context.Context, id, orgID string, schoolID, fi
 			return nil, pgx.ErrNoRows
 		}
 		return nil, fmt.Errorf("student update: %w", err)
+	}
+	return s, nil
+}
+
+// FindByRFIDTagHash looks up an active student by their RFID tag hash within an org.
+// Returns pgx.ErrNoRows if not found.
+func (r *StudentRepo) FindByRFIDTagHash(ctx context.Context, rfidHash, orgID string) (*domain.Student, error) {
+	row := r.pool.QueryRow(ctx,
+		`SELECT `+studentSelectCols+` FROM students WHERE rfid_tag_id_hash = $1 AND org_id = $2 AND status = 'active'`,
+		rfidHash, orgID)
+	s, err := scanStudent(row)
+	if err != nil {
+		return nil, err
 	}
 	return s, nil
 }
