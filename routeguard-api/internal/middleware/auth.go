@@ -25,7 +25,11 @@ func Authenticate(c *cache.Cache) func(http.Handler) http.Handler {
 			}
 			session, err := auth.GetSession(r.Context(), c, token)
 			if err != nil {
-				api.Error(w, http.StatusUnauthorized, "unauthorized")
+				if c.IsNotFound(err) {
+					api.Error(w, http.StatusUnauthorized, "unauthorized")
+				} else {
+					api.Error(w, http.StatusInternalServerError, "internal server error")
+				}
 				return
 			}
 			ctx := context.WithValue(r.Context(), SessionKey, session)
