@@ -36,6 +36,7 @@ export interface User {
   name: string
   avatar_url: string | null
   last_login_at: string | null
+  permissions: string[]
   created_at: string
 }
 
