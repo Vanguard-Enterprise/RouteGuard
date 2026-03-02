@@ -38,6 +38,7 @@ func CreateSession(ctx context.Context, c *cache.Cache, payload SessionPayload) 
 }
 
 // GetSession retrieves a session by token. Returns nil, cache miss error if not found.
+// Use cache.IsNotFound(err) to distinguish a cache miss (→ 401) from a server error (→ 500).
 func GetSession(ctx context.Context, c *cache.Cache, token string) (*SessionPayload, error) {
 	var payload SessionPayload
 	if err := c.Get(ctx, sessionKeyPrefix+token, &payload); err != nil {
@@ -70,17 +71,20 @@ func SetSessionCookie(w http.ResponseWriter, token string, secure bool) {
 		Domain:   ".route-guard.com",
 		HttpOnly: true,
 		Secure:   secure,
+		// SameSite=Lax: allows cookie on top-level navigations; cross-origin fetch is blocked by CORS policy.
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(SessionTTL.Seconds()),
 	})
 }
 
 // ClearSessionCookie expires the session cookie.
+// Domain and Path must match the original cookie exactly for browsers to delete it.
 func ClearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:   SessionCookieName,
 		Value:  "",
 		Path:   "/",
+		Domain: ".route-guard.com",
 		MaxAge: -1,
 	})
 }

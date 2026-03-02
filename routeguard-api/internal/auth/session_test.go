@@ -9,9 +9,6 @@ import (
 	"github.com/routeguard/api/internal/auth"
 )
 
-func containsStr(s, substr string) bool {
-	return strings.Contains(s, substr)
-}
 
 func TestTokenFromRequest_WithCookie(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -65,7 +62,7 @@ func TestSetSessionCookie(t *testing.T) {
 		t.Fatal("Set-Cookie header not present")
 	}
 	const wantDomain = "Domain=route-guard.com"
-	if !containsStr(rawHeader, wantDomain) {
+	if !strings.Contains(rawHeader, wantDomain) {
 		t.Fatalf("Set-Cookie header %q does not contain %q", rawHeader, wantDomain)
 	}
 }
@@ -92,5 +89,22 @@ func TestClearSessionCookie(t *testing.T) {
 	}
 	if found.MaxAge != -1 {
 		t.Fatalf("MaxAge: got %d, want -1", found.MaxAge)
+	}
+	// Domain must match SetSessionCookie so the browser expires the correct cookie.
+	// Go's http package normalises ".route-guard.com" -> "route-guard.com" per RFC 6265.
+	rawHeader := w.Header().Get("Set-Cookie")
+	wantDomain := "route-guard.com"
+	if !strings.Contains(rawHeader, wantDomain) {
+		t.Fatalf("expected Domain=%q in Set-Cookie header, got: %q", wantDomain, rawHeader)
+	}
+}
+
+func TestSetSessionCookie_Secure(t *testing.T) {
+	w := httptest.NewRecorder()
+	auth.SetSessionCookie(w, "securetoken", true)
+
+	rawHeader := w.Header().Get("Set-Cookie")
+	if !strings.Contains(rawHeader, "Secure") {
+		t.Fatalf("expected Secure attribute in Set-Cookie header, got: %q", rawHeader)
 	}
 }
