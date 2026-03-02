@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Papa from 'papaparse'
 import { api } from '@/lib/api'
 
 type Step = 'upload' | 'preview' | 'confirm' | 'done'
@@ -18,18 +19,12 @@ interface ParsedRow {
 const EXPECTED_COLUMNS = 'first_name,last_name,student_number,grade,school_id,status'
 
 function parseCSV(text: string): ParsedRow[] {
-  const lines = text.trim().split('\n')
-  if (lines.length < 2) return []
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+  })
 
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
-
-  return lines.slice(1).map((line) => {
-    const values = line.split(',').map((v) => v.trim())
-    const row: Record<string, string> = {}
-    headers.forEach((h, i) => {
-      row[h] = values[i] ?? ''
-    })
-
+  return result.data.map((row) => {
     const first_name = row['first_name'] ?? ''
     const last_name = row['last_name'] ?? ''
     const valid = first_name.length > 0 && last_name.length > 0
@@ -51,14 +46,15 @@ export default function ImportWizard() {
   const [step, setStep] = useState<Step>('upload')
   const [rows, setRows] = useState<ParsedRow[]>([])
   const [fileName, setFileName] = useState('')
-  const [progress, setProgress] = useState(0)
+  const [file, setFile] = useState<File | null>(null)
   const [importedCount, setImportedCount] = useState(0)
-  const [skippedCount, setSkippedCount] = useState(0)
+  const [importErrors, setImportErrors] = useState<string[]>([])
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setFileName(file.name)
+    const selected = e.target.files?.[0]
+    if (!selected) return
+    setFileName(selected.name)
+    setFile(selected)
     const reader = new FileReader()
     reader.onload = (evt) => {
       const text = evt.target?.result as string
@@ -66,39 +62,23 @@ export default function ImportWizard() {
       setRows(parsed)
       setStep('preview')
     }
-    reader.readAsText(file)
+    reader.readAsText(selected)
   }
 
   async function handleImport() {
-    const validRows = rows.filter((r) => r.valid)
+    if (!file) return
     setStep('confirm')
-    setProgress(0)
     setImportedCount(0)
-    setSkippedCount(0)
+    setImportErrors([])
 
-    let imported = 0
-    let skipped = 0
-
-    for (let i = 0; i < validRows.length; i++) {
-      const row = validRows[i]
-      try {
-        await api.students.create({
-          first_name: row.first_name,
-          last_name: row.last_name,
-          student_number: row.student_number || null,
-          grade: row.grade || null,
-          school_id: row.school_id || undefined,
-          status: row.status || 'active',
-        })
-        imported++
-      } catch {
-        skipped++
-      }
-      setProgress(i + 1)
+    try {
+      const result = await api.students.import(file)
+      setImportedCount(result.imported)
+      setImportErrors(result.errors ?? [])
+    } catch {
+      setImportErrors(['Import failed. Please try again.'])
     }
 
-    setImportedCount(imported)
-    setSkippedCount(skipped)
     setStep('done')
   }
 
@@ -226,19 +206,10 @@ export default function ImportWizard() {
           Importing…
         </h2>
         <div className="mb-4">
-          <div className="flex justify-between text-sm text-gray-600 mb-1">
-            <span>
-              Importing {progress} of {validRows.length}…
-            </span>
-            <span>{Math.round((progress / Math.max(validRows.length, 1)) * 100)}%</span>
-          </div>
-          <div className="w-full bg-gray-100 rounded-full h-2">
+          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
             <div
-              className="h-2 rounded-full transition-all"
-              style={{
-                width: `${(progress / Math.max(validRows.length, 1)) * 100}%`,
-                backgroundColor: 'var(--color-brand-navy)',
-              }}
+              className="h-2 rounded-full animate-pulse"
+              style={{ width: '100%', backgroundColor: 'var(--color-brand-navy)' }}
             />
           </div>
         </div>
@@ -258,11 +229,18 @@ export default function ImportWizard() {
             {importedCount} imported
           </span>
         </div>
-        {skippedCount > 0 && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-              {skippedCount} skipped / errors
-            </span>
+        {importErrors.length > 0 && (
+          <div className="mt-3">
+            <p className="text-sm font-medium text-red-600 mb-1">
+              {importErrors.length} error{importErrors.length !== 1 ? 's' : ''}:
+            </p>
+            <ul className="space-y-1">
+              {importErrors.map((err, i) => (
+                <li key={i} className="text-xs text-red-500">
+                  {err}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

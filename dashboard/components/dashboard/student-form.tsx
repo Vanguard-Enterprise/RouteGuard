@@ -80,7 +80,6 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
         await api.students.update(student.id, payload)
         router.push(`/dashboard/students/${student.id}`)
       }
-      router.refresh()
     } catch {
       alert('Failed to save student.')
     }

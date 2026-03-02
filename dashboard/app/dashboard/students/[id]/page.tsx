@@ -33,13 +33,15 @@ export default async function StudentDetailPage({ params }: PageProps) {
   const [student, guardians] = await Promise.all([getStudent(id), getGuardians(id)])
   if (!student) notFound()
 
+  const school = await api.schools.get(student.school_id).catch(() => null)
+
   const fields: { label: string; value: string }[] = [
     { label: 'ID', value: student.id },
     { label: 'First Name', value: student.first_name },
     { label: 'Last Name', value: student.last_name },
     { label: 'Student #', value: student.student_number ?? '—' },
     { label: 'Grade', value: student.grade ?? '—' },
-    { label: 'School', value: student.school_id },
+    { label: 'School', value: school?.name ?? student.school_id },
     { label: 'Status', value: student.status },
     { label: 'Address', value: student.address ?? '—' },
     { label: 'City', value: student.city ?? '—' },

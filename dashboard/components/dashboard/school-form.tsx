@@ -62,8 +62,8 @@ export default function SchoolForm({ school, mode }: SchoolFormProps) {
         phone: data.phone || null,
         contact_name: data.contact_name || null,
         contact_email: data.contact_email || null,
-        lat: isNaN(parsedLat as number) ? null : parsedLat,
-        lng: isNaN(parsedLng as number) ? null : parsedLng,
+        lat: parsedLat === null || isNaN(parsedLat) ? null : parsedLat,
+        lng: parsedLng === null || isNaN(parsedLng) ? null : parsedLng,
       }
       if (mode === 'create') {
         await api.schools.create(payload)
@@ -72,7 +72,6 @@ export default function SchoolForm({ school, mode }: SchoolFormProps) {
         await api.schools.update(school.id, payload)
         router.push(`/dashboard/schools/${school.id}`)
       }
-      router.refresh()
     } catch {
       alert('Failed to save school.')
     }

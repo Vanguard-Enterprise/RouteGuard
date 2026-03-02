@@ -70,7 +70,6 @@ export default function VehicleForm({ vehicle, mode }: VehicleFormProps) {
         await api.vehicles.update(vehicle.id, payload)
         router.push(`/dashboard/vehicles/${vehicle.id}`)
       }
-      router.refresh()
     } catch {
       alert('Failed to save vehicle.')
     }

@@ -13,7 +13,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      ...(!(init?.body instanceof FormData) && { 'Content-Type': 'application/json' }),
       ...init?.headers,
     },
   })
@@ -298,6 +298,15 @@ export const api = {
     update: (id: string, data: Partial<Student>) =>
       request<Student>(`/dashboard/students/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/dashboard/students/${id}`, { method: 'DELETE' }),
+    import: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return request<{ imported: number; errors: string[] }>('/dashboard/students/import', {
+        method: 'POST',
+        headers: {},
+        body: form,
+      })
+    },
     guardians: {
       list: (studentId: string) => request<Guardian[]>(`/dashboard/students/${studentId}/guardians`),
       create: (studentId: string, data: Partial<Guardian>) =>

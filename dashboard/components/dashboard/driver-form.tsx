@@ -68,7 +68,6 @@ export default function DriverForm({ driver, mode }: DriverFormProps) {
         await api.drivers.update(driver.id, payload)
         router.push(`/dashboard/drivers/${driver.id}`)
       }
-      router.refresh()
     } catch {
       alert('Failed to save driver.')
     }
