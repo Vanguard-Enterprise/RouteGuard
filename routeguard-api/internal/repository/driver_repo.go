@@ -39,7 +39,7 @@ func (r *DriverRepo) FindByID(ctx context.Context, id string) (*domain.Driver, e
 }
 
 // FindByIDAndOrg looks up an active driver by ID scoped to the given org.
-// Returns pgx.ErrNoRows if not found OR if the driver belongs to a different org.
+// Returns pgx.ErrNoRows if not found, wrong org, or driver is not active.
 func (r *DriverRepo) FindByIDAndOrg(ctx context.Context, id, orgID string) (*domain.Driver, error) {
 	var d domain.Driver
 	err := r.pool.QueryRow(ctx, `
@@ -47,7 +47,7 @@ func (r *DriverRepo) FindByIDAndOrg(ctx context.Context, id, orgID string) (*dom
 		       license_number, license_expiry, pin_hash,
 		       rfid_badge_id, rfid_badge_id_hash, status, created_at, updated_at
 		FROM drivers
-		WHERE id = $1 AND org_id = $2
+		WHERE id = $1 AND org_id = $2 AND status = 'active'
 	`, id, orgID).Scan(
 		&d.ID, &d.OrgID, &d.UserID, &d.FirstName, &d.LastName, &d.Phone,
 		&d.LicenseNumber, &d.LicenseExpiry, &d.PinHash,
