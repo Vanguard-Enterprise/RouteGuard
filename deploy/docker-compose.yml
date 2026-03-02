@@ -77,7 +77,7 @@ services:
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: https://api.route-guard.com
-      NEXT_PUBLIC_MAPBOX_TOKEN: ${MAPBOX_TOKEN}
+      NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN}
       NODE_ENV: production
     labels:
       - "traefik.enable=true"
