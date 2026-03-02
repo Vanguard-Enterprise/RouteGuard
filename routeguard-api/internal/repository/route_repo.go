@@ -299,7 +299,7 @@ func (r *RouteRepo) UpdateStop(ctx context.Context, stopID, routeID, orgID strin
 			SELECT `+stopSelectCols+`
 			FROM stops
 			WHERE id = $1 AND route_id = $2
-			  AND EXISTS (SELECT 1 FROM routes WHERE id = route_id AND org_id = $3)
+			  AND EXISTS (SELECT 1 FROM routes WHERE id = $2 AND org_id = $3)
 		`, stopID, routeID, orgID)
 		return scanStop(row)
 	}
@@ -315,9 +315,9 @@ func (r *RouteRepo) UpdateStop(ctx context.Context, stopID, routeID, orgID strin
 		UPDATE stops
 		SET %s, updated_at = NOW()
 		WHERE id = %s AND route_id = %s
-		  AND EXISTS (SELECT 1 FROM routes WHERE id = route_id AND org_id = %s)
+		  AND EXISTS (SELECT 1 FROM routes WHERE id = %s AND org_id = %s)
 		RETURNING `+stopSelectCols,
-		strings.Join(setClauses, ", "), stopParam, routeParam, orgParam,
+		strings.Join(setClauses, ", "), stopParam, routeParam, routeParam, orgParam,
 	)
 
 	row := r.pool.QueryRow(ctx, query, args...)
@@ -333,7 +333,7 @@ func (r *RouteRepo) DeleteStop(ctx context.Context, stopID, routeID, orgID strin
 	tag, err := r.pool.Exec(ctx, `
 		DELETE FROM stops
 		WHERE id = $1 AND route_id = $2
-		  AND EXISTS (SELECT 1 FROM routes WHERE id = route_id AND org_id = $3)
+		  AND EXISTS (SELECT 1 FROM routes WHERE id = $2 AND org_id = $3)
 	`, stopID, routeID, orgID)
 	if err != nil {
 		return fmt.Errorf("stop delete: %w", err)

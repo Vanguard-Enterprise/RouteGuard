@@ -36,7 +36,7 @@ type createStopRequest struct {
 	Address       *string  `json:"address"`
 	Lat           *float64 `json:"lat"`
 	Lng           *float64 `json:"lng"`
-	SequenceOrder int      `json:"sequence_order"`
+	SequenceOrder *int     `json:"sequence_order"`
 	ScheduledTime *string  `json:"scheduled_time"`
 }
 
@@ -234,13 +234,13 @@ func (h *Handler) CreateRouteStop(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.Name == "" {
-		Error(w, http.StatusBadRequest, "name is required")
+	if req.Name == "" || req.SequenceOrder == nil {
+		Error(w, http.StatusBadRequest, "name and sequence_order are required")
 		return
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
-	stop, err := repo.CreateStop(r.Context(), routeID, orgID, req.Name, req.Address, req.Lat, req.Lng, req.SequenceOrder, req.ScheduledTime)
+	stop, err := repo.CreateStop(r.Context(), routeID, orgID, req.Name, req.Address, req.Lat, req.Lng, *req.SequenceOrder, req.ScheduledTime)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "route not found")
@@ -348,9 +348,6 @@ func (h *Handler) CreateRouteAssignment(w http.ResponseWriter, r *http.Request) 
 	if req.VehicleID == "" || req.DriverID == "" || req.DaysOfWeek == "" {
 		Error(w, http.StatusBadRequest, "vehicle_id, driver_id, and days_of_week are required")
 		return
-	}
-	if req.DaysOfWeek == "" {
-		req.DaysOfWeek = "MTWRF"
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
