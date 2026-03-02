@@ -1,6 +1,6 @@
 module github.com/routeguard/api
 
-go 1.25.6
+go 1.22
 
 require (
 	github.com/beevik/etree v1.5.0 // indirect
