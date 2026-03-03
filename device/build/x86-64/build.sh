@@ -9,9 +9,10 @@ OUTPUT=/output
 
 mkdir -p "$WORK" "$OUTPUT"
 
-# Ensure loop devices exist in the container. --privileged gives CAP_MKNOD so
-# mknod works even when the host loop devices are busy or not bind-mounted.
-for i in $(seq 0 7); do
+# Ensure loop devices exist in the container. --privileged gives CAP_MKNOD.
+# Range extends to 31 so losetup finds free slots even if 0-7 are occupied by
+# the host's Docker overlay storage driver.
+for i in $(seq 0 31); do
     [ -b /dev/loop$i ] || mknod /dev/loop$i b 7 $i 2>/dev/null || true
 done
 

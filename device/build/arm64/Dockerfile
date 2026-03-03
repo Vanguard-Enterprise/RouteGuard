@@ -8,9 +8,9 @@ RUN apt-get update && apt-get install -y \
 
 RUN git clone --depth 1 https://github.com/RPi-Distro/pi-gen.git /pi-gen
 
-# qemu-user-binfmt conflicts with qemu-user-static on Debian; patch pi-gen's
-# precheck to accept qemu-user-static in its place.
-RUN sed -i 's/qemu-user-binfmt/qemu-user-static/g' /pi-gen/scripts/precheck
+# qemu-user-binfmt conflicts with qemu-user-static on Debian; patch whichever
+# pi-gen file references it so qemu-user-static is accepted instead.
+RUN find /pi-gen -type f | xargs grep -rl "qemu-user-binfmt" | xargs -r sed -i 's/qemu-user-binfmt/qemu-user-static/g'
 
 WORKDIR /pi-gen
 COPY arm64/config ./config
