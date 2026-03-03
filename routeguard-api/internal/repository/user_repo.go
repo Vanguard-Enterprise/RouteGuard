@@ -27,7 +27,7 @@ func (r *UserRepo) FindByEmailAndProvider(ctx context.Context, email, provider s
 	var passwordHash string
 
 	row := r.pool.QueryRow(ctx, `
-		SELECT u.id, u.org_id, u.email, u.name, u.avatar_url, u.last_login_at, u.created_at,
+		SELECT u.id, u.org_id, u.email, u.name, u.avatar_url, u.last_login_at, u.deleted_at, u.created_at,
 		       ui.password_hash
 		FROM users u
 		JOIN user_identities ui ON ui.user_id = u.id
@@ -35,7 +35,7 @@ func (r *UserRepo) FindByEmailAndProvider(ctx context.Context, email, provider s
 	`, email, provider)
 
 	err := row.Scan(
-		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt,
+		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.DeletedAt, &u.CreatedAt,
 		&passwordHash,
 	)
 	if err != nil {
@@ -48,9 +48,9 @@ func (r *UserRepo) FindByEmailAndProvider(ctx context.Context, email, provider s
 func (r *UserRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	var u domain.User
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, org_id, email, name, avatar_url, last_login_at, created_at
+		SELECT id, org_id, email, name, avatar_url, last_login_at, deleted_at, created_at
 		FROM users WHERE id = $1
-	`, id).Scan(&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt)
+	`, id).Scan(&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.DeletedAt, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +96,9 @@ func (r *UserRepo) UpdateProfile(ctx context.Context, userID, name string, avata
 	err := r.pool.QueryRow(ctx, `
 		UPDATE users SET name = $1, avatar_url = $2
 		WHERE id = $3
-		RETURNING id, org_id, email, name, avatar_url, last_login_at, created_at
+		RETURNING id, org_id, email, name, avatar_url, last_login_at, deleted_at, created_at
 	`, name, avatarURL, userID).Scan(
-		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt,
+		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.DeletedAt, &u.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
