@@ -321,6 +321,13 @@ export const api = {
         return request<AuditLog[]>(`/admin/audit-logs${qs}`)
       },
     },
+    profile: {
+      get: () => request<User>('/admin/profile'),
+      update: (data: { name: string; avatar_url?: string | null }) =>
+        request<User>('/admin/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+      changePassword: (data: { current_password: string; new_password: string }) =>
+        request<void>('/admin/profile/password', { method: 'POST', body: JSON.stringify(data) }),
+    },
   },
   schools: {
     list: () => request<School[]>('/dashboard/schools'),
