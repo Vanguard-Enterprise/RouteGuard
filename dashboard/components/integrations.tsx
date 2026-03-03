@@ -74,7 +74,7 @@ const tiles: TileData[] = [
 		row: 0,
 		col: 3,
 		logo: {
-			src: "https://logo.clearbit.com/powerschool.com",
+			src: "/logos/powerschool.svg",
 			alt: "PowerSchool",
 		},
 	},
@@ -85,7 +85,7 @@ const tiles: TileData[] = [
 		row: 1,
 		col: 2,
 		logo: {
-			src: "https://logo.clearbit.com/infinitecampus.com",
+			src: "/logos/infinitecampus.svg",
 			alt: "Infinite Campus",
 		},
 	},
@@ -93,7 +93,7 @@ const tiles: TileData[] = [
 		row: 1,
 		col: 4,
 		logo: {
-			src: "https://logo.clearbit.com/edupoint.com",
+			src: "/logos/synergy.svg",
 			alt: "Synergy",
 		},
 	},
@@ -103,7 +103,7 @@ const tiles: TileData[] = [
 		row: 2,
 		col: 1,
 		logo: {
-			src: "https://logo.clearbit.com/skyward.com",
+			src: "/logos/skyward.png",
 			alt: "Skyward",
 		},
 	},
@@ -111,7 +111,7 @@ const tiles: TileData[] = [
 		row: 2,
 		col: 3,
 		logo: {
-			src: "https://logo.clearbit.com/clever.com",
+			src: "/logos/clever.png",
 			alt: "Clever",
 		},
 	},
@@ -122,7 +122,7 @@ const tiles: TileData[] = [
 		row: 3,
 		col: 2,
 		logo: {
-			src: "https://logo.clearbit.com/google.com",
+			src: "/logos/google.svg",
 			alt: "Google Workspace",
 		},
 	},
@@ -130,9 +130,8 @@ const tiles: TileData[] = [
 		row: 3,
 		col: 4,
 		logo: {
-			src: "https://logo.clearbit.com/microsoft.com",
+			src: "/logos/microsoft.svg",
 			alt: "Microsoft",
 		},
 	},
-
 ];
