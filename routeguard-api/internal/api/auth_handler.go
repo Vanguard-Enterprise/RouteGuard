@@ -124,7 +124,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := auth.TokenFromRequest(r)
 	if token != "" {
-		_ = auth.DestroySession(r.Context(), h.cache, token)
+		if payload, err := auth.GetSession(r.Context(), h.cache, token); err == nil {
+			_ = auth.DestroySession(r.Context(), h.cache, token, payload.UserID)
+		} else {
+			// Session already expired - just clear cookie
+			_ = h.cache.Del(r.Context(), "session:"+token)
+		}
 	}
 	auth.ClearSessionCookie(w)
 	NoContent(w)

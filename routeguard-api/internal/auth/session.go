@@ -11,10 +11,15 @@ import (
 )
 
 const (
-	SessionCookieName = "rg_session"
-	SessionTTL        = 7 * 24 * time.Hour
-	sessionKeyPrefix  = "session:"
+	SessionCookieName  = "rg_session"
+	SessionTTL         = 7 * 24 * time.Hour
+	sessionKeyPrefix   = "session:"
+	userSessionsPrefix = "user_sessions:"
 )
+
+func userSessionsKey(userID string) string {
+	return userSessionsPrefix + userID
+}
 
 type contextKey string
 
@@ -39,14 +44,20 @@ type SessionPayload struct {
 	CreatedAt int64    `json:"created_at"`
 }
 
-// CreateSession generates a random token, stores the session payload in Redis, and returns the token.
+// CreateSession generates a random token, stores the session payload in Redis,
+// and tracks the token in a per-user set for bulk invalidation.
 func CreateSession(ctx context.Context, c *cache.Cache, payload SessionPayload) (string, error) {
 	token, err := generateToken()
 	if err != nil {
 		return "", err
 	}
 	payload.CreatedAt = time.Now().Unix()
-	return token, c.Set(ctx, sessionKeyPrefix+token, payload, SessionTTL)
+	if err := c.Set(ctx, sessionKeyPrefix+token, payload, SessionTTL); err != nil {
+		return "", err
+	}
+	// Non-fatal: track this token under the user so we can bulk-invalidate on soft delete.
+	_ = c.SAdd(ctx, userSessionsKey(payload.UserID), token, SessionTTL)
+	return token, nil
 }
 
 // GetSession retrieves a session by token. Returns nil, cache miss error if not found.
@@ -59,9 +70,25 @@ func GetSession(ctx context.Context, c *cache.Cache, token string) (*SessionPayl
 	return &payload, nil
 }
 
-// DestroySession deletes a session from Redis.
-func DestroySession(ctx context.Context, c *cache.Cache, token string) error {
+// DestroySession deletes a session from Redis and removes it from the user's session set.
+func DestroySession(ctx context.Context, c *cache.Cache, token, userID string) error {
+	_ = c.SRem(ctx, userSessionsKey(userID), token)
 	return c.Del(ctx, sessionKeyPrefix+token)
+}
+
+// InvalidateUserSessions deletes all active sessions for a user.
+// Called on soft delete to immediately revoke access.
+func InvalidateUserSessions(ctx context.Context, c *cache.Cache, userID string) error {
+	tokens, err := c.SMembers(ctx, userSessionsKey(userID))
+	if err != nil {
+		return err
+	}
+	keys := make([]string, 0, len(tokens)+1)
+	for _, t := range tokens {
+		keys = append(keys, sessionKeyPrefix+t)
+	}
+	keys = append(keys, userSessionsKey(userID))
+	return c.Del(ctx, keys...)
 }
 
 // UpdateSession overwrites the session payload for an existing token.
