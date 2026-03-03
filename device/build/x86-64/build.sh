@@ -9,6 +9,12 @@ OUTPUT=/output
 
 mkdir -p "$WORK" "$OUTPUT"
 
+# Ensure loop devices exist in the container. --privileged gives CAP_MKNOD so
+# mknod works even when the host loop devices are busy or not bind-mounted.
+for i in $(seq 0 7); do
+    [ -b /dev/loop$i ] || mknod /dev/loop$i b 7 $i 2>/dev/null || true
+done
+
 echo "==> Creating ${IMG_SIZE_MB}MB disk image"
 dd if=/dev/zero of="$WORK/routeguard.img" bs=1M count=$IMG_SIZE_MB status=progress
 
