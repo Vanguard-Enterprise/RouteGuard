@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/cache"
+	"github.com/routeguard/api/internal/cleanup"
 	"github.com/routeguard/api/internal/config"
 	"github.com/routeguard/api/internal/db"
 	"github.com/routeguard/api/internal/repository"
@@ -98,6 +99,8 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize server")
 	}
+
+	cleanup.StartUnclaimedDevicePurge(ctx, pool)
 
 	httpSrv := &http.Server{
 		Addr:         ":" + cfg.Port,
