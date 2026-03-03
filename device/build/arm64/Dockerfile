@@ -8,8 +8,9 @@ RUN apt-get update && apt-get install -y \
 RUN git clone --depth 1 https://github.com/RPi-Distro/pi-gen.git /pi-gen
 
 WORKDIR /pi-gen
-COPY config ./config
-COPY stage-routeguard ./stage-routeguard
+COPY arm64/config ./config
+COPY arm64/stage-routeguard ./stage-routeguard
+COPY common /common
 RUN chmod +x stage-routeguard/00-routeguard/00-run.sh
 
 CMD ["bash", "build.sh"]
