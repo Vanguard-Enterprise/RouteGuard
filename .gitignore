@@ -17,6 +17,10 @@ dashboard/.env.local
 # Go API
 routeguard-api/bin/
 routeguard-api/.env
+routeguard-api/*.exe
+
+# Playwright MCP screenshots
+.playwright-mcp/
 
 # Deploy
 deploy/.env
