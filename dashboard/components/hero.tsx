@@ -6,7 +6,7 @@ import Link from "next/link";
 export function HeroSection() {
 	return (
 		<section
-			className="w-full overflow-hidden"
+			className="-mt-14 w-full overflow-hidden pt-14"
 			style={{ backgroundColor: "var(--color-brand-navy)" }}
 		>
 			{/* Background radial glow */}

@@ -24,30 +24,15 @@ export function MobileNav({ scrolled }: { scrolled?: boolean }) {
 				size="icon"
 				variant="outline"
 			>
-				<div
-					className={cn(
-						"transition-all",
-						open ? "scale-100 opacity-100" : "scale-0 opacity-0"
-					)}
-				>
-					<XIcon />
-				</div>
-				<div
-					className={cn(
-						"absolute transition-all",
-						open ? "scale-0 opacity-0" : "scale-100 opacity-100"
-					)}
-				>
-					<MenuIcon />
-				</div>
+				{open ? <XIcon /> : <MenuIcon />}
 			</Button>
 			{open && (
 				<Portal className="top-14" id="mobile-menu">
 					<PortalBackdrop />
 					<div
 						className={cn(
-							"size-full p-4",
-							"data-[slot=open]:zoom-in-97 ease-out data-[slot=open]:animate-in"
+							"data-[slot=open]:zoom-in-97 ease-out data-[slot=open]:animate-in",
+							"size-full p-4"
 						)}
 						data-slot={open ? "open" : "closed"}
 					>

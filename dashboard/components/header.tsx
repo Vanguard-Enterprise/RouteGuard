@@ -16,19 +16,17 @@ export function Header() {
 	const scrolled = useScroll(10);
 
 	return (
-		<header
-			className={cn(
-				"sticky top-0 z-50 w-full border-b transition-all ease-out",
-				scrolled
-					? "border-border bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50"
-					: "border-transparent bg-[#1B3A5C]"
-			)}
-		>
+		<header className="sticky top-0 z-50 w-full">
 			<nav
 				className={cn(
-					"mx-auto flex w-full max-w-4xl items-center justify-between px-4 md:transition-all md:ease-out",
-					scrolled ? "h-12 md:max-w-3xl md:px-2" : "h-14"
+					"mx-auto flex h-14 w-full items-center justify-between md:rounded-md md:border",
+					scrolled
+						? "max-w-3xl border-border bg-background/95 px-2 shadow backdrop-blur-sm supports-backdrop-filter:bg-background/50"
+						: "max-w-4xl border-transparent px-4"
 				)}
+				style={{
+					transition: "max-width 300ms ease-out, padding 300ms ease-out, background-color 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out",
+				}}
 			>
 				<Link
 					className={cn(
@@ -38,9 +36,9 @@ export function Header() {
 					href="/"
 				>
 					<LogoIcon className="h-8 w-auto" />
-					<span className="font-semibold tracking-tight">
+					<span className="text-lg font-semibold tracking-tight">
 						<span className="text-[#2A7D4F]">Route</span>
-						<span className={scrolled ? "text-[#1B3A5C] dark:text-foreground" : "text-white"}>
+						<span className={scrolled ? "text-foreground" : "text-white"}>
 							Guard
 						</span>
 					</span>
