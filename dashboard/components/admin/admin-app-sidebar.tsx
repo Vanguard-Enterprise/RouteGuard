@@ -35,7 +35,7 @@ export function AdminAppSidebar({ user, ...props }: AdminAppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <AdminNavMain />
+        <AdminNavMain user={user} />
       </SidebarContent>
       <SidebarFooter>
         <AdminNavUser user={user} />
