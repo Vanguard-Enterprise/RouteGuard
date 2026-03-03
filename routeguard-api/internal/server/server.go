@@ -65,6 +65,10 @@ func (s *Server) buildRouter() chi.Router {
 	r.Get("/auth/sso/{slug}/saml/init", h.SAMLInit)
 	r.Post("/auth/sso/saml/acs", h.SAMLACS)
 
+	// Device check-in (unauthenticated, rate-limited)
+	r.With(middleware.RateLimit(s.cache, 10)).Post("/api/v1/devices/checkin", h.DeviceCheckin)
+	r.With(middleware.RateLimit(s.cache, 12)).Get("/api/v1/devices/checkin/status", h.DeviceCheckinStatus)
+
 	// Device-authenticated routes
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/devices/heartbeat", h.DeviceHeartbeat)
 
@@ -174,6 +178,12 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("vehicles:read")).Get("/vehicles/{id}", h.GetMyVehicle)
 		r.With(middleware.RequirePermission("vehicles:write")).Patch("/vehicles/{id}", h.UpdateMyVehicle)
 		r.With(middleware.RequirePermission("vehicles:write")).Delete("/vehicles/{id}", h.DeleteMyVehicle)
+
+		// Devices
+		r.With(middleware.RequirePermission("devices:read")).Get("/devices", h.ListMyDevices)
+		r.With(middleware.RequirePermission("devices:write")).Post("/devices/claim", h.ClaimDevice)
+		r.With(middleware.RequirePermission("devices:read")).Get("/devices/{id}", h.GetMyDevice)
+		r.With(middleware.RequirePermission("devices:write")).Delete("/devices/{id}", h.RevokeMyDevice)
 
 		// Routes
 		r.With(middleware.RequirePermission("routes:read")).Get("/routes", h.ListMyRoutes)
