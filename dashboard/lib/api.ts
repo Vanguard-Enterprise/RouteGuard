@@ -228,6 +228,26 @@ export interface OrgRole {
   created_at: string
 }
 
+export interface StaffRole {
+  id: string
+  name: string
+  permissions: string[]
+  is_system: boolean
+  created_at: string
+}
+
+export interface StaffUser {
+  id: string
+  email: string
+  name: string
+  avatar_url: string | null
+  last_login_at: string | null
+  deleted_at: string | null
+  days_until_deletion: number
+  roles: StaffRole[]
+  created_at: string
+}
+
 export interface APIKey {
   id: string
   org_id: string
@@ -335,6 +355,34 @@ export const api = {
           headers: {},
           body: form,
         })
+      },
+    },
+    staff: {
+      users: {
+        list: () => request<StaffUser[]>('/admin/staff/users'),
+        get: (id: string) => request<StaffUser>(`/admin/staff/users/${id}`),
+        create: (data: { email: string; name: string; password: string }) =>
+          request<StaffUser>('/admin/staff/users', { method: 'POST', body: JSON.stringify(data) }),
+        update: (id: string, data: { name: string }) =>
+          request<StaffUser>(`/admin/staff/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+        delete: (id: string) => request<void>(`/admin/staff/users/${id}`, { method: 'DELETE' }),
+        restore: (id: string) => request<void>(`/admin/staff/users/${id}/restore`, { method: 'POST' }),
+        roles: {
+          list: (userId: string) => request<StaffRole[]>(`/admin/staff/users/${userId}/roles`),
+          assign: (userId: string, roleId: string) =>
+            request<void>(`/admin/staff/users/${userId}/roles`, { method: 'POST', body: JSON.stringify({ role_id: roleId }) }),
+          unassign: (userId: string, roleId: string) =>
+            request<void>(`/admin/staff/users/${userId}/roles/${roleId}`, { method: 'DELETE' }),
+        },
+      },
+      roles: {
+        list: () => request<StaffRole[]>('/admin/staff/roles'),
+        get: (id: string) => request<StaffRole>(`/admin/staff/roles/${id}`),
+        create: (data: { name: string; permissions: string[] }) =>
+          request<StaffRole>('/admin/staff/roles', { method: 'POST', body: JSON.stringify(data) }),
+        update: (id: string, data: { name: string; permissions: string[] }) =>
+          request<StaffRole>(`/admin/staff/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+        delete: (id: string) => request<void>(`/admin/staff/roles/${id}`, { method: 'DELETE' }),
       },
     },
   },
