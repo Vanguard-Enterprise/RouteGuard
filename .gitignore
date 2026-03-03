@@ -27,3 +27,6 @@ deploy/traefik/certs/
 .DS_Store
 Thumbs.db
 *.log
+
+# Worktrees
+.worktrees/
