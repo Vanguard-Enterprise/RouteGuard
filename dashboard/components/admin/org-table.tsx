@@ -111,10 +111,11 @@ export default function OrgTable({ organizations: initial }: OrgTableProps) {
     {
       id: 'actions',
       enableHiding: false,
+      header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => {
         const org = row.original
         return (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-end gap-1">
             <Link
               href={`/admin/organizations/${org.id}`}
               className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"

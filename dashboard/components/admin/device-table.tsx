@@ -133,7 +133,9 @@ export default function DeviceTable({ devices: initial }: DeviceTableProps) {
     {
       id: 'actions',
       enableHiding: false,
+      header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => (
+        <div className="flex justify-end">
         <button
           onClick={() => setDeleteTarget(row.original)}
           className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
@@ -141,6 +143,7 @@ export default function DeviceTable({ devices: initial }: DeviceTableProps) {
         >
           <Trash2 size={15} />
         </button>
+        </div>
       ),
     },
   ]
