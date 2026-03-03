@@ -9,15 +9,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-deploy:
+  setup:
     runs-on: self-hosted
     permissions:
       contents: read
       deployments: write
-    defaults:
-      run:
-        working-directory: routeguard-api
-
+    outputs:
+      deployment_id: ${{ steps.deployment.outputs.result }}
     steps:
       - name: Create GitHub deployment
         uses: actions/github-script@v7
@@ -42,6 +40,13 @@ jobs:
             return data.id;
           result-encoding: string
 
+  test:
+    runs-on: self-hosted
+    needs: setup
+    defaults:
+      run:
+        working-directory: routeguard-api
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -52,7 +57,14 @@ jobs:
           cache-dependency-path: routeguard-api/go.sum
 
       - name: Run tests
-        run: go test ./... -v
+        run: go test ./...
+
+  build:
+    runs-on: self-hosted
+    needs: setup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Build Docker image
         working-directory: ${{ github.workspace }}
@@ -71,6 +83,10 @@ jobs:
           docker push localhost:5000/routeguard-api:latest
           docker push localhost:5000/routeguard-api:${{ github.sha }}
 
+  deploy:
+    runs-on: self-hosted
+    needs: [test, build]
+    steps:
       - name: Deploy
         working-directory: /opt/routeguard/deploy
         run: |
@@ -79,26 +95,29 @@ jobs:
           docker compose up -d --no-deps --force-recreate routeguard-api
 
       - name: Mark deployment success
-        if: success()
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.repos.createDeploymentStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              deployment_id: parseInt('${{ steps.deployment.outputs.result }}'),
+              deployment_id: parseInt('${{ needs.setup.outputs.deployment_id }}'),
               state: 'success',
               environment_url: 'https://api.route-guard.com',
             });
 
+  notify-failure:
+    runs-on: self-hosted
+    needs: [setup, test, build, deploy]
+    if: failure() && needs.setup.result == 'success'
+    steps:
       - name: Mark deployment failure
-        if: failure() && steps.deployment.outputs.result
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.repos.createDeploymentStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              deployment_id: parseInt('${{ steps.deployment.outputs.result }}'),
+              deployment_id: parseInt('${{ needs.setup.outputs.deployment_id }}'),
               state: 'failure',
             });
