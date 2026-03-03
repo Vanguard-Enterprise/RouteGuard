@@ -36,8 +36,8 @@ export function Header() {
 					href="/"
 				>
 					<LogoIcon className="h-8 w-auto" />
-					<span className="font-semibold tracking-tight text-[#1B3A5C] dark:text-foreground">
-						RouteGuard
+					<span className="font-semibold tracking-tight">
+						<span className="text-[#2A7D4F]">Route</span><span className="text-[#1B3A5C] dark:text-foreground">Guard</span>
 					</span>
 				</Link>
 				<div className="hidden items-center gap-2 md:flex">
