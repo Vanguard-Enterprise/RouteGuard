@@ -36,12 +36,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up loop devices on host
+        run: |
+          sudo mknod /dev/loop-control c 10 237 2>/dev/null || true
+          for i in $(seq 0 7); do
+            sudo mknod /dev/loop$i b 7 $i 2>/dev/null || true
+          done
+
       - name: Build x86-64 image
         run: |
           cd device/build
           mkdir -p x86-64/output
           docker build -t rg-build-x86 -f x86-64/Dockerfile .
           docker run --privileged \
+            -v /dev:/dev \
             -v "$(pwd)/x86-64/output:/output" \
             rg-build-x86
 

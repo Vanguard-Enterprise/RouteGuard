@@ -18,7 +18,8 @@ COPY arm64/stage-routeguard ./stage-routeguard
 COPY common /common
 RUN chmod +x stage-routeguard/00-routeguard/00-run.sh
 
-# binfmt_misc is built-in on PVE kernels so mount it directly, then re-register
-# QEMU handlers (qemu-user-static's post-install ran at build time when
-# binfmt_misc wasn't mounted, so the handlers were never written).
-CMD ["bash", "-c", "mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true && update-binfmts --enable 2>/dev/null || true && bash build.sh"]
+# binfmt_misc is built-in on PVE kernels so it is already mounted on the host.
+# Privileged containers share the host's /proc/sys/fs/binfmt_misc, so we only
+# need to re-register the QEMU ARM handler (post-install ran at image build time
+# when binfmt_misc wasn't mounted, so the handler was never written).
+CMD ["bash", "-c", "update-binfmts --enable qemu-arm 2>/dev/null || true && bash build.sh"]
