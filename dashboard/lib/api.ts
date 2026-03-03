@@ -286,8 +286,11 @@ async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
-    login: (email: string, password: string) =>
-      authRequest<User>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    login: (email: string, password: string, orgSlug?: string) =>
+      authRequest<User>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, ...(orgSlug ? { org_slug: orgSlug } : {}) }),
+      }),
     logout: () => authRequest<void>('/api/auth/logout', { method: 'POST' }),
     me: () => request<User>('/auth/me'),
   },

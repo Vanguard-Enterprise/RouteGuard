@@ -175,6 +175,16 @@ func (r *OrgRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// CheckSlug returns true if an organization with the given id has the given slug.
+func (r *OrgRepo) CheckSlug(ctx context.Context, orgID, slug string) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM organizations WHERE id = $1 AND slug = $2)",
+		orgID, slug,
+	).Scan(&exists)
+	return exists, err
+}
+
 // SeedSystemRoles inserts the standard system roles for an org using ON CONFLICT DO NOTHING
 // so it is safe to call multiple times.
 func (r *OrgRepo) SeedSystemRoles(ctx context.Context, orgID string) error {

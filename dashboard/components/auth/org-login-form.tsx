@@ -49,7 +49,7 @@ export default function OrgLoginForm({ orgName, slug, hasPasswordAuth, ssoConnec
     setServerError(null)
     setLoading(true)
     try {
-      await api.auth.login(data.email, data.password)
+      await api.auth.login(data.email, data.password, slug)
       window.location.href = '/dashboard'
     } catch (err) {
       if (err instanceof APIError && err.status === 401) {
