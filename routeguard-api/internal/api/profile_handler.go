@@ -56,10 +56,10 @@ func (h *Handler) GetAdminProfile(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	permissions, err := repo.GetUserPermissions(r.Context(), user.ID)
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "internal server error")
-		return
+	// Use permissions from the session (loaded at login from staff_user_roles or user_roles).
+	permissions := session.Roles
+	if permissions == nil {
+		permissions = []string{}
 	}
 	JSON(w, http.StatusOK, profileResponse(user, permissions))
 }
