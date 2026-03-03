@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { Camera } from 'lucide-react'
 import { api, APIError, type User } from '@/lib/api'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,6 @@ import { Label } from '@/components/ui/label'
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
-  avatar_url: z.string().url('Must be a valid URL').or(z.literal('')).optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -24,7 +24,10 @@ interface AdminProfileFormProps {
 }
 
 export function AdminProfileForm({ user }: AdminProfileFormProps) {
-  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(user.avatar_url)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initials = user.name
     ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -33,31 +36,46 @@ export function AdminProfileForm({ user }: AdminProfileFormProps) {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: user.name,
-      avatar_url: user.avatar_url ?? '',
-    },
+    defaultValues: { name: user.name },
   })
 
-  const avatarUrlValue = watch('avatar_url')
-
   async function onSubmit(data: FormValues) {
-    setLoading(true)
+    setSaving(true)
     try {
-      await api.admin.profile.update({
-        name: data.name,
-        avatar_url: data.avatar_url || null,
-      })
+      await api.admin.profile.update({ name: data.name })
       toast.success('Profile updated.')
     } catch (err) {
-      const msg = err instanceof APIError ? err.message : 'Something went wrong.'
-      toast.error(msg)
+      toast.error(err instanceof APIError ? err.message : 'Something went wrong.')
     } finally {
-      setLoading(false)
+      setSaving(false)
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Show a local preview immediately while upload is in progress.
+    const localURL = URL.createObjectURL(file)
+    setAvatarSrc(localURL)
+    setUploading(true)
+
+    try {
+      const updated = await api.admin.profile.uploadAvatar(file)
+      setAvatarSrc(updated.avatar_url)
+      toast.success('Avatar updated.')
+    } catch (err) {
+      // Revert preview on failure.
+      setAvatarSrc(user.avatar_url)
+      toast.error(err instanceof APIError ? err.message : 'Upload failed.')
+    } finally {
+      setUploading(false)
+      URL.revokeObjectURL(localURL)
+      // Reset file input so the same file can be re-selected after an error.
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -70,13 +88,40 @@ export function AdminProfileForm({ user }: AdminProfileFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 rounded-lg">
-              <AvatarImage src={avatarUrlValue || undefined} alt={user.name} />
-              <AvatarFallback className="rounded-lg text-lg">{initials}</AvatarFallback>
-            </Avatar>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="group relative h-16 w-16 cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Upload profile picture"
+            >
+              <Avatar className="h-16 w-16 rounded-lg">
+                <AvatarImage src={avatarSrc ?? undefined} alt={user.name || user.email} />
+                <AvatarFallback className="rounded-lg text-lg">
+                  {uploading ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                  ) : (
+                    initials
+                  )}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                <Camera className="h-5 w-5 text-white" />
+              </div>
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
             <div className="text-sm text-muted-foreground">
               <p className="font-medium">{user.email}</p>
               <p>Staff account</p>
+              <p className="mt-1 text-xs">JPEG, PNG, WebP or GIF - max 5 MB</p>
             </div>
           </div>
 
@@ -88,24 +133,8 @@ export function AdminProfileForm({ user }: AdminProfileFormProps) {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="avatar_url">Avatar URL</Label>
-            <Input
-              id="avatar_url"
-              {...register('avatar_url')}
-              placeholder="https://example.com/avatar.png"
-              type="url"
-            />
-            {errors.avatar_url && (
-              <p className="text-sm text-destructive">{errors.avatar_url.message}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Paste any public image URL. Leave blank to use initials.
-            </p>
-          </div>
-
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Save changes'}
+          <Button type="submit" disabled={saving || uploading}>
+            {saving ? 'Saving...' : 'Save changes'}
           </Button>
         </form>
       </CardContent>
