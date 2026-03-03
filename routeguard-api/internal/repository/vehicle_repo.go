@@ -159,6 +159,24 @@ func (r *VehicleRepo) Update(ctx context.Context, id, orgID string, name, number
 	return v, nil
 }
 
+// CreateTx inserts a new vehicle record inside the provided transaction.
+// Returns the created vehicle with all columns populated.
+func (r *VehicleRepo) CreateTx(ctx context.Context, tx pgx.Tx, orgID, name string,
+	number, licensePlate *string, capacity, year *int, make_, model *string,
+) (*domain.Vehicle, error) {
+	row := tx.QueryRow(ctx, `
+		INSERT INTO vehicles (org_id, name, number, license_plate, capacity, year, make, model)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING `+vehicleSelectCols,
+		orgID, name, number, licensePlate, capacity, year, make_, model,
+	)
+	v, err := scanVehicle(row)
+	if err != nil {
+		return nil, fmt.Errorf("create vehicle tx: %w", err)
+	}
+	return v, nil
+}
+
 // Delete hard-deletes a vehicle by ID scoped to orgID.
 // Returns pgx.ErrNoRows if no matching vehicle is found.
 // Note: devices.vehicle_id has ON DELETE SET NULL so no FK restriction.
