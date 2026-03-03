@@ -33,6 +33,7 @@ type User struct {
 	Name        string     `json:"name"`
 	AvatarURL   *string    `json:"avatar_url"`
 	LastLoginAt *time.Time `json:"last_login_at"`
+	DeletedAt   *time.Time `json:"deleted_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
@@ -109,6 +110,22 @@ type SSORoleMapping struct {
 	ClaimKey        string `json:"claim_key"`
 	ClaimValue      string `json:"claim_value"`
 	OrgRoleID       string `json:"org_role_id"`
+}
+
+// StaffRole maps to the staff_roles table.
+type StaffRole struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Permissions []string  `json:"permissions"`
+	IsSystem    bool      `json:"is_system"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// StaffUserRole maps to the staff_user_roles table.
+type StaffUserRole struct {
+	ID     string `json:"id"`
+	UserID string `json:"user_id"`
+	RoleID string `json:"role_id"`
 }
 
 // ============================================================
