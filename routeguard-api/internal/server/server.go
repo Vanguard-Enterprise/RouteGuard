@@ -106,6 +106,11 @@ func (s *Server) buildRouter() chi.Router {
 
 		// Audit logs
 		r.Get("/audit-logs", h.ListAuditLogs)
+
+		// Profile (own account)
+		r.Get("/profile", h.GetAdminProfile)
+		r.Patch("/profile", h.UpdateAdminProfile)
+		r.Post("/profile/password", h.ChangeAdminPassword)
 	})
 
 	// Dashboard routes — authenticated org users

@@ -1,11 +1,13 @@
 'use client'
 
-import { LogOut, MoreVertical } from 'lucide-react'
+import Link from 'next/link'
+import { LogOut, MoreVertical, UserRound } from 'lucide-react'
 
 import { api, type User } from '@/lib/api'
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
 } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -56,6 +58,7 @@ export function AdminNavUser({ user }: AdminNavUserProps) {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
+                <AvatarImage src={user.avatar_url ?? undefined} alt={user.name} />
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -74,6 +77,7 @@ export function AdminNavUser({ user }: AdminNavUserProps) {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarImage src={user.avatar_url ?? undefined} alt={user.name} />
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -82,6 +86,13 @@ export function AdminNavUser({ user }: AdminNavUserProps) {
                 </div>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin/profile">
+                <UserRound className="size-4" />
+                My Profile
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="size-4" />

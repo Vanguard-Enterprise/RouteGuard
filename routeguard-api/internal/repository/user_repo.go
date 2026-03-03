@@ -89,6 +89,50 @@ func (r *UserRepo) UpdateLastLogin(ctx context.Context, userID string) error {
 	return err
 }
 
+// UpdateProfile updates the name and avatar_url of a user and returns the updated record.
+// Returns pgx.ErrNoRows if the user does not exist.
+func (r *UserRepo) UpdateProfile(ctx context.Context, userID, name string, avatarURL *string) (*domain.User, error) {
+	var u domain.User
+	err := r.pool.QueryRow(ctx, `
+		UPDATE users SET name = $1, avatar_url = $2
+		WHERE id = $3
+		RETURNING id, org_id, email, name, avatar_url, last_login_at, created_at
+	`, name, avatarURL, userID).Scan(
+		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// GetPasswordHash returns the bcrypt password_hash for the given user's password identity.
+// Returns pgx.ErrNoRows if the user has no password identity (SSO-only account).
+func (r *UserRepo) GetPasswordHash(ctx context.Context, userID string) (string, error) {
+	var hash string
+	err := r.pool.QueryRow(ctx,
+		"SELECT password_hash FROM user_identities WHERE user_id = $1 AND provider = 'password'",
+		userID,
+	).Scan(&hash)
+	return hash, err
+}
+
+// SetPasswordHash updates the bcrypt password_hash for the given user's password identity.
+// Returns pgx.ErrNoRows if no password identity row exists for the user.
+func (r *UserRepo) SetPasswordHash(ctx context.Context, userID, hash string) error {
+	tag, err := r.pool.Exec(ctx,
+		"UPDATE user_identities SET password_hash = $1 WHERE user_id = $2 AND provider = 'password'",
+		hash, userID,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
 // FindSSOConnectionBySlugAndID looks up an enabled OIDC SSO connection by org slug and connection ID.
 // Returns pgx.ErrNoRows if not found, not enabled, or not of type "oidc".
 func (r *UserRepo) FindSSOConnectionBySlugAndID(ctx context.Context, slug, connectionID string) (*domain.SSOConnection, error) {
