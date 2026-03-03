@@ -11,7 +11,7 @@ import Link from "next/link";
 
 export function NotFoundPage() {
 	return (
-		<div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+		<div className="relative flex w-full flex-1 items-center justify-center overflow-hidden py-20">
 			<Empty>
 				<EmptyHeader>
 					<EmptyTitle className="mask-b-from-20% mask-b-to-80% font-extrabold text-9xl">
