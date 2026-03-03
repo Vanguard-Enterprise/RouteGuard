@@ -113,6 +113,7 @@ func (s *Server) buildRouter() chi.Router {
 		r.Get("/profile", h.GetAdminProfile)
 		r.Patch("/profile", h.UpdateAdminProfile)
 		r.Post("/profile/password", h.ChangeAdminPassword)
+		r.Post("/profile/avatar", h.UploadAvatar)
 	})
 
 	// Dashboard routes — authenticated org users
