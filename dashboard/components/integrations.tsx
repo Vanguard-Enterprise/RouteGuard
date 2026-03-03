@@ -55,12 +55,12 @@ function IntegrationCard({ row, col, logo }: TileData) {
 				<img
 					alt={logo.alt}
 					className={cn(
-						"pointer-events-none size-8 select-none object-contain p-1",
+						"pointer-events-none size-11 select-none object-contain",
 						logo.isInvertable && "dark:invert"
 					)}
-					height={40}
+					height={44}
 					src={logo.src}
-					width={40}
+					width={44}
 				/>
 			)}
 		</div>
