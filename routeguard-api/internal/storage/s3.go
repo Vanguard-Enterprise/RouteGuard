@@ -49,7 +49,7 @@ func (c *Client) Upload(ctx context.Context, key, contentType string, size int64
 	if err != nil {
 		return "", fmt.Errorf("upload %s: %w", key, err)
 	}
-	return fmt.Sprintf("%s/%s", c.publicURL, key), nil
+	return fmt.Sprintf("%s/%s/%s", c.publicURL, c.bucket, key), nil
 }
 
 // ensureBucket creates the bucket if it does not exist and sets a public read policy.
