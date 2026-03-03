@@ -11,11 +11,37 @@ on:
 jobs:
   build-deploy:
     runs-on: self-hosted
+    permissions:
+      contents: read
+      deployments: write
     defaults:
       run:
         working-directory: routeguard-api
 
     steps:
+      - name: Create GitHub deployment
+        uses: actions/github-script@v7
+        id: deployment
+        with:
+          script: |
+            const { data } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'api',
+              auto_merge: false,
+              required_contexts: [],
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: data.id,
+              state: 'in_progress',
+              environment_url: 'https://api.route-guard.com',
+            });
+            return data.id;
+          result-encoding: string
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -48,3 +74,28 @@ jobs:
           git -C /opt/routeguard pull
           docker compose pull routeguard-api
           docker compose up -d --no-deps --force-recreate routeguard-api
+
+      - name: Mark deployment success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: parseInt('${{ steps.deployment.outputs.result }}'),
+              state: 'success',
+              environment_url: 'https://api.route-guard.com',
+            });
+
+      - name: Mark deployment failure
+        if: failure() && steps.deployment.outputs.result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: parseInt('${{ steps.deployment.outputs.result }}'),
+              state: 'failure',
+            });
