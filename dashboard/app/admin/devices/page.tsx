@@ -14,7 +14,7 @@ async function getDevices() {
 }
 
 export const metadata = {
-  title: 'Devices — RouteGuard Admin',
+  title: 'Devices - RouteGuard',
 }
 
 export default async function DevicesPage() {

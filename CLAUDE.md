@@ -85,6 +85,10 @@ npm run lint   # ESLint
 | `app/driver/` | Driver PWA |
 | `app/api/auth/` | Auth proxy routes (login, logout) |
 
+## Writing Style
+
+Never use em dashes (—), en dashes (–), or any dash wider than a regular hyphen (-) in code, comments, strings, commit messages, or any written output.
+
 ## Pre-Push Checklist
 
 Always run both commands and confirm they pass before pushing:
