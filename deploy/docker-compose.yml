@@ -75,6 +75,8 @@ services:
       RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
       RUSTFS_BUCKET: avatars
       RUSTFS_PUBLIC_URL: https://storage.route-guard.com
+      RUSTFS_IMAGES_BUCKET: device-images
+      RUSTFS_IMAGES_PUBLIC_URL: https://storage.route-guard.com/device-images
     depends_on:
       postgres:
         condition: service_healthy
