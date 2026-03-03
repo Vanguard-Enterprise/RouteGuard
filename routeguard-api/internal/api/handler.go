@@ -7,9 +7,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
@@ -78,6 +80,12 @@ func generateSAMLKeyPair() (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 	return kp, nil
+}
+
+// isUniqueViolation returns true if err is a PostgreSQL unique constraint violation.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 // decryptOptional decrypts a ciphertext pointer if non-nil and non-empty.
