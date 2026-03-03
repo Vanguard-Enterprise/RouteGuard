@@ -62,11 +62,6 @@ export function MobileNav() {
 							))}
 						</div>
 						<div className="mt-12 flex flex-col gap-2">
-							<Button asChild className="w-full" variant="outline">
-								<Link href="/staff/login" onClick={() => setOpen(false)}>
-									Staff Login
-								</Link>
-							</Button>
 							<Button asChild className="w-full">
 								<Link href="/contact" onClick={() => setOpen(false)}>
 									Request a Demo

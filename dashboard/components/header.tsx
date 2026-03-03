@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/logo";
+import { LogoIcon } from "@/components/logo";
 import { useScroll } from "@/hooks/use-scroll";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
@@ -32,10 +32,13 @@ export function Header() {
 				)}
 			>
 				<Link
-					className="rounded-md p-2 hover:bg-muted dark:hover:bg-muted/50"
+					className="flex items-center gap-2 rounded-md p-2 hover:bg-muted dark:hover:bg-muted/50"
 					href="/"
 				>
-					<Logo className="h-7" />
+					<LogoIcon className="h-8 w-auto" />
+					<span className="font-semibold tracking-tight text-[#1B3A5C] dark:text-foreground">
+						RouteGuard
+					</span>
 				</Link>
 				<div className="hidden items-center gap-2 md:flex">
 					<div>
@@ -45,9 +48,6 @@ export function Header() {
 							</Button>
 						))}
 					</div>
-					<Button asChild size="sm" variant="outline">
-						<Link href="/staff/login">Staff Login</Link>
-					</Button>
 					<Button asChild size="sm">
 						<Link href="/contact">Request a Demo</Link>
 					</Button>
