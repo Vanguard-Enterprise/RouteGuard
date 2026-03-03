@@ -7,7 +7,7 @@ import { FaqsSection } from '@/components/faqs'
 
 export default function LandingPage() {
   return (
-    <div className="space-y-16 py-8">
+    <div className="space-y-16 pb-8">
       <HeroSection />
       <LogosSection />
       <section id="features" className="px-4">

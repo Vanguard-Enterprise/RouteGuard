@@ -7,7 +7,7 @@ import { navLinks } from "@/components/header";
 import { XIcon, MenuIcon } from "lucide-react";
 import Link from "next/link";
 
-export function MobileNav() {
+export function MobileNav({ scrolled }: { scrolled?: boolean }) {
 	const [open, setOpen] = React.useState(false);
 
 	return (
@@ -16,7 +16,10 @@ export function MobileNav() {
 				aria-controls="mobile-menu"
 				aria-expanded={open}
 				aria-label="Toggle menu"
-				className="md:hidden"
+				className={cn(
+					"md:hidden",
+					!scrolled && "border-white/30 text-white hover:bg-white/10 hover:text-white"
+				)}
 				onClick={() => setOpen(!open)}
 				size="icon"
 				variant="outline"
