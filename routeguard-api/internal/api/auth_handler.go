@@ -54,14 +54,27 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	permissions, err := userRepo.GetUserPermissions(r.Context(), user.ID)
+	// Block login for soft-deleted users.
+	if user.DeletedAt != nil {
+		Error(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	isStaff := user.OrgID == nil
+
+	var permissions []string
+	if isStaff {
+		staffRoleRepo := repository.NewStaffRoleRepo(h.pool)
+		permissions, err = staffRoleRepo.GetStaffUserPermissions(r.Context(), user.ID)
+	} else {
+		permissions, err = userRepo.GetUserPermissions(r.Context(), user.ID)
+	}
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
 	// Enforce org/staff context to prevent cross-boundary authentication.
-	isStaff := user.OrgID == nil
 	if req.OrgSlug != "" {
 		// Org portal: must be an org user belonging to the specified org.
 		if isStaff {
