@@ -1,4 +1,4 @@
-IMG_NAME="routeguard-device"
+IMG_NAME="routeguard-arm64"
 RELEASE=bookworm
 DEPLOY_COMPRESSION=gz
 ENABLE_SSH=0
