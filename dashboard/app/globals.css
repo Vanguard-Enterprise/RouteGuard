@@ -139,3 +139,45 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* RFID animation keyframes */
+@keyframes rfid-ring-out {
+  0%   { transform: scale(1);   opacity: 0.75; }
+  100% { transform: scale(2.1); opacity: 0;    }
+}
+
+@keyframes rfid-radar {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rfid-radar-ccw {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes rfid-arc-pulse {
+  0%, 100% { opacity: 0.2; }
+  40%, 60% { opacity: 1;   }
+}
+
+@keyframes rfid-shake {
+  0%, 100% { transform: translateX(0)    rotate(0deg);    }
+  20%       { transform: translateX(-8px) rotate(-2deg);   }
+  40%       { transform: translateX(8px)  rotate(2deg);    }
+  60%       { transform: translateX(-5px) rotate(-1deg);   }
+  80%       { transform: translateX(4px)  rotate(0.5deg);  }
+}
+
+@keyframes rfid-pop {
+  0%   { transform: scale(0.1); opacity: 0; }
+  60%  { transform: scale(1.25);            }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes rfid-particle {
+  0%   { transform: translate(-50%, -50%) scale(1.4); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0); opacity: 0; }
+}
+
+@keyframes draw-check {
+  to { stroke-dashoffset: 0; }
+}

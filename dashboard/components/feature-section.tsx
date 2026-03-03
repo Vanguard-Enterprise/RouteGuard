@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
 import type React from "react";
 import { CobeGlobe } from "@/components/cobe-globe";
-import { MapPinIcon, ScanLineIcon, GlobeIcon, SquareMousePointerIcon, MessageCircleIcon } from "lucide-react";
+import { RfidScanVisual } from "@/components/rfid-scan-visual";
+import { MapPinIcon, GlobeIcon, SquareMousePointerIcon, MessageCircleIcon } from "lucide-react";
 
 const features = [
 	{
@@ -98,23 +99,6 @@ function GpsTrackingVisual() {
 	);
 }
 
-function RfidScanVisual() {
-	return (
-		<>
-			<div className="relative mx-auto flex size-32 items-center justify-center rounded-full border bg-background shadow-xs outline outline-border outline-offset-4">
-				<ScanLineIcon className="size-14 text-primary/80" />
-				<div className="absolute inset-0 scale-120 bg-radial from-foreground/15 via-foreground/5 to-transparent blur-xl" />
-			</div>
-
-			<div className="relative mt-8 space-y-1.5 text-center">
-				<FeatureTitle>RFID Student Scanning</FeatureTitle>
-				<FeatureDescription>
-					Students tap their RFID tag when boarding and exiting. Every scan is logged with timestamp, stop, and driver - a complete attendance record.
-				</FeatureDescription>
-			</div>
-		</>
-	);
-}
 
 function SmsAlertsVisual() {
 	return (
