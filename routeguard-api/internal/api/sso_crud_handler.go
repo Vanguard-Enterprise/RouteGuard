@@ -168,6 +168,7 @@ func (h *Handler) CreateOrgSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusCreated, toSSOResponse(conn))
+	h.LogAudit(r, "sso.created", "sso_connection", conn.ID, map[string]any{"org_id": orgID})
 }
 
 // UpdateOrgSSO handles PATCH /admin/organizations/{id}/sso/{connectionId}
@@ -215,6 +216,7 @@ func (h *Handler) UpdateOrgSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusOK, toSSOResponse(conn))
+	h.LogAudit(r, "sso.updated", "sso_connection", connectionID, nil)
 }
 
 // DeleteOrgSSO handles DELETE /admin/organizations/{id}/sso/{connectionId}
@@ -231,6 +233,7 @@ func (h *Handler) DeleteOrgSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	NoContent(w)
+	h.LogAudit(r, "sso.deleted", "sso_connection", connectionID, nil)
 }
 
 // ---- Dashboard endpoints (org_id from session) ----
@@ -302,6 +305,7 @@ func (h *Handler) CreateMySSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusCreated, toSSOResponse(conn))
+	h.LogAudit(r, "sso.created", "sso_connection", conn.ID, nil)
 }
 
 // UpdateMySSO handles PATCH /dashboard/settings/sso/{id}
@@ -370,6 +374,7 @@ func (h *Handler) UpdateMySSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusOK, toSSOResponse(conn))
+	h.LogAudit(r, "sso.updated", "sso_connection", connectionID, nil)
 }
 
 // DeleteMySSO handles DELETE /dashboard/settings/sso/{id}
@@ -407,4 +412,5 @@ func (h *Handler) DeleteMySSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	NoContent(w)
+	h.LogAudit(r, "sso.deleted", "sso_connection", connectionID, nil)
 }
