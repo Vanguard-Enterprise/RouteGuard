@@ -10,9 +10,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
 	"github.com/routeguard/api/internal/db"
+	"github.com/routeguard/api/internal/repository"
 	"github.com/routeguard/api/internal/server"
 	"github.com/routeguard/api/internal/storage"
 )
@@ -50,6 +52,35 @@ func main() {
 	}
 	defer c.Close()
 	log.Info().Msg("Redis connected")
+
+	// Start background goroutine to hard-delete staff users 30+ days after soft delete.
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		staffUserRepo := repository.NewStaffUserRepo(pool)
+		for {
+			select {
+			case <-ticker.C:
+				// Get IDs first to clean Redis sets before row deletion.
+				ids, err := staffUserRepo.GetExpiredStaffUserIDs(ctx)
+				if err != nil {
+					log.Error().Err(err).Msg("cleanup: get expired staff user IDs failed")
+					continue
+				}
+				for _, id := range ids {
+					_ = auth.InvalidateUserSessions(ctx, c, id)
+				}
+				n, err := staffUserRepo.HardDeleteExpiredStaffUsers(ctx)
+				if err != nil {
+					log.Error().Err(err).Msg("cleanup: hard delete expired staff users failed")
+					continue
+				}
+				if n > 0 {
+					log.Info().Int64("count", n).Msg("cleanup: hard deleted expired staff users")
+				}
+			}
+		}
+	}()
 
 	store, err := storage.New(
 		context.Background(),
