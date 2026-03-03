@@ -18,5 +18,6 @@ COPY arm64/stage-routeguard ./stage-routeguard
 COPY common /common
 RUN chmod +x stage-routeguard/00-routeguard/00-run.sh
 
-# Load binfmt_misc inside the privileged container before starting the build.
-CMD ["bash", "-c", "modprobe binfmt_misc || true && bash build.sh"]
+# On PVE kernels binfmt_misc is built-in (not a loadable module), so mount the
+# filesystem directly. On kernels where it is a module, try modprobe first.
+CMD ["bash", "-c", "modprobe binfmt_misc 2>/dev/null; mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true && bash build.sh"]
