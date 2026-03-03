@@ -124,14 +124,14 @@ const faqs = [
 		category: "getting-started",
 		title: "What hardware do we need?",
 		content:
-			"Each bus requires a RouteGuard Pi device (a pre-configured Raspberry Pi unit) and an RFID reader. Students receive RFID tags or cards. The admin dashboard runs in any modern web browser — no software installation needed.",
+			"Each bus requires a RouteGuard Pi device (a pre-configured Raspberry Pi unit) and an RFID reader. Students receive RFID tags or cards. The admin dashboard runs in any modern web browser - no software installation needed.",
 	},
 	{
 		id: 3,
 		category: "getting-started",
 		title: "Do drivers need to learn new software?",
 		content:
-			"No. Drivers interact only with the RFID reader on the bus. The student scanning is automatic — students tap their card, the device logs the event and triggers guardian notifications. Drivers don't need to touch any dashboard or app.",
+			"No. Drivers interact only with the RFID reader on the bus. The student scanning is automatic - students tap their card, the device logs the event and triggers guardian notifications. Drivers don't need to touch any dashboard or app.",
 	},
 	{
 		id: 4,
@@ -159,7 +159,7 @@ const faqs = [
 		category: "pricing",
 		title: "How is RouteGuard priced?",
 		content:
-			"Pricing is based on the number of buses in your district. Contact our team for a personalized quote — we work with districts of all sizes and can tailor a plan to your fleet and budget.",
+			"Pricing is based on the number of buses in your district. Contact our team for a personalized quote - we work with districts of all sizes and can tailor a plan to your fleet and budget.",
 	},
 	{
 		id: 8,

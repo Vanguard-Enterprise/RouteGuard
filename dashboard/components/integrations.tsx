@@ -21,7 +21,7 @@ export function Integrations() {
 					Built on Trusted Technology
 				</h2>
 				<p className="text-lg text-muted-foreground leading-8">
-					RouteGuard uses proven infrastructure for GPS mapping, SMS delivery, cloud hosting, and device provisioning — so your district gets reliability at scale.
+					RouteGuard uses proven infrastructure for GPS mapping, SMS delivery, cloud hosting, and device provisioning - so your district gets reliability at scale.
 				</p>
 			</div>
 

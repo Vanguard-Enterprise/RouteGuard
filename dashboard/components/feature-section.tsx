@@ -109,7 +109,7 @@ function RfidScanVisual() {
 			<div className="relative mt-8 space-y-1.5 text-center">
 				<FeatureTitle>RFID Student Scanning</FeatureTitle>
 				<FeatureDescription>
-					Students tap their RFID tag when boarding and exiting. Every scan is logged with timestamp, stop, and driver — a complete attendance record.
+					Students tap their RFID tag when boarding and exiting. Every scan is logged with timestamp, stop, and driver - a complete attendance record.
 				</FeatureDescription>
 			</div>
 		</>
@@ -131,7 +131,7 @@ function SmsAlertsVisual() {
 			<div className="relative z-10 mt-8 space-y-1.5 text-center">
 				<FeatureTitle>Guardian SMS Alerts</FeatureTitle>
 				<FeatureDescription>
-					Parents receive an automatic text the moment their child boards or exits the bus. No app required — just a phone number.
+					Parents receive an automatic text the moment their child boards or exits the bus. No app required - just a phone number.
 				</FeatureDescription>
 			</div>
 		</>
@@ -178,7 +178,7 @@ function PresenceVisual() {
 						Monitor From Anywhere
 					</FeatureTitle>
 					<FeatureDescription>
-						Access the live map and student records from any device. No software install — just log in from a browser.
+						Access the live map and student records from any device. No software install - just log in from a browser.
 					</FeatureDescription>
 				</div>
 			</div>
