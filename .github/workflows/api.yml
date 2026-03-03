@@ -56,6 +56,8 @@ jobs:
 
       - name: Build Docker image
         working-directory: ${{ github.workspace }}
+        env:
+          DOCKER_BUILDKIT: "1"
         run: |
           docker build \
             -t localhost:5000/routeguard-api:latest \

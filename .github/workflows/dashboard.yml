@@ -58,14 +58,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Build
-        run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: https://api.route-guard.com
-          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
-
       - name: Build Docker image
         working-directory: ${{ github.workspace }}
+        env:
+          DOCKER_BUILDKIT: "1"
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_API_URL=https://api.route-guard.com \
