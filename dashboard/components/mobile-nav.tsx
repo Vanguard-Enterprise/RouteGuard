@@ -3,8 +3,7 @@ import { cn } from "@/lib/utils";
 import React from "react";
 import { Portal, PortalBackdrop } from "@/components/ui/portal";
 import { Button } from "@/components/ui/button";
-import { companyLinks, companyLinks2, productLinks } from "@/components/nav-links";
-import { LinkItem } from "@/components/sheard";
+import { navLinks } from "@/components/header";
 import { XIcon, MenuIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -40,41 +39,29 @@ export function MobileNav() {
 				</div>
 			</Button>
 			{open && (
-				<Portal className="top-14">
+				<Portal className="top-14" id="mobile-menu">
 					<PortalBackdrop />
 					<div
 						className={cn(
-							"size-full overflow-y-auto p-4",
+							"size-full p-4",
 							"data-[slot=open]:zoom-in-97 ease-out data-[slot=open]:animate-in"
 						)}
 						data-slot={open ? "open" : "closed"}
 					>
-						<div className="flex w-full flex-col gap-y-2">
-							<span className="text-sm text-muted-foreground">Features</span>
-							{productLinks.map((link) => (
-								<LinkItem
-									className="rounded-lg p-2 active:bg-muted dark:active:bg-muted/50"
-									key={`product-${link.label}`}
-									{...link}
-								/>
-							))}
-							<span className="mt-2 text-sm text-muted-foreground">Company</span>
-							{companyLinks.map((link) => (
-								<LinkItem
-									className="rounded-lg p-2 active:bg-muted dark:active:bg-muted/50"
-									key={`company-${link.label}`}
-									{...link}
-								/>
-							))}
-							{companyLinks2.map((link) => (
-								<LinkItem
-									className="rounded-lg p-2 active:bg-muted dark:active:bg-muted/50"
-									key={`company2-${link.label}`}
-									{...link}
-								/>
+						<div className="grid gap-y-2">
+							{navLinks.map((link) => (
+								<Button
+									asChild
+									className="justify-start"
+									key={link.label}
+									onClick={() => setOpen(false)}
+									variant="ghost"
+								>
+									<Link href={link.href}>{link.label}</Link>
+								</Button>
 							))}
 						</div>
-						<div className="mt-5 flex flex-col gap-2">
+						<div className="mt-12 flex flex-col gap-2">
 							<Button asChild className="w-full" variant="outline">
 								<Link href="/staff/login" onClick={() => setOpen(false)}>
 									Staff Login
