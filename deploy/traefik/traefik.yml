@@ -10,20 +10,6 @@ accessLog: {}
 entryPoints:
   websecure:
     address: ":8443"
-    http:
-      tls:
-        certResolver: letsencrypt
-
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: admin@route-guard.com
-      storage: /certs/acme.json
-      dnsChallenge:
-        provider: cloudflare
-        resolvers:
-          - "1.1.1.1:53"
-          - "8.8.8.8:53"
 
 providers:
   file:

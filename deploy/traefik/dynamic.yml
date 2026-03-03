@@ -1,11 +1,15 @@
+tls:
+  certificates:
+    - certFile: /certs/fullchain.pem
+      keyFile: /certs/key.pem
+
 http:
   routers:
     dashboard:
       rule: "Host(`route-guard.com`) || Host(`www.route-guard.com`)"
       entryPoints:
         - websecure
-      tls:
-        certResolver: letsencrypt
+      tls: {}
       service: dashboard-svc
       middlewares:
         - www-redirect
@@ -15,8 +19,7 @@ http:
       rule: "Host(`api.route-guard.com`)"
       entryPoints:
         - websecure
-      tls:
-        certResolver: letsencrypt
+      tls: {}
       service: api-svc
       middlewares:
         - secure-headers

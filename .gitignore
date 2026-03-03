@@ -21,6 +21,7 @@ routeguard-api/.env
 # Deploy
 deploy/.env
 deploy/keys/
+deploy/traefik/certs/
 
 # OS
 .DS_Store
