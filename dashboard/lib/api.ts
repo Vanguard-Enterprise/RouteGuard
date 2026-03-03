@@ -12,11 +12,32 @@ export class APIError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const reqHeaders: Record<string, string> = {}
+
+  if (!(init?.body instanceof FormData)) {
+    reqHeaders['Content-Type'] = 'application/json'
+  }
+
+  // In server context, forward the session cookie from the incoming request.
+  // Dynamic import keeps next/headers out of the client bundle.
+  if (typeof window === 'undefined') {
+    try {
+      const { cookies } = await import('next/headers')
+      const cookieStore = await cookies()
+      const session = cookieStore.get('rg_session')
+      if (session) {
+        reqHeaders['Cookie'] = `rg_session=${session.value}`
+      }
+    } catch {
+      // Not in a Next.js server context — skip
+    }
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     credentials: 'include',
     headers: {
-      ...(!(init?.body instanceof FormData) && { 'Content-Type': 'application/json' }),
+      ...reqHeaders,
       ...init?.headers,
     },
   })
