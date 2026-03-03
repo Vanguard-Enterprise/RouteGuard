@@ -161,7 +161,7 @@ func (h *Handler) DriverPINAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	driverRepo := repository.NewDriverRepo(h.pool)
-	driver, err := driverRepo.FindByIDAndOrg(r.Context(), req.DriverID, device.OrgID)
+	driver, err := driverRepo.FindByIDAndOrg(r.Context(), req.DriverID, *device.OrgID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusUnauthorized, "invalid credentials")
@@ -181,7 +181,7 @@ func (h *Handler) DriverPINAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tripToken, err := issueTripSession(r, h.cache, driver.ID, device.ID, device.OrgID)
+	tripToken, err := issueTripSession(r, h.cache, driver.ID, device.ID, *device.OrgID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -214,7 +214,7 @@ func (h *Handler) DriverRFIDAuth(w http.ResponseWriter, r *http.Request) {
 	rfidHash := hashRFID(req.RFIDBadgeID)
 
 	driverRepo := repository.NewDriverRepo(h.pool)
-	driver, err := driverRepo.FindByRFIDHash(r.Context(), rfidHash, device.OrgID)
+	driver, err := driverRepo.FindByRFIDHash(r.Context(), rfidHash, *device.OrgID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusUnauthorized, "invalid credentials")
@@ -224,7 +224,7 @@ func (h *Handler) DriverRFIDAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tripToken, err := issueTripSession(r, h.cache, driver.ID, device.ID, device.OrgID)
+	tripToken, err := issueTripSession(r, h.cache, driver.ID, device.ID, *device.OrgID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
