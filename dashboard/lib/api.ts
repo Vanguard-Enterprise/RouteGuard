@@ -261,14 +261,34 @@ export interface APIKey {
 
 export interface Device {
   id: string
-  org_id: string
+  org_id: string | null
   serial: string
-  status: string
+  status: 'unclaimed' | 'active' | 'revoked'
+  claim_code?: string
   vehicle_id: string | null
   seat_count: number | null
-  bus_layout: Record<string, unknown>
+  bus_layout: Record<string, unknown> | null
   provisioned_at: string | null
   created_at: string
+}
+
+export interface ClaimDeviceRequest {
+  claim_code: string
+  vehicle: {
+    name: string
+    number?: string
+    license_plate?: string
+    capacity?: number
+    year?: number
+    make?: string
+    model?: string
+  }
+  seat_count?: number
+}
+
+export interface BaseImages {
+  arm64: string
+  x86_64: string
 }
 
 export interface AuditLog {
@@ -324,16 +344,8 @@ export const api = {
         request<Organization>(`/admin/organizations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
       delete: (id: string) => request<void>(`/admin/organizations/${id}`, { method: 'DELETE' }),
     },
-    devices: {
-      list: () => request<Device[]>('/admin/devices'),
-      create: (data: { serial: string; org_id: string }) =>
-        request<{ device_id: string; serial: string; provisioning_token: string; expires_at: string }>(
-          '/admin/devices',
-          { method: 'POST', body: JSON.stringify(data) },
-        ),
-      update: (id: string, data: Partial<Device>) =>
-        request<Device>(`/admin/devices/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-      delete: (id: string) => request<void>(`/admin/devices/${id}`, { method: 'DELETE' }),
+    images: {
+      get: () => request<BaseImages>('/admin/images'),
     },
     auditLogs: {
       list: (params?: Record<string, string>) => {
@@ -431,6 +443,16 @@ export const api = {
     delete: (id: string) => request<void>(`/dashboard/drivers/${id}`, { method: 'DELETE' }),
     setPin: (id: string, pin: string) =>
       request<void>(`/dashboard/drivers/${id}/set-pin`, { method: 'POST', body: JSON.stringify({ pin }) }),
+  },
+  devices: {
+    list: () => request<Device[]>('/dashboard/devices'),
+    get: (id: string) => request<Device>(`/dashboard/devices/${id}`),
+    claim: (data: ClaimDeviceRequest) =>
+      request<{ device_id: string; vehicle_id: string; serial: string }>(
+        '/dashboard/devices/claim',
+        { method: 'POST', body: JSON.stringify(data) },
+      ),
+    revoke: (id: string) => request<void>(`/dashboard/devices/${id}`, { method: 'DELETE' }),
   },
   vehicles: {
     list: () => request<Vehicle[]>('/dashboard/vehicles'),
