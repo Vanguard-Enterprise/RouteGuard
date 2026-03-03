@@ -1,21 +1,13 @@
 import { redirect } from 'next/navigation'
-import { api, APIError, User } from '@/lib/api'
+import { User } from '@/lib/api'
+import { getServerUser } from '@/lib/server-api'
 import AdminSidebar from '@/components/admin/admin-sidebar'
 import AdminHeader from '@/components/admin/admin-header'
 
-async function getUser(): Promise<User | null> {
-  try {
-    return await api.auth.me()
-  } catch (err) {
-    if (err instanceof APIError && err.status === 401) {
-      return null
-    }
-    return null
-  }
-}
+export const dynamic = 'force-dynamic'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await getUser()
+  const user: User | null = await getServerUser()
   if (!user) {
     redirect('/staff/login')
   }
