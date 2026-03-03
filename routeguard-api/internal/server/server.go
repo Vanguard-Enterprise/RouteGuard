@@ -97,6 +97,9 @@ func (s *Server) buildRouter() chi.Router {
 		r.Patch("/organizations/{id}/sso/{connectionId}", h.UpdateOrgSSO)
 		r.Delete("/organizations/{id}/sso/{connectionId}", h.DeleteOrgSSO)
 
+		// Base device image downloads
+		r.Get("/images", h.GetBaseImages)
+
 		// Audit logs
 		r.Get("/audit-logs", h.ListAuditLogs)
 
