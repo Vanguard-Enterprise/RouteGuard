@@ -1,11 +1,11 @@
-import Nav from '@/components/marketing/nav'
-import Footer from '@/components/marketing/footer'
+import { Header } from '@/components/header'
+import { Footer } from '@/components/footer'
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Nav />
-      <main className="pt-16">{children}</main>
+      <Header />
+      <main>{children}</main>
       <Footer />
     </>
   )

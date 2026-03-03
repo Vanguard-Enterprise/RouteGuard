@@ -19,5 +19,8 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@motion-primitives": "https://motion-primitives.com/c/{name}.json",
+    "@efferd": "https://efferd.com/r/new-york/{name}.json"
+  }
 }
