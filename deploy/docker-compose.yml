@@ -6,6 +6,7 @@ services:
       - "8443:8443"
     environment:
       CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
+      DOCKER_API_VERSION: "1.47"
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
