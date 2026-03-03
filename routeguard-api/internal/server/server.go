@@ -101,6 +101,10 @@ func (s *Server) buildRouter() chi.Router {
 		r.Patch("/organizations/{id}/sso/{connectionId}", h.UpdateOrgSSO)
 		r.Delete("/organizations/{id}/sso/{connectionId}", h.DeleteOrgSSO)
 
+		// Org users (admin bootstrap)
+		r.Get("/organizations/{id}/users", h.ListOrgUsersAdmin)
+		r.Post("/organizations/{id}/users", h.CreateOrgUserAdmin)
+
 		// Base device image downloads
 		r.Get("/images", h.GetBaseImages)
 
