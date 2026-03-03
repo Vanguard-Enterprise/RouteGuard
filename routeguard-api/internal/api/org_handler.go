@@ -58,6 +58,7 @@ func (h *Handler) CreateOrg(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusCreated, org)
+	h.LogAudit(r, "org.created", "organization", org.ID, map[string]any{"org_id": org.ID})
 }
 
 // GetOrg handles GET /admin/organizations/{id}
@@ -105,6 +106,7 @@ func (h *Handler) UpdateOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusOK, org)
+	h.LogAudit(r, "org.updated", "organization", id, map[string]any{"org_id": id})
 }
 
 // DeleteOrg handles DELETE /admin/organizations/{id}
@@ -147,4 +149,5 @@ func (h *Handler) DeleteOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	NoContent(w)
+	h.LogAudit(r, "org.deleted", "organization", id, map[string]any{"org_id": id})
 }
