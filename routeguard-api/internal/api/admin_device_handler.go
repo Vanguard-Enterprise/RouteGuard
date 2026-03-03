@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/routeguard/api/internal/repository"
 )
 
@@ -61,6 +62,11 @@ func (h *Handler) CreateAdminDevice(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewDeviceRepo(h.pool)
 	device, err := repo.CreateUnprovisioned(r.Context(), req.OrgID, req.Serial)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			Error(w, http.StatusConflict, "a device with this serial number already exists")
+			return
+		}
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}

@@ -306,7 +306,7 @@ export const api = {
     },
     devices: {
       list: () => request<Device[]>('/admin/devices'),
-      create: (data: { serial: string }) =>
+      create: (data: { serial: string; org_id: string }) =>
         request<{ device_id: string; serial: string; provisioning_token: string; expires_at: string }>(
           '/admin/devices',
           { method: 'POST', body: JSON.stringify(data) },
