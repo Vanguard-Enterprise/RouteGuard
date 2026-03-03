@@ -64,6 +64,13 @@ func DestroySession(ctx context.Context, c *cache.Cache, token string) error {
 	return c.Del(ctx, sessionKeyPrefix+token)
 }
 
+// UpdateSession overwrites the session payload for an existing token.
+// Resets the TTL to SessionTTL (7 days). Call this after profile updates
+// to keep GET /auth/me consistent without forcing re-login.
+func UpdateSession(ctx context.Context, c *cache.Cache, token string, payload SessionPayload) error {
+	return c.Set(ctx, sessionKeyPrefix+token, payload, SessionTTL)
+}
+
 // TokenFromRequest extracts the session token from the request cookie.
 func TokenFromRequest(r *http.Request) string {
 	cookie, err := r.Cookie(SessionCookieName)
