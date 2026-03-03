@@ -109,6 +109,10 @@ func (h *Handler) ChangeAdminPassword(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "new password must be at least 8 characters")
 		return
 	}
+	if len(req.NewPassword) > 72 {
+		Error(w, http.StatusBadRequest, "new password must be 72 characters or fewer")
+		return
+	}
 
 	repo := repository.NewUserRepo(h.pool)
 	currentHash, err := repo.GetPasswordHash(r.Context(), session.UserID)

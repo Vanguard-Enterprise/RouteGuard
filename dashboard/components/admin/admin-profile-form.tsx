@@ -25,7 +25,6 @@ interface AdminProfileFormProps {
 
 export function AdminProfileForm({ user }: AdminProfileFormProps) {
   const [loading, setLoading] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState(user.avatar_url ?? '')
 
   const initials = user.name
     ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -53,7 +52,6 @@ export function AdminProfileForm({ user }: AdminProfileFormProps) {
         name: data.name,
         avatar_url: data.avatar_url || null,
       })
-      setPreviewUrl(data.avatar_url || '')
       toast.success('Profile updated.')
     } catch (err) {
       const msg = err instanceof APIError ? err.message : 'Something went wrong.'
@@ -73,7 +71,7 @@ export function AdminProfileForm({ user }: AdminProfileFormProps) {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 rounded-lg">
-              <AvatarImage src={avatarUrlValue || previewUrl} alt={user.name} />
+              <AvatarImage src={avatarUrlValue || undefined} alt={user.name} />
               <AvatarFallback className="rounded-lg text-lg">{initials}</AvatarFallback>
             </Avatar>
             <div className="text-sm text-muted-foreground">
