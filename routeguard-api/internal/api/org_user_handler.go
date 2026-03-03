@@ -93,6 +93,10 @@ func (h *Handler) CreateOrgUserAdmin(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewOrgUserRepo(h.pool)
 	user, err := repo.CreateWithPasswordAndAdminRole(r.Context(), orgID, req.Email, req.Name, req.Password)
 	if err != nil {
+		if isUniqueViolation(err) {
+			Error(w, http.StatusConflict, "a user with that email already exists in this organization")
+			return
+		}
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
