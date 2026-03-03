@@ -24,6 +24,15 @@ http:
       middlewares:
         - secure-headers
 
+    storage:
+      rule: "Host(`storage.route-guard.com`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: storage-svc
+      middlewares:
+        - secure-headers
+
   services:
     dashboard-svc:
       loadBalancer:
@@ -34,6 +43,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://routeguard-api:8080"
+
+    storage-svc:
+      loadBalancer:
+        servers:
+          - url: "http://rustfs:9000"
 
   middlewares:
     secure-headers:

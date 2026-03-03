@@ -14,25 +14,27 @@ import (
 	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
 	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/storage"
 )
 
 // Handler holds all shared dependencies for HTTP handlers.
 type Handler struct {
-	pool       *pgxpool.Pool
-	cache      *cache.Cache
-	cfg        *config.Config
+	pool        *pgxpool.Pool
+	cache       *cache.Cache
+	cfg         *config.Config
 	samlKeyPair tls.Certificate
+	storage     *storage.Client
 }
 
 // NewHandler creates a new Handler with all dependencies.
 // It generates an ephemeral RSA 2048-bit key pair for SAML SP signing.
-func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler {
+func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config, store *storage.Client) *Handler {
 	kp, err := generateSAMLKeyPair()
 	if err != nil {
 		// A failure here is a programming/environment error; panic at startup.
 		panic("saml: failed to generate SP key pair: " + err.Error())
 	}
-	return &Handler{pool: pool, cache: c, cfg: cfg, samlKeyPair: kp}
+	return &Handler{pool: pool, cache: c, cfg: cfg, samlKeyPair: kp, storage: store}
 }
 
 // generateSAMLKeyPair creates an ephemeral RSA 2048-bit private key and a

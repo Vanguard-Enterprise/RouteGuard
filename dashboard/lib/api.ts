@@ -327,6 +327,15 @@ export const api = {
         request<User>('/admin/profile', { method: 'PATCH', body: JSON.stringify(data) }),
       changePassword: (data: { current_password: string; new_password: string }) =>
         request<void>('/admin/profile/password', { method: 'POST', body: JSON.stringify(data) }),
+      uploadAvatar: (file: File) => {
+        const form = new FormData()
+        form.append('avatar', file)
+        return request<User>('/admin/profile/avatar', {
+          method: 'POST',
+          headers: {},
+          body: form,
+        })
+      },
     },
   },
   schools: {

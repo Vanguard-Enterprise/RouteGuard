@@ -19,6 +19,11 @@ type Config struct {
 	TwilioFromNumber  string
 	BaseURL           string
 	APIBaseURL        string
+	RustFSEndpoint    string
+	RustFSAccessKey   string
+	RustFSSecretKey   string
+	RustFSBucket      string
+	RustFSPublicURL   string
 	IsProd            bool
 }
 
@@ -49,6 +54,11 @@ func Load() (*Config, error) {
 		TwilioFromNumber:  os.Getenv("TWILIO_FROM_NUMBER"),
 		BaseURL:           envOr("BASE_URL", "http://localhost:3000"),
 		APIBaseURL:        envOr("API_BASE_URL", "http://localhost:8080"),
+		RustFSEndpoint:    envOr("RUSTFS_ENDPOINT", "http://localhost:9000"),
+		RustFSAccessKey:   envOr("RUSTFS_ACCESS_KEY", "rustfsadmin"),
+		RustFSSecretKey:   envOr("RUSTFS_SECRET_KEY", "rustfsadmin"),
+		RustFSBucket:      envOr("RUSTFS_BUCKET", "avatars"),
+		RustFSPublicURL:   envOr("RUSTFS_PUBLIC_URL", "http://localhost:9000/avatars"),
 		IsProd:            os.Getenv("NODE_ENV") == "production" || os.Getenv("ENV") == "production",
 	}, nil
 }

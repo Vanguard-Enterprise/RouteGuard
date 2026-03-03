@@ -10,17 +10,19 @@ import (
 	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
 	"github.com/routeguard/api/internal/middleware"
+	"github.com/routeguard/api/internal/storage"
 )
 
 type Server struct {
-	router chi.Router
-	cfg    *config.Config
-	pool   *pgxpool.Pool
-	cache  *cache.Cache
+	router  chi.Router
+	cfg     *config.Config
+	pool    *pgxpool.Pool
+	cache   *cache.Cache
+	storage *storage.Client
 }
 
-func New(cfg *config.Config, pool *pgxpool.Pool, c *cache.Cache) (*Server, error) {
-	s := &Server{cfg: cfg, pool: pool, cache: c}
+func New(cfg *config.Config, pool *pgxpool.Pool, c *cache.Cache, store *storage.Client) (*Server, error) {
+	s := &Server{cfg: cfg, pool: pool, cache: c, storage: store}
 	s.router = s.buildRouter()
 	return s, nil
 }
@@ -34,7 +36,7 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(corsMiddleware(s.cfg))
 
-	h := api.NewHandler(s.pool, s.cache, s.cfg)
+	h := api.NewHandler(s.pool, s.cache, s.cfg, s.storage)
 
 	// Health checks
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -111,6 +113,7 @@ func (s *Server) buildRouter() chi.Router {
 		r.Get("/profile", h.GetAdminProfile)
 		r.Patch("/profile", h.UpdateAdminProfile)
 		r.Post("/profile/password", h.ChangeAdminPassword)
+		r.Post("/profile/avatar", h.UploadAvatar)
 	})
 
 	// Dashboard routes — authenticated org users

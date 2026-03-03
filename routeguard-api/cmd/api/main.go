@@ -14,6 +14,7 @@ import (
 	"github.com/routeguard/api/internal/config"
 	"github.com/routeguard/api/internal/db"
 	"github.com/routeguard/api/internal/server"
+	"github.com/routeguard/api/internal/storage"
 )
 
 func main() {
@@ -50,7 +51,19 @@ func main() {
 	defer c.Close()
 	log.Info().Msg("Redis connected")
 
-	srv, err := server.New(cfg, pool, c)
+	store, err := storage.New(
+		context.Background(),
+		cfg.RustFSEndpoint,
+		cfg.RustFSAccessKey,
+		cfg.RustFSSecretKey,
+		cfg.RustFSBucket,
+		cfg.RustFSPublicURL,
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize storage client")
+	}
+
+	srv, err := server.New(cfg, pool, c, store)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize server")
 	}

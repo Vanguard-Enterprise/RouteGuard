@@ -39,6 +39,22 @@ services:
       timeout: 5s
       retries: 5
 
+  rustfs:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
+    volumes:
+      - rustfs-data:/data
+      - rustfs-logs:/logs
+    networks: [rg-net]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   routeguard-api:
     image: localhost:5000/routeguard-api:latest
     restart: unless-stopped
@@ -54,10 +70,17 @@ services:
       BASE_URL: https://route-guard.com
       API_BASE_URL: https://api.route-guard.com
       PORT: "8080"
+      RUSTFS_ENDPOINT: http://rustfs:9000
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY}
+      RUSTFS_BUCKET: avatars
+      RUSTFS_PUBLIC_URL: https://storage.route-guard.com
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rustfs:
         condition: service_healthy
     networks: [rg-net]
 
@@ -83,6 +106,8 @@ volumes:
   postgres-data:
   redis-data:
   registry-data:
+  rustfs-data:
+  rustfs-logs:
 
 networks:
   rg-net:
