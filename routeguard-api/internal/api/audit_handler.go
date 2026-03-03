@@ -1,10 +1,11 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/deviceauth"
@@ -13,22 +14,25 @@ import (
 )
 
 // LogAudit writes an audit entry derived from the session or device context.
-// It is non-fatal — errors are silently ignored.
-func (h *Handler) LogAudit(ctx context.Context, action, targetType, targetID string, metadata map[string]any) {
+// It is non-fatal - errors are silently ignored.
+func (h *Handler) LogAudit(r *http.Request, action, targetType, targetID string, metadata map[string]any) {
 	entry := domain.AuditLog{
 		Action: action,
 	}
+
+	ctx := r.Context()
 
 	// Populate from session if present.
 	if session := auth.SessionFromContext(ctx); session != nil {
 		entry.ActorID = &session.UserID
 		entry.ActorType = "user"
 		if session.OrgID != "" {
-			// Store org_id in metadata so List can filter.
 			if metadata == nil {
 				metadata = make(map[string]any)
 			}
-			metadata["org_id"] = session.OrgID
+			if _, ok := metadata["org_id"]; !ok {
+				metadata["org_id"] = session.OrgID
+			}
 		}
 	} else if device := deviceauth.DeviceFromContext(ctx); device != nil {
 		entry.ActorID = &device.ID
@@ -36,7 +40,9 @@ func (h *Handler) LogAudit(ctx context.Context, action, targetType, targetID str
 		if metadata == nil {
 			metadata = make(map[string]any)
 		}
-		metadata["org_id"] = device.OrgID
+		if _, ok := metadata["org_id"]; !ok {
+			metadata["org_id"] = device.OrgID
+		}
 	} else {
 		entry.ActorType = "system"
 	}
@@ -54,6 +60,9 @@ func (h *Handler) LogAudit(ctx context.Context, action, targetType, targetID str
 			entry.Metadata = b
 		}
 	}
+
+	ip := realIP(r)
+	entry.IPAddress = &ip
 
 	repo := repository.NewAuditRepo(h.pool)
 	_ = repo.Log(ctx, entry)
@@ -111,4 +120,24 @@ func parseIntParam(r *http.Request, key string, def int) int {
 		return def
 	}
 	return v
+}
+
+// realIP extracts the caller's IP address from the request.
+// Checks X-Forwarded-For first (leftmost entry is the client), then
+// X-Real-IP, then falls back to RemoteAddr.
+func realIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
