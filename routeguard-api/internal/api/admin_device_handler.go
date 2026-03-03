@@ -95,6 +95,7 @@ func (h *Handler) CreateAdminDevice(w http.ResponseWriter, r *http.Request) {
 		ProvisioningToken: token,
 		ExpiresAt:         time.Now().Add(provisionTokenTTL),
 	})
+	h.LogAudit(r, "device.provisioned", "device", device.ID, map[string]any{"org_id": req.OrgID})
 }
 
 // updateAdminDeviceRequest is the request body for PATCH /admin/devices/{id}.
@@ -124,6 +125,7 @@ func (h *Handler) UpdateAdminDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusOK, device)
+	h.LogAudit(r, "device.updated", "device", id, map[string]any{"org_id": device.OrgID})
 }
 
 // DeleteAdminDevice handles DELETE /admin/devices/{id}
@@ -141,4 +143,5 @@ func (h *Handler) DeleteAdminDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	NoContent(w)
+	h.LogAudit(r, "device.revoked", "device", id, nil)
 }
