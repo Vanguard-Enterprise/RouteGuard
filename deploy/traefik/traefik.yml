@@ -26,9 +26,6 @@ certificatesResolvers:
           - "8.8.8.8:53"
 
 providers:
-  docker:
-    exposedByDefault: false
-    network: rg-net
   file:
     filename: /etc/traefik/dynamic.yml
     watch: true

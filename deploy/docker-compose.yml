@@ -10,7 +10,6 @@ services:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - traefik-certs:/certs
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks: [rg-net]
 
   postgres:
@@ -62,12 +61,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`api.route-guard.com`)"
-      - "traefik.http.routers.api.entrypoints=websecure"
-      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.api.loadbalancer.server.port=8080"
     networks: [rg-net]
 
   dashboard:
@@ -77,16 +70,6 @@ services:
       NEXT_PUBLIC_API_URL: https://api.route-guard.com
       NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN}
       NODE_ENV: production
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`route-guard.com`) || Host(`www.route-guard.com`)"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.services.dashboard.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.route-guard\\.com/(.*)"
-      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://route-guard.com/$${1}"
-      - "traefik.http.middlewares.www-redirect.redirectregex.permanent=true"
-      - "traefik.http.routers.dashboard.middlewares=www-redirect"
     networks: [rg-net]
 
   registry:

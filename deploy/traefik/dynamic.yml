@@ -1,4 +1,37 @@
 http:
+  routers:
+    dashboard:
+      rule: "Host(`route-guard.com`) || Host(`www.route-guard.com`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: dashboard-svc
+      middlewares:
+        - www-redirect
+        - secure-headers
+
+    api:
+      rule: "Host(`api.route-guard.com`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      service: api-svc
+      middlewares:
+        - secure-headers
+
+  services:
+    dashboard-svc:
+      loadBalancer:
+        servers:
+          - url: "http://dashboard:3000"
+
+    api-svc:
+      loadBalancer:
+        servers:
+          - url: "http://routeguard-api:8080"
+
   middlewares:
     secure-headers:
       headers:
@@ -10,3 +43,9 @@ http:
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         stsPreload: true
+
+    www-redirect:
+      redirectRegex:
+        regex: "^https://www\\.route-guard\\.com/(.*)"
+        replacement: "https://route-guard.com/${1}"
+        permanent: true
