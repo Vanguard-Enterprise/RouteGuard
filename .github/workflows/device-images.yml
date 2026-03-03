@@ -1,0 +1,54 @@
+name: Build Device Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'device/**'
+
+jobs:
+  build-arm64:
+    name: Build ARM64 Image
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ARM64 image
+        run: |
+          cd device/build
+          mkdir -p arm64/output
+          docker build -t rg-build-arm64 -f arm64/Dockerfile .
+          docker run --privileged \
+            -v "$(pwd)/arm64/output:/pi-gen/deploy" \
+            rg-build-arm64
+
+      - name: Upload to RustFS
+        run: |
+          mc alias set rg "${{ secrets.RUSTFS_ENDPOINT }}" \
+              "${{ secrets.RUSTFS_ACCESS_KEY }}" \
+              "${{ secrets.RUSTFS_SECRET_KEY }}"
+          mc cp device/build/arm64/output/*arm64*.img.gz \
+              rg/device-images/arm64/routeguard-latest.img.gz
+
+  build-x86-64:
+    name: Build x86-64 Image
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build x86-64 image
+        run: |
+          cd device/build
+          mkdir -p x86-64/output
+          docker build -t rg-build-x86 -f x86-64/Dockerfile .
+          docker run --privileged \
+            -v "$(pwd)/x86-64/output:/output" \
+            rg-build-x86
+
+      - name: Upload to RustFS
+        run: |
+          mc alias set rg "${{ secrets.RUSTFS_ENDPOINT }}" \
+              "${{ secrets.RUSTFS_ACCESS_KEY }}" \
+              "${{ secrets.RUSTFS_SECRET_KEY }}"
+          mc cp device/build/x86-64/output/routeguard-latest.img.gz \
+              rg/device-images/x86-64/routeguard-latest.img.gz
