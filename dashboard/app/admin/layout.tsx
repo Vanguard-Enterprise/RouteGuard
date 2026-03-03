@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
-import { type User } from '@/lib/api'
-import { getServerUser } from '@/lib/server-api'
+import { api, APIError, type User } from '@/lib/api'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AdminAppSidebar } from '@/components/admin/admin-app-sidebar'
 import { AdminSiteHeader } from '@/components/admin/admin-site-header'
@@ -8,7 +7,15 @@ import { AdminSiteHeader } from '@/components/admin/admin-site-header'
 export const dynamic = 'force-dynamic'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user: User | null = await getServerUser()
+  let user: User | null = null
+  try {
+    user = await api.admin.profile.get()
+  } catch (err) {
+    if (err instanceof APIError && err.status === 401) {
+      redirect('/staff/login')
+    }
+    redirect('/staff/login')
+  }
   if (!user) {
     redirect('/staff/login')
   }

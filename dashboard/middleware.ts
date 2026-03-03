@@ -14,7 +14,7 @@ export function middleware(request: NextRequest) {
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' https://api.mapbox.com",
     "worker-src blob:",
-    "img-src 'self' data: blob: https://*.mapbox.com https://*.mapbox.cn",
+    "img-src 'self' data: blob: https://*.mapbox.com https://*.mapbox.cn https://storage.route-guard.com",
     isDev
       ? "connect-src 'self' http://localhost:* ws://localhost:* https://*.mapbox.com"
       : "connect-src 'self' https://api.route-guard.com wss://api.route-guard.com https://*.mapbox.com",
