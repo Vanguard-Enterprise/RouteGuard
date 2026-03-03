@@ -109,6 +109,24 @@ func (s *Server) buildRouter() chi.Router {
 		// Audit logs
 		r.Get("/audit-logs", h.ListAuditLogs)
 
+		// Staff users
+		r.With(middleware.RequireStaffPermission("staff:manage")).Get("/staff/users", h.ListStaffUsers)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Post("/staff/users", h.CreateStaffUser)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Get("/staff/users/{id}", h.GetStaffUser)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Patch("/staff/users/{id}", h.UpdateStaffUser)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Delete("/staff/users/{id}", h.DeleteStaffUser)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Post("/staff/users/{id}/restore", h.RestoreStaffUser)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Get("/staff/users/{id}/roles", h.ListStaffUserRoles)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Post("/staff/users/{id}/roles", h.AssignStaffUserRole)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Delete("/staff/users/{id}/roles/{roleId}", h.UnassignStaffUserRole)
+
+		// Staff roles
+		r.With(middleware.RequireStaffPermission("staff:manage")).Get("/staff/roles", h.ListStaffRoles)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Post("/staff/roles", h.CreateStaffRole)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Get("/staff/roles/{id}", h.GetStaffRole)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Patch("/staff/roles/{id}", h.UpdateStaffRole)
+		r.With(middleware.RequireStaffPermission("staff:manage")).Delete("/staff/roles/{id}", h.DeleteStaffRole)
+
 		// Profile (own account)
 		r.Get("/profile", h.GetAdminProfile)
 		r.Patch("/profile", h.UpdateAdminProfile)
