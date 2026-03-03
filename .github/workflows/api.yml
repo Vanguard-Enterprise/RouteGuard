@@ -85,7 +85,9 @@ jobs:
 
   deploy:
     runs-on: self-hosted
-    needs: [test, build]
+    needs: [setup, test, build]
+    permissions:
+      deployments: write
     steps:
       - name: Deploy
         working-directory: /opt/routeguard/deploy
@@ -110,6 +112,8 @@ jobs:
     runs-on: self-hosted
     needs: [setup, test, build, deploy]
     if: failure() && needs.setup.result == 'success'
+    permissions:
+      deployments: write
     steps:
       - name: Mark deployment failure
         uses: actions/github-script@v7
