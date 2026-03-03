@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -24,6 +25,7 @@ interface AdminProfileFormProps {
 }
 
 export function AdminProfileForm({ user }: AdminProfileFormProps) {
+  const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [avatarSrc, setAvatarSrc] = useState<string | null>(user.avatar_url)
@@ -58,23 +60,27 @@ export function AdminProfileForm({ user }: AdminProfileFormProps) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Show a local preview immediately while upload is in progress.
+    const prevSrc = avatarSrc
     const localURL = URL.createObjectURL(file)
     setAvatarSrc(localURL)
     setUploading(true)
 
+    const uploadPromise = api.admin.profile.uploadAvatar(file)
+    toast.promise(uploadPromise, {
+      loading: 'Uploading avatar...',
+      success: 'Avatar updated.',
+      error: (err) => (err instanceof APIError ? err.message : 'Upload failed.'),
+    })
+
     try {
-      const updated = await api.admin.profile.uploadAvatar(file)
+      const updated = await uploadPromise
       setAvatarSrc(updated.avatar_url)
-      toast.success('Avatar updated.')
-    } catch (err) {
-      // Revert preview on failure.
-      setAvatarSrc(user.avatar_url)
-      toast.error(err instanceof APIError ? err.message : 'Upload failed.')
+      router.refresh() // re-fetches the server layout so the sidebar avatar updates
+    } catch {
+      setAvatarSrc(prevSrc)
     } finally {
       setUploading(false)
       URL.revokeObjectURL(localURL)
-      // Reset file input so the same file can be re-selected after an error.
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -97,17 +103,17 @@ export function AdminProfileForm({ user }: AdminProfileFormProps) {
             >
               <Avatar className="h-16 w-16 rounded-lg">
                 <AvatarImage src={avatarSrc ?? undefined} alt={user.name || user.email} />
-                <AvatarFallback className="rounded-lg text-lg">
-                  {uploading ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                  ) : (
-                    initials
-                  )}
-                </AvatarFallback>
+                <AvatarFallback className="rounded-lg text-lg">{initials}</AvatarFallback>
               </Avatar>
-              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                <Camera className="h-5 w-5 text-white" />
-              </div>
+              {uploading ? (
+                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Camera className="h-5 w-5 text-white" />
+                </div>
+              )}
             </button>
 
             <input
