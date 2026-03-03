@@ -22,18 +22,6 @@ const (
 	tripSessionTTL       = 12 * time.Hour
 )
 
-// provisionTokenPayload is the JSON value stored in Redis under "provision_token:<token>".
-// It is written by the admin panel and consumed atomically (GETDEL) during provisioning.
-type provisionTokenPayload struct {
-	OrgID  string `json:"org_id"`
-	Serial string `json:"serial"`
-}
-
-// provisionRequest is the request body for POST /api/v1/devices/provision.
-type provisionRequest struct {
-	ProvisioningToken string `json:"provisioning_token"`
-}
-
 // pinAuthRequest is the request body for POST /api/v1/auth/pin.
 type pinAuthRequest struct {
 	DriverID string `json:"driver_id"`
@@ -69,58 +57,6 @@ func generateTripToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
-}
-
-// ProvisionDevice handles POST /api/v1/devices/provision.
-// The provisioning token is a one-time-use value stored in Redis by the admin panel.
-// On success it returns the device ID and the raw device token (shown exactly once).
-func (h *Handler) ProvisionDevice(w http.ResponseWriter, r *http.Request) {
-	var req provisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		Error(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if req.ProvisioningToken == "" {
-		Error(w, http.StatusBadRequest, "provisioning_token is required")
-		return
-	}
-
-	// Atomic read-and-delete — ensures the token is single-use.
-	var payload provisionTokenPayload
-	if err := h.cache.GetDel(r.Context(), "provision_token:"+req.ProvisioningToken, &payload); err != nil {
-		if h.cache.IsNotFound(err) {
-			Error(w, http.StatusBadRequest, "invalid or expired provisioning token")
-		} else {
-			Error(w, http.StatusInternalServerError, "internal server error")
-		}
-		return
-	}
-
-	// Generate a 32-byte (64-hex-char) raw device token.
-	rawToken, err := generateDeviceToken()
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
-	// Hash the raw token with bcrypt cost 12 for storage.
-	tokenHash, err := crypto.HashPassword(rawToken)
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
-	deviceRepo := repository.NewDeviceRepo(h.pool)
-	device, err := deviceRepo.Create(r.Context(), payload.OrgID, payload.Serial, tokenHash)
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
-	JSON(w, http.StatusCreated, map[string]string{
-		"device_id":    device.ID,
-		"device_token": rawToken,
-	})
 }
 
 // DeviceHeartbeat handles POST /api/v1/devices/heartbeat.

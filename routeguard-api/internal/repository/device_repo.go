@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -159,104 +158,6 @@ func (r *DeviceRepo) ListByOrg(ctx context.Context, orgID string) ([]domain.Devi
 		devices = append(devices, d)
 	}
 	return devices, rows.Err()
-}
-
-// ListAll returns all devices, optionally filtered by orgID (pass "" for no filter).
-func (r *DeviceRepo) ListAll(ctx context.Context, orgID string) ([]domain.Device, error) {
-	query := `
-		SELECT id, org_id, serial, device_token_hash, status, vehicle_id,
-		       seat_count, bus_layout, provisioned_at, created_at
-		FROM devices
-	`
-	args := make([]any, 0)
-	if orgID != "" {
-		query += " WHERE org_id = $1"
-		args = append(args, orgID)
-	}
-	query += " ORDER BY created_at DESC"
-
-	rows, err := r.pool.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("device list all: %w", err)
-	}
-	defer rows.Close()
-
-	devices := make([]domain.Device, 0)
-	for rows.Next() {
-		var d domain.Device
-		if err := rows.Scan(
-			&d.ID, &d.OrgID, &d.Serial, &d.DeviceTokenHash, &d.Status,
-			&d.VehicleID, &d.SeatCount, &d.BusLayout, &d.ProvisionedAt, &d.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		devices = append(devices, d)
-	}
-	return devices, rows.Err()
-}
-
-// CreateUnprovisioned inserts a new device with status 'unprovisioned'.
-// device_token_hash is stored as NULL because no token has been issued yet.
-func (r *DeviceRepo) CreateUnprovisioned(ctx context.Context, orgID, serial string) (*domain.Device, error) {
-	var d domain.Device
-	err := r.pool.QueryRow(ctx, `
-		INSERT INTO devices (org_id, serial, device_token_hash, status, provisioned_at, created_at)
-		VALUES ($1, $2, NULL, 'unprovisioned', NULL, NOW())
-		RETURNING id, org_id, serial, device_token_hash, status, vehicle_id,
-		          seat_count, bus_layout, provisioned_at, created_at
-	`, orgID, serial).Scan(
-		&d.ID, &d.OrgID, &d.Serial, &d.DeviceTokenHash, &d.Status,
-		&d.VehicleID, &d.SeatCount, &d.BusLayout, &d.ProvisionedAt, &d.CreatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create unprovisioned device: %w", err)
-	}
-	return &d, nil
-}
-
-// Update applies a partial update to a device. Only non-nil fields are updated.
-func (r *DeviceRepo) Update(ctx context.Context, id string, serial *string, vehicleID *string, seatCount *int) (*domain.Device, error) {
-	setClauses := make([]string, 0)
-	args := make([]any, 0)
-
-	if serial != nil {
-		args = append(args, *serial)
-		setClauses = append(setClauses, fmt.Sprintf("serial = $%d", len(args)))
-	}
-	if vehicleID != nil {
-		args = append(args, *vehicleID)
-		setClauses = append(setClauses, fmt.Sprintf("vehicle_id = $%d", len(args)))
-	}
-	if seatCount != nil {
-		args = append(args, *seatCount)
-		setClauses = append(setClauses, fmt.Sprintf("seat_count = $%d", len(args)))
-	}
-
-	if len(setClauses) == 0 {
-		return r.FindByID(ctx, id)
-	}
-
-	args = append(args, id)
-	idParam := fmt.Sprintf("$%d", len(args))
-
-	query := fmt.Sprintf(`
-		UPDATE devices
-		SET %s
-		WHERE id = %s
-		RETURNING id, org_id, serial, device_token_hash, status, vehicle_id,
-		          seat_count, bus_layout, provisioned_at, created_at`,
-		strings.Join(setClauses, ", "), idParam,
-	)
-
-	var d domain.Device
-	err := r.pool.QueryRow(ctx, query, args...).Scan(
-		&d.ID, &d.OrgID, &d.Serial, &d.DeviceTokenHash, &d.Status,
-		&d.VehicleID, &d.SeatCount, &d.BusLayout, &d.ProvisionedAt, &d.CreatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("device update: %w", err)
-	}
-	return &d, nil
 }
 
 // Revoke sets the device status to 'revoked' and evicts the device from cache.

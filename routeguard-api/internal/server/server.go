@@ -65,9 +65,6 @@ func (s *Server) buildRouter() chi.Router {
 	r.Get("/auth/sso/{slug}/saml/init", h.SAMLInit)
 	r.Post("/auth/sso/saml/acs", h.SAMLACS)
 
-	// Device provisioning (no device auth — this is how devices obtain their credential)
-	r.With(middleware.RateLimit(s.cache, 20)).Post("/api/v1/devices/provision", h.ProvisionDevice)
-
 	// Device-authenticated routes
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/devices/heartbeat", h.DeviceHeartbeat)
 
@@ -99,12 +96,6 @@ func (s *Server) buildRouter() chi.Router {
 		r.Post("/organizations/{id}/sso", h.CreateOrgSSO)
 		r.Patch("/organizations/{id}/sso/{connectionId}", h.UpdateOrgSSO)
 		r.Delete("/organizations/{id}/sso/{connectionId}", h.DeleteOrgSSO)
-
-		// Device admin
-		r.Get("/devices", h.ListAdminDevices)
-		r.Post("/devices", h.CreateAdminDevice)
-		r.Patch("/devices/{id}", h.UpdateAdminDevice)
-		r.Delete("/devices/{id}", h.DeleteAdminDevice)
 
 		// Audit logs
 		r.Get("/audit-logs", h.ListAuditLogs)
