@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/repository"
 )
 
@@ -20,6 +21,21 @@ type updateProfileRequest struct {
 type changePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
+}
+
+// profileResponse builds the JSON-serialisable map for a user, matching the
+// frontend User interface (including the permissions field).
+func profileResponse(user *domain.User, permissions []string) map[string]any {
+	return map[string]any{
+		"id":           user.ID,
+		"org_id":       user.OrgID,
+		"email":        user.Email,
+		"name":         user.Name,
+		"avatar_url":   user.AvatarURL,
+		"last_login_at": user.LastLoginAt,
+		"created_at":   user.CreatedAt,
+		"permissions":  permissions,
+	}
 }
 
 // GetAdminProfile handles GET /admin/profile.
@@ -40,7 +56,12 @@ func (h *Handler) GetAdminProfile(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	JSON(w, http.StatusOK, user)
+	permissions, err := repo.GetUserPermissions(r.Context(), user.ID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	JSON(w, http.StatusOK, profileResponse(user, permissions))
 }
 
 // UpdateAdminProfile handles PATCH /admin/profile.
@@ -84,7 +105,12 @@ func (h *Handler) UpdateAdminProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	JSON(w, http.StatusOK, user)
+	permissions, err := repo.GetUserPermissions(r.Context(), user.ID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	JSON(w, http.StatusOK, profileResponse(user, permissions))
 }
 
 // ChangeAdminPassword handles POST /admin/profile/password.
@@ -109,8 +135,8 @@ func (h *Handler) ChangeAdminPassword(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "new password must be at least 8 characters")
 		return
 	}
-	if len(req.NewPassword) > 72 {
-		Error(w, http.StatusBadRequest, "new password must be 72 characters or fewer")
+	if len(req.CurrentPassword) > 72 || len(req.NewPassword) > 72 {
+		Error(w, http.StatusBadRequest, "password must be 72 characters or fewer")
 		return
 	}
 
