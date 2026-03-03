@@ -64,6 +64,7 @@ jobs:
           DOCKER_BUILDKIT: "1"
         run: |
           docker build \
+            --cache-from localhost:5000/routeguard-dashboard:latest \
             --build-arg NEXT_PUBLIC_API_URL=https://api.route-guard.com \
             --build-arg NEXT_PUBLIC_MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }} \
             -t localhost:5000/routeguard-dashboard:latest \
