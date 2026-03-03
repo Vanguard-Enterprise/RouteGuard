@@ -35,7 +35,7 @@ export function Header() {
 					className="rounded-md p-2 hover:bg-muted dark:hover:bg-muted/50"
 					href="/"
 				>
-					<Logo className="h-5" />
+					<Logo className="h-7" />
 				</Link>
 				<div className="hidden items-center gap-2 md:flex">
 					<div>
