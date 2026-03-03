@@ -42,6 +42,8 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           docker build \
+            --build-arg NEXT_PUBLIC_API_URL=https://api.route-guard.com \
+            --build-arg NEXT_PUBLIC_MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }} \
             -t localhost:5000/routeguard-dashboard:latest \
             -t localhost:5000/routeguard-dashboard:${{ github.sha }} \
             dashboard/
