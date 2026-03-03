@@ -1,7 +1,7 @@
 import { api, APIError } from '@/lib/api'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Pencil, ArrowLeft } from 'lucide-react'
+import { Pencil, ArrowLeft, Users } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -48,14 +48,23 @@ export default async function OrgDetailPage({ params }: PageProps) {
             {org.name}
           </h1>
         </div>
-        <Link
-          href={`/admin/organizations/${org.id}/edit`}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white"
-          style={{ backgroundColor: 'var(--color-brand-navy)' }}
-        >
-          <Pencil size={14} />
-          Edit
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/organizations/${org.id}/users`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Users size={14} />
+            Users
+          </Link>
+          <Link
+            href={`/admin/organizations/${org.id}/edit`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white"
+            style={{ backgroundColor: 'var(--color-brand-navy)' }}
+          >
+            <Pencil size={14} />
+            Edit
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50">

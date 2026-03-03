@@ -64,6 +64,15 @@ export interface User {
   created_at: string
 }
 
+export interface OrgUser {
+  id: string
+  name: string
+  email: string
+  avatar_url: string | null
+  last_login_at: string | null
+  created_at: string
+}
+
 export interface Organization {
   id: string
   name: string
@@ -343,6 +352,14 @@ export const api = {
       update: (id: string, data: Partial<Organization>) =>
         request<Organization>(`/admin/organizations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
       delete: (id: string) => request<void>(`/admin/organizations/${id}`, { method: 'DELETE' }),
+      users: {
+        list: (orgId: string) => request<OrgUser[]>(`/admin/organizations/${orgId}/users`),
+        create: (orgId: string, data: { name: string; email: string; password: string }) =>
+          request<OrgUser>(`/admin/organizations/${orgId}/users`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+          }),
+      },
     },
     images: {
       get: () => request<BaseImages>('/admin/images'),
