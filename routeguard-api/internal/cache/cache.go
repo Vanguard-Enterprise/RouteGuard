@@ -88,3 +88,23 @@ func (c *Cache) Incr(ctx context.Context, key string) (int64, error) {
 func (c *Cache) Expire(ctx context.Context, key string, ttl time.Duration) error {
 	return c.client.Expire(ctx, key, ttl).Err()
 }
+
+// SAdd adds a member to a Redis set and sets/refreshes the TTL.
+// Used for tracking active session tokens per user.
+func (c *Cache) SAdd(ctx context.Context, key, member string, ttl time.Duration) error {
+	pipe := c.client.Pipeline()
+	pipe.SAdd(ctx, key, member)
+	pipe.Expire(ctx, key, ttl)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// SMembers returns all members of a Redis set.
+func (c *Cache) SMembers(ctx context.Context, key string) ([]string, error) {
+	return c.client.SMembers(ctx, key).Result()
+}
+
+// SRem removes a member from a Redis set.
+func (c *Cache) SRem(ctx context.Context, key, member string) error {
+	return c.client.SRem(ctx, key, member).Err()
+}
