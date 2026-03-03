@@ -18,10 +18,10 @@ export function Integrations() {
 			{/* Left Content */}
 			<div className="max-w-xl space-y-5">
 				<h2 className="font-medium text-3xl text-foreground tracking-tight sm:text-4xl md:text-5xl">
-					Built on Trusted Technology
+					Connects With What You Already Use
 				</h2>
 				<p className="text-lg text-muted-foreground leading-8">
-					RouteGuard uses proven infrastructure for GPS mapping, SMS delivery, cloud hosting, and device provisioning - so your district gets reliability at scale.
+					RouteGuard integrates with the student information systems and identity providers your district already runs - so student data stays in sync and setup takes days, not months.
 				</p>
 			</div>
 
@@ -74,9 +74,8 @@ const tiles: TileData[] = [
 		row: 0,
 		col: 3,
 		logo: {
-			src: "https://storage.efferd.com/logo/vercel.svg",
-			alt: "Vercel",
-			isInvertable: true,
+			src: "https://logo.clearbit.com/powerschool.com",
+			alt: "PowerSchool",
 		},
 	},
 
@@ -86,16 +85,16 @@ const tiles: TileData[] = [
 		row: 1,
 		col: 2,
 		logo: {
-			src: "https://storage.efferd.com/logo/supabase.svg",
-			alt: "Supabase",
+			src: "https://logo.clearbit.com/infinitecampus.com",
+			alt: "Infinite Campus",
 		},
 	},
 	{
 		row: 1,
 		col: 4,
 		logo: {
-			src: "https://storage.efferd.com/logo/notion.svg",
-			alt: "Notion",
+			src: "https://logo.clearbit.com/edupoint.com",
+			alt: "Synergy",
 		},
 	},
 
@@ -104,17 +103,16 @@ const tiles: TileData[] = [
 		row: 2,
 		col: 1,
 		logo: {
-			src: "https://storage.efferd.com/logo/gmail.svg",
-			alt: "Gmail",
+			src: "https://logo.clearbit.com/skyward.com",
+			alt: "Skyward",
 		},
 	},
 	{
 		row: 2,
 		col: 3,
 		logo: {
-			src: "https://storage.efferd.com/logo/cursor.svg",
-			alt: "Cursor",
-			isInvertable: true,
+			src: "https://logo.clearbit.com/clever.com",
+			alt: "Clever",
 		},
 	},
 
@@ -124,35 +122,17 @@ const tiles: TileData[] = [
 		row: 3,
 		col: 2,
 		logo: {
-			src: "https://storage.efferd.com/logo/canva.svg",
-			alt: "Canva",
+			src: "https://logo.clearbit.com/google.com",
+			alt: "Google Workspace",
 		},
 	},
 	{
 		row: 3,
 		col: 4,
 		logo: {
-			src: "https://storage.efferd.com/logo/adobe.svg",
-			alt: "Adobe",
+			src: "https://logo.clearbit.com/microsoft.com",
+			alt: "Microsoft",
 		},
 	},
 
-	// Row 4
-	{
-		row: 4,
-		col: 1,
-		logo: {
-			src: "https://storage.efferd.com/logo/polar.svg",
-			alt: "Polar",
-		},
-	},
-	{
-		row: 4,
-		col: 3,
-		logo: {
-			src: "https://storage.efferd.com/logo/planetscale.svg",
-			alt: "Planetscale",
-			isInvertable: true,
-		},
-	},
 ];
