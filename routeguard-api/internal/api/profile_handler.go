@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/repository"
@@ -73,11 +74,14 @@ func (h *Handler) UpdateAdminProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Refresh the session payload so GET /auth/me returns the updated name.
+	// AvatarURL is intentionally not stored in SessionPayload - it is always read from the DB.
 	token := auth.TokenFromRequest(r)
 	if token != "" {
 		updated := *session
 		updated.Name = user.Name
-		_ = auth.UpdateSession(r.Context(), h.cache, token, updated)
+		if err := auth.UpdateSession(r.Context(), h.cache, token, updated); err != nil {
+			log.Warn().Err(err).Str("user_id", session.UserID).Msg("profile update: failed to refresh session in Redis")
+		}
 	}
 
 	JSON(w, http.StatusOK, user)
@@ -129,6 +133,10 @@ func (h *Handler) ChangeAdminPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := repo.SetPasswordHash(r.Context(), session.UserID, newHash); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusBadRequest, "no password set for this account")
+			return
+		}
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}

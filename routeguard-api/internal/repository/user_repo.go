@@ -118,12 +118,19 @@ func (r *UserRepo) GetPasswordHash(ctx context.Context, userID string) (string, 
 }
 
 // SetPasswordHash updates the bcrypt password_hash for the given user's password identity.
+// Returns pgx.ErrNoRows if no password identity row exists for the user.
 func (r *UserRepo) SetPasswordHash(ctx context.Context, userID, hash string) error {
-	_, err := r.pool.Exec(ctx,
+	tag, err := r.pool.Exec(ctx,
 		"UPDATE user_identities SET password_hash = $1 WHERE user_id = $2 AND provider = 'password'",
 		hash, userID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 // FindSSOConnectionBySlugAndID looks up an enabled OIDC SSO connection by org slug and connection ID.
