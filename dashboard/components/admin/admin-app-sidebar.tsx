@@ -1,4 +1,5 @@
 import * as React from 'react'
+import Link from 'next/link'
 
 import { type User } from '@/lib/api'
 import {
@@ -24,9 +25,9 @@ export function AdminAppSidebar({ user, ...props }: AdminAppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
-              <a href="/admin/organizations">
+              <Link href="/admin/organizations">
                 <span className="text-base font-semibold">RouteGuard</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
