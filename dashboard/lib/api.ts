@@ -1,5 +1,8 @@
 // dashboard/lib/api.ts
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+// Auth routes are proxied through Next.js so the session cookie is set
+// from route-guard.com directly, avoiding cross-origin cookie restrictions.
+const AUTH_BASE = ''
 
 export class APIError extends Error {
   constructor(public status: number, message: string) {
@@ -243,11 +246,28 @@ export interface AuditLog {
 // API Methods
 // ============================================================
 
+async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${AUTH_BASE}${path}`, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...init?.headers,
+    },
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }))
+    throw new APIError(res.status, body.error ?? res.statusText)
+  }
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
-      request<{ user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-    logout: () => request<void>('/auth/logout', { method: 'POST' }),
+      authRequest<User>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    logout: () => authRequest<void>('/api/auth/logout', { method: 'POST' }),
     me: () => request<User>('/auth/me'),
   },
   admin: {
