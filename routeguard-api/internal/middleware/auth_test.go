@@ -124,3 +124,42 @@ func TestRequirePermission_EmptyRoles(t *testing.T) {
 		t.Fatalf("expected 403, got %d", w.Code)
 	}
 }
+
+func TestRequireStaffPermission_HasPermission(t *testing.T) {
+	session := &auth.SessionPayload{
+		UserID:  "staff1",
+		IsStaff: true,
+		Roles:   []string{"orgs:read", "staff:manage"},
+	}
+	ctx := context.WithValue(context.Background(), middleware.SessionKey, session)
+	r := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
+	w := httptest.NewRecorder()
+	middleware.RequireStaffPermission("staff:manage")(okHandler).ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestRequireStaffPermission_MissingPermission(t *testing.T) {
+	session := &auth.SessionPayload{
+		UserID:  "staff1",
+		IsStaff: true,
+		Roles:   []string{"orgs:read"},
+	}
+	ctx := context.WithValue(context.Background(), middleware.SessionKey, session)
+	r := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
+	w := httptest.NewRecorder()
+	middleware.RequireStaffPermission("staff:manage")(okHandler).ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestRequireStaffPermission_NoSession(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	middleware.RequireStaffPermission("staff:manage")(okHandler).ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
