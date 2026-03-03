@@ -2,15 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2 } from 'lucide-react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Plus, Trash2, ArrowUpDown } from 'lucide-react'
+import { type ColumnDef } from '@tanstack/react-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +14,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import { api, Device } from '@/lib/api'
+import { AdminDataTable } from '@/components/admin/admin-data-table'
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   provisioned: { label: 'Provisioned', className: 'bg-green-50 text-green-700 border-green-200' },
@@ -52,81 +47,119 @@ export default function DeviceTable({ devices: initial }: DeviceTableProps) {
     }
   }
 
+  const columns: ColumnDef<Device>[] = [
+    {
+      accessorKey: 'serial',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Serial
+          <ArrowUpDown className="ml-2 size-3.5" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-sm">{row.original.serial}</span>
+      ),
+    },
+    {
+      accessorKey: 'org_id',
+      header: 'Org',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="font-mono text-sm text-muted-foreground">
+          {row.original.org_id ? row.original.org_id.slice(0, 8) : '—'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Status
+          <ArrowUpDown className="ml-2 size-3.5" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const statusStyle = STATUS_STYLES[row.original.status] ?? {
+          label: row.original.status,
+          className: 'bg-gray-100 text-gray-600 border-gray-200',
+        }
+        return (
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${statusStyle.className}`}
+          >
+            {statusStyle.label}
+          </span>
+        )
+      },
+    },
+    {
+      accessorKey: 'vehicle_id',
+      header: 'Vehicle',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.vehicle_id ? row.original.vehicle_id.slice(0, 8) : '—'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'provisioned_at',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Provisioned
+          <ArrowUpDown className="ml-2 size-3.5" />
+        </Button>
+      ),
+      cell: ({ row }) =>
+        row.original.provisioned_at
+          ? new Date(row.original.provisioned_at).toLocaleDateString()
+          : '—',
+    },
+    {
+      id: 'actions',
+      enableHiding: false,
+      cell: ({ row }) => (
+        <button
+          onClick={() => setDeleteTarget(row.original)}
+          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+          title="Delete"
+        >
+          <Trash2 size={15} />
+        </button>
+      ),
+    },
+  ]
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--color-brand-navy)' }}>
-          Devices
-        </h2>
-        <Link
-          href="/admin/devices/new"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-brand-navy)' }}
-        >
-          <Plus size={15} />
-          Create Device
-        </Link>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Serial</TableHead>
-              <TableHead>Org</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Vehicle</TableHead>
-              <TableHead>Provisioned</TableHead>
-              <TableHead className="w-16">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {devices.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-gray-400 py-10">
-                  No devices yet.
-                </TableCell>
-              </TableRow>
-            )}
-            {devices.map((device) => {
-              const statusStyle = STATUS_STYLES[device.status] ?? {
-                label: device.status,
-                className: 'bg-gray-100 text-gray-600 border-gray-200',
-              }
-              return (
-                <TableRow key={device.id}>
-                  <TableCell className="font-mono text-sm">{device.serial}</TableCell>
-                  <TableCell className="text-sm text-gray-500 font-mono">
-                    {device.org_id ? device.org_id.slice(0, 8) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${statusStyle.className}`}
-                    >
-                      {statusStyle.label}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">
-                    {device.vehicle_id ? device.vehicle_id.slice(0, 8) : '—'}
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">
-                    {device.provisioned_at ? new Date(device.provisioned_at).toLocaleDateString() : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <button
-                      onClick={() => setDeleteTarget(device)}
-                      className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <AdminDataTable
+        columns={columns}
+        data={devices}
+        toolbar={
+          <Link
+            href="/admin/devices/new"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Plus size={15} />
+            Create Device
+          </Link>
+        }
+      />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

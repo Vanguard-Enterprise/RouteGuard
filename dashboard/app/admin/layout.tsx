@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
-import { User } from '@/lib/api'
+import { type User } from '@/lib/api'
 import { getServerUser } from '@/lib/server-api'
-import AdminSidebar from '@/components/admin/admin-sidebar'
-import AdminHeader from '@/components/admin/admin-header'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { AdminAppSidebar } from '@/components/admin/admin-app-sidebar'
+import { AdminSiteHeader } from '@/components/admin/admin-site-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,12 +14,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar />
-      <div className="flex-1 ml-60 flex flex-col min-h-screen">
-        <AdminHeader user={user} />
-        <main className="flex-1 p-6">{children}</main>
-      </div>
-    </div>
+    <SidebarProvider
+      style={{
+        '--sidebar-width': 'calc(var(--spacing) * 64)',
+        '--header-height': 'calc(var(--spacing) * 14)',
+      } as React.CSSProperties}
+    >
+      <AdminAppSidebar user={user} variant="inset" />
+      <SidebarInset>
+        <AdminSiteHeader />
+        <div className="flex flex-1 flex-col">
+          <main className="flex-1 p-4 lg:p-6">{children}</main>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

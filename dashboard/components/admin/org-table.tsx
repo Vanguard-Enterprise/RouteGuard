@@ -3,15 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Eye, Pencil, Trash2 } from 'lucide-react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Plus, Eye, Pencil, Trash2, ArrowUpDown } from 'lucide-react'
+import { type ColumnDef } from '@tanstack/react-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import { api, Organization } from '@/lib/api'
+import { AdminDataTable } from '@/components/admin/admin-data-table'
 
 interface OrgTableProps {
   organizations: Organization[]
@@ -49,79 +44,119 @@ export default function OrgTable({ organizations: initial }: OrgTableProps) {
     }
   }
 
+  const columns: ColumnDef<Organization>[] = [
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Name
+          <ArrowUpDown className="ml-2 size-3.5" />
+        </Button>
+      ),
+    },
+    {
+      accessorKey: 'slug',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Slug
+          <ArrowUpDown className="ml-2 size-3.5" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-sm text-muted-foreground">{row.original.slug}</span>
+      ),
+    },
+    {
+      accessorKey: 'type',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Type
+          <ArrowUpDown className="ml-2 size-3.5" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <span className="capitalize">{row.original.type}</span>
+      ),
+    },
+    {
+      accessorKey: 'created_at',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 h-8"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Created
+          <ArrowUpDown className="ml-2 size-3.5" />
+        </Button>
+      ),
+      cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
+    },
+    {
+      id: 'actions',
+      enableHiding: false,
+      cell: ({ row }) => {
+        const org = row.original
+        return (
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/admin/organizations/${org.id}`}
+              className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="View"
+            >
+              <Eye size={15} />
+            </Link>
+            <Link
+              href={`/admin/organizations/${org.id}/edit`}
+              className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Edit"
+            >
+              <Pencil size={15} />
+            </Link>
+            <button
+              onClick={() => setDeleteTarget(org)}
+              className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              title="Delete"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--color-brand-navy)' }}>
-          Organizations
-        </h2>
-        <Link
-          href="/admin/organizations/new"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-brand-navy)' }}
-        >
-          <Plus size={15} />
-          New Organization
-        </Link>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orgs.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-gray-400 py-10">
-                  No organizations yet.
-                </TableCell>
-              </TableRow>
-            )}
-            {orgs.map((org) => (
-              <TableRow key={org.id}>
-                <TableCell className="font-medium">{org.name}</TableCell>
-                <TableCell className="font-mono text-sm text-gray-500">{org.slug}</TableCell>
-                <TableCell className="capitalize">{org.type}</TableCell>
-                <TableCell className="text-sm text-gray-500">
-                  {new Date(org.created_at).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Link
-                      href={`/admin/organizations/${org.id}`}
-                      className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
-                      title="View"
-                    >
-                      <Eye size={15} />
-                    </Link>
-                    <Link
-                      href={`/admin/organizations/${org.id}/edit`}
-                      className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
-                      title="Edit"
-                    >
-                      <Pencil size={15} />
-                    </Link>
-                    <button
-                      onClick={() => setDeleteTarget(org)}
-                      className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <AdminDataTable
+        columns={columns}
+        data={orgs}
+        toolbar={
+          <Link
+            href="/admin/organizations/new"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Plus size={15} />
+            New Organization
+          </Link>
+        }
+      />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
