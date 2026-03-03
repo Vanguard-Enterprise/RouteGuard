@@ -9,10 +9,12 @@ OUTPUT=/output
 
 mkdir -p "$WORK" "$OUTPUT"
 
-# Load the loop driver (may not be loaded on PVE hosts) and ensure loop device
-# nodes exist in the container. Range 0-31 covers hosts where 0-7 are occupied
-# by Docker's own storage. --privileged gives CAP_SYS_MODULE and CAP_MKNOD.
+# Ensure loop devices are available. The container has an isolated devtmpfs so
+# host loop nodes are absent. --privileged gives CAP_MKNOD and CAP_SYS_MODULE.
+# loop-control (c 10 237) lets losetup --find allocate dynamically; loop nodes
+# 0-31 cover cases where loop-control dynamic allocation needs pre-existing nodes.
 modprobe loop 2>/dev/null || true
+mknod /dev/loop-control c 10 237 2>/dev/null || true
 for i in $(seq 0 31); do
     [ -b /dev/loop$i ] || mknod /dev/loop$i b 7 $i 2>/dev/null || true
 done
