@@ -14,7 +14,7 @@ async function getOrganizations() {
 }
 
 export const metadata = {
-  title: 'Organizations — RouteGuard Admin',
+  title: 'Orgs - RouteGuard',
 }
 
 export default async function OrganizationsPage() {

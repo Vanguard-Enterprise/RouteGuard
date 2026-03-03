@@ -14,7 +14,7 @@ async function getAuditLogs() {
 }
 
 export const metadata = {
-  title: 'Audit Logs — RouteGuard Admin',
+  title: 'Audit - RouteGuard',
 }
 
 export default async function AuditLogsPage() {
