@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/repository"
 )
 
@@ -116,6 +117,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		"org_id":   orgID,
 		"roles":    permissions,
 	})
+	h.logLoginEvent(r, user.ID, orgID)
 }
 
 // Logout handles POST /auth/logout.
@@ -126,6 +128,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	auth.ClearSessionCookie(w)
 	NoContent(w)
+	h.LogAudit(r, "auth.logout", "", "", nil)
 }
 
 // Me handles GET /auth/me — returns the current session user.
@@ -143,4 +146,24 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		"org_id":   session.OrgID,
 		"roles":    session.Roles,
 	})
+}
+
+// logLoginEvent records a successful login. Called directly because the new
+// session is not yet in the request context at the time Login runs.
+func (h *Handler) logLoginEvent(r *http.Request, userID, orgID string) {
+	ip := realIP(r)
+	meta := map[string]any{}
+	if orgID != "" {
+		meta["org_id"] = orgID
+	}
+	b, _ := json.Marshal(meta)
+	entry := domain.AuditLog{
+		ActorID:   &userID,
+		ActorType: "user",
+		Action:    "auth.login",
+		IPAddress: &ip,
+		Metadata:  b,
+	}
+	repo := repository.NewAuditRepo(h.pool)
+	_ = repo.Log(r.Context(), entry)
 }
