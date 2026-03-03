@@ -69,18 +69,20 @@ func (h *Handler) LogAudit(r *http.Request, action, targetType, targetID string,
 }
 
 // ListAuditLogs handles GET /admin/audit-logs?org_id=...&limit=...&offset=...
+// org_id is optional; omitting it returns all logs across all orgs.
 func (h *Handler) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("org_id")
-	if orgID == "" {
-		Error(w, http.StatusBadRequest, "org_id is required")
-		return
-	}
-
 	limit := parseIntParam(r, "limit", 50)
 	offset := parseIntParam(r, "offset", 0)
 
 	repo := repository.NewAuditRepo(h.pool)
-	logs, err := repo.List(r.Context(), orgID, limit, offset)
+	var logs []domain.AuditLog
+	var err error
+	if orgID == "" {
+		logs, err = repo.ListAll(r.Context(), limit, offset)
+	} else {
+		logs, err = repo.List(r.Context(), orgID, limit, offset)
+	}
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return

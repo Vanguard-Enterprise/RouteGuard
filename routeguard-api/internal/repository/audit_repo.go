@@ -43,6 +43,38 @@ func (r *AuditRepo) Log(ctx context.Context, entry domain.AuditLog) error {
 	return nil
 }
 
+// ListAll returns all audit logs with pagination, regardless of org.
+// Results are ordered newest-first.
+func (r *AuditRepo) ListAll(ctx context.Context, limit, offset int) ([]domain.AuditLog, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, actor_id, actor_type, action,
+		       target_type, target_id, metadata, ip_address, created_at
+		FROM audit_logs
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("audit list all: %w", err)
+	}
+	defer rows.Close()
+
+	logs := make([]domain.AuditLog, 0)
+	for rows.Next() {
+		var l domain.AuditLog
+		if err := rows.Scan(
+			&l.ID, &l.ActorID, &l.ActorType, &l.Action,
+			&l.TargetType, &l.TargetID, &l.Metadata, &l.IPAddress, &l.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		logs = append(logs, l)
+	}
+	return logs, rows.Err()
+}
+
 // List returns audit logs for an organization with pagination (limit/offset).
 // Results are ordered newest-first.
 func (r *AuditRepo) List(ctx context.Context, orgID string, limit, offset int) ([]domain.AuditLog, error) {
