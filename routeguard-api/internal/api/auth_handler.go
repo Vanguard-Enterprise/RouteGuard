@@ -18,6 +18,7 @@ var notFoundHash, _ = crypto.HashPassword("routeguard-dummy-for-timing-safety-do
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	OrgSlug  string `json:"org_slug"`
 }
 
 // Login handles POST /auth/login.
@@ -58,8 +59,31 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine if staff (no org_id) or org user
+	// Enforce org/staff context to prevent cross-boundary authentication.
 	isStaff := user.OrgID == nil
+	if req.OrgSlug != "" {
+		// Org portal: must be an org user belonging to the specified org.
+		if isStaff {
+			Error(w, http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+		orgRepo := repository.NewOrgRepo(h.pool)
+		ok, err := orgRepo.CheckSlug(r.Context(), *user.OrgID, req.OrgSlug)
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		if !ok {
+			Error(w, http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+	} else {
+		// Staff portal: must be a staff user (no org).
+		if !isStaff {
+			Error(w, http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+	}
 	orgID := ""
 	if user.OrgID != nil {
 		orgID = *user.OrgID
