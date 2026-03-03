@@ -5,6 +5,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api, APIError } from '@/lib/api'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -43,62 +47,53 @@ export default function StaffLoginForm() {
   }
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="bg-white rounded-xl shadow-lg px-8 py-10">
-        <div className="text-center mb-8">
-          <span className="text-2xl font-bold" style={{ color: 'var(--color-brand-navy)' }}>
-            RouteGuard
-          </span>
-          <p className="mt-1 text-sm text-gray-500">Staff Portal</p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email address
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              {...register('email')}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-              placeholder="you@example.com"
-            />
-            {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...register('password')}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-              placeholder="••••••••"
-            />
-            {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
-          </div>
-
-          {serverError && (
-            <div className="rounded-md bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">
-              {serverError}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'var(--color-brand-navy)' }}
-          >
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-xl">Staff Portal</CardTitle>
+        <CardDescription>Sign in with your staff credentials</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="email">Email address</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@routeguard.com"
+                {...register('email')}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
+              )}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="..."
+                {...register('password')}
+              />
+              {errors.password && (
+                <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
+              )}
+            </Field>
+            {serverError && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                {serverError}
+              </div>
+            )}
+            <Field>
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </Field>
+          </FieldGroup>
         </form>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

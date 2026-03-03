@@ -6,6 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api, APIError } from '@/lib/api'
 import SSOButton from './sso-button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldGroup, Field, FieldLabel, FieldSeparator } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
@@ -65,93 +69,78 @@ export default function OrgLoginForm({ orgName, slug, hasPasswordAuth, ssoConnec
   const hasSSOConnections = ssoConnections.length > 0
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="bg-white rounded-xl shadow-lg px-8 py-10">
-        <div className="text-center mb-8">
-          <span className="text-2xl font-bold" style={{ color: 'var(--color-brand-navy)' }}>
-            {orgName}
-          </span>
-          <p className="mt-1 text-sm text-gray-500">Sign in to continue</p>
-        </div>
-
-        {hasSSOConnections && (
-          <div className="space-y-2 mb-4">
-            {ssoConnections.map((conn) => (
-              <SSOButton
-                key={conn.id}
-                displayName={conn.display_name}
-                onClick={() => handleSSOClick(conn.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        {hasSSOConnections && hasPasswordAuth && (
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center text-xs text-gray-400">
-              <span className="bg-white px-2">or continue with email</span>
-            </div>
-          </div>
-        )}
-
-        {hasPasswordAuth && (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                {...register('email')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                placeholder="you@example.com"
-              />
-              {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                {...register('password')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                placeholder="••••••••"
-              />
-              {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
-            </div>
-
-            {serverError && (
-              <div className="rounded-md bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">
-                {serverError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ backgroundColor: 'var(--color-brand-navy)' }}
-            >
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
-          </form>
-        )}
-
-        {!hasPasswordAuth && !hasSSOConnections && (
-          <p className="text-sm text-gray-500 text-center">
-            Contact your administrator for login instructions.
-          </p>
-        )}
-      </div>
-    </div>
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-xl">{orgName}</CardTitle>
+        <CardDescription>Sign in to continue</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <FieldGroup>
+          {hasSSOConnections && (
+            <Field>
+              {ssoConnections.map((conn) => (
+                <SSOButton
+                  key={conn.id}
+                  displayName={conn.display_name}
+                  onClick={() => handleSSOClick(conn.id)}
+                />
+              ))}
+            </Field>
+          )}
+          {hasSSOConnections && hasPasswordAuth && (
+            <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+              or continue with email
+            </FieldSeparator>
+          )}
+          {hasPasswordAuth && (
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="email">Email address</FieldLabel>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    {...register('email')}
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
+                  )}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="..."
+                    {...register('password')}
+                  />
+                  {errors.password && (
+                    <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
+                  )}
+                </Field>
+                {serverError && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                    {serverError}
+                  </div>
+                )}
+                <Field>
+                  <Button type="submit" disabled={loading} className="w-full">
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </Button>
+                </Field>
+              </FieldGroup>
+            </form>
+          )}
+          {!hasPasswordAuth && !hasSSOConnections && (
+            <p className="text-sm text-muted-foreground text-center">
+              Contact your administrator for login instructions.
+            </p>
+          )}
+        </FieldGroup>
+      </CardContent>
+    </Card>
   )
 }
