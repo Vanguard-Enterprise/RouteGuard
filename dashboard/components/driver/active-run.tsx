@@ -168,7 +168,6 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
         {/* Scan list */}
         <div className="w-full max-w-lg mt-4">
           <StudentScanList
-            stopId={currentStop?.id ?? tripId}
             scans={scans.filter((_, i) => i < 5)}
           />
         </div>

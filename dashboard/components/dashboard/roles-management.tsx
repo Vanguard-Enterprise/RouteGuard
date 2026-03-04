@@ -14,6 +14,34 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+const PRESET_ROLES = [
+  {
+    name: 'School Admin',
+    description: 'Read-only monitoring for school administrators.',
+    permissions: ['trips:read', 'students:read', 'routes:read', 'reports:read'],
+  },
+  {
+    name: 'Dispatcher',
+    description: 'Trip operations - manage and track active trips.',
+    permissions: ['trips:read', 'trips:write', 'routes:read', 'drivers:read', 'vehicles:read'],
+  },
+  {
+    name: 'Routing Specialist',
+    description: 'Route and student management - build and maintain routes.',
+    permissions: [
+      'routes:read', 'routes:write',
+      'students:read', 'students:write',
+      'schools:read', 'schools:write',
+      'drivers:read', 'vehicles:read',
+    ],
+  },
+  {
+    name: 'Fleet Manager',
+    description: 'Vehicle and driver management for fleet operations.',
+    permissions: ['vehicles:read', 'vehicles:write', 'drivers:read', 'reports:read'],
+  },
+]
+
 const AVAILABLE_PERMISSIONS = [
   'schools:read',
   'schools:write',
@@ -109,6 +137,7 @@ export default function RolesManagement() {
   const [deleting, setDeleting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [creatingPreset, setCreatingPreset] = useState<string | null>(null)
 
   useEffect(() => {
     api.settings.roles
@@ -155,6 +184,21 @@ export default function RolesManagement() {
       setSaveError('Failed to update role.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleAddPreset(preset: (typeof PRESET_ROLES)[number]) {
+    setCreatingPreset(preset.name)
+    try {
+      const created = await api.settings.roles.create({
+        name: preset.name,
+        permissions: preset.permissions,
+      })
+      setRoles((prev) => [...prev, created])
+    } catch {
+      // silently fail - role list will not update
+    } finally {
+      setCreatingPreset(null)
     }
   }
 
@@ -216,6 +260,53 @@ export default function RolesManagement() {
           error={saveError}
         />
       )}
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Preset Roles
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {PRESET_ROLES.map((preset) => {
+            const exists = roles.some((r) => r.name === preset.name)
+            const isCreating = creatingPreset === preset.name
+            return (
+              <div
+                key={preset.name}
+                className="bg-white border border-gray-100 rounded-xl px-5 py-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-gray-800 text-sm">{preset.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{preset.description}</p>
+                  </div>
+                  <button
+                    onClick={() => !exists && !isCreating && handleAddPreset(preset)}
+                    disabled={exists || isCreating}
+                    className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-60"
+                    style={
+                      exists
+                        ? { border: '1px solid #e5e7eb', color: '#9ca3af' }
+                        : { backgroundColor: 'var(--color-brand-navy)', color: 'white' }
+                    }
+                  >
+                    {exists ? 'Already added' : isCreating ? 'Adding...' : 'Add to org'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-3">
+                  {preset.permissions.map((perm) => (
+                    <span
+                      key={perm}
+                      className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-xs rounded"
+                    >
+                      {perm}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
       {systemRoles.length > 0 && (
         <div>
