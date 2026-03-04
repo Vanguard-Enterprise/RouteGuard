@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Delete } from 'lucide-react'
 
 interface PinPadProps {
   onSubmit: (pin: string) => void
@@ -13,7 +15,6 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
   const [digits, setDigits] = useState('')
   const [shake, setShake] = useState(false)
 
-  // Trigger shake animation on error
   useEffect(() => {
     if (error) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -23,7 +24,6 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
     }
   }, [error])
 
-  // Clear digits on error
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setDigits(''), 1500)
@@ -46,58 +46,72 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
     onSubmit(digits)
   }
 
-  const buttons = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✓']
+  const numberRows = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
   return (
     <div className="flex flex-col items-center gap-6">
-      {/* PIN display */}
-      <div className="flex gap-3">
+      {/* PIN dot display */}
+      <div className={`flex gap-3 ${shake ? 'animate-pin-shake' : ''}`}>
         {Array.from({ length: MAX_DIGITS }).map((_, i) => (
           <div
             key={i}
             className={`w-4 h-4 rounded-full border-2 transition-colors duration-150 ${
               i < digits.length
                 ? error
-                  ? 'bg-red-500 border-red-500'
-                  : 'bg-amber-400 border-amber-400'
-                : 'bg-transparent border-blue-300'
-            } ${shake ? 'animate-pin-shake' : ''}`}
+                  ? 'bg-destructive border-destructive'
+                  : 'border-[#F5A825]'
+                : 'bg-transparent border-border'
+            }`}
+            style={i < digits.length && !error ? { background: '#F5A825' } : undefined}
           />
         ))}
       </div>
 
       {/* Number grid */}
       <div className="grid grid-cols-3 gap-3">
-        {buttons.map((btn) => {
-          const isBackspace = btn === '⌫'
-          const isConfirm = btn === '✓'
-          return (
-            <button
-              key={btn}
-              onClick={isBackspace ? handleBackspace : isConfirm ? handleConfirm : () => handleDigit(btn)}
-              disabled={loading || (isConfirm && digits.length < 4)}
-              aria-label={isBackspace ? 'Backspace' : isConfirm ? 'Confirm' : btn}
-              style={{ width: 70, height: 70 }}
-              className={`
-                rounded-full text-xl font-semibold flex items-center justify-center
-                transition-all duration-100 active:scale-95 select-none
-                ${isConfirm
-                  ? 'bg-green-600 text-white hover:bg-green-500 disabled:opacity-40'
-                  : isBackspace
-                  ? 'bg-blue-800 text-blue-200 hover:bg-blue-700'
-                  : 'bg-blue-800 text-white hover:bg-blue-700'
-                }
-                disabled:cursor-not-allowed
-              `}
-            >
-              {loading && isConfirm ? (
-                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                btn
-              )}
-            </button>
-          )
-        })}
+        {numberRows.map((btn) => (
+          <Button
+            key={btn}
+            variant="outline"
+            onClick={() => handleDigit(btn)}
+            disabled={loading}
+            aria-label={btn}
+            className="w-[72px] h-[72px] rounded-full text-xl font-semibold"
+          >
+            {btn}
+          </Button>
+        ))}
+        {/* Bottom row */}
+        <Button
+          variant="ghost"
+          onClick={handleBackspace}
+          disabled={loading}
+          aria-label="Backspace"
+          className="w-[72px] h-[72px] rounded-full"
+        >
+          <Delete className="size-5" />
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => handleDigit('0')}
+          disabled={loading}
+          aria-label="0"
+          className="w-[72px] h-[72px] rounded-full text-xl font-semibold"
+        >
+          0
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={loading || digits.length < 4}
+          aria-label="Confirm"
+          className="w-[72px] h-[72px] rounded-full text-xl font-semibold bg-green-600 hover:bg-green-500 text-white"
+        >
+          {loading ? (
+            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            '✓'
+          )}
+        </Button>
       </div>
 
       <style>{`
