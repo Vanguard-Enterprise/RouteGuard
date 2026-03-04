@@ -2,6 +2,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PinPad from './pin-pad'
+import { Logo } from '@/components/logo'
+import { Card, CardContent } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { CreditCard } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
@@ -48,13 +52,12 @@ export default function LockScreen() {
       }
 
       const data = await res.json()
-      const session = {
+      localStorage.setItem('driver_session', JSON.stringify({
         driver_id: data.driver_id,
         driver_name: data.driver_name,
         org_id: data.org_id,
         session_token: data.session_token,
-      }
-      localStorage.setItem('driver_session', JSON.stringify(session))
+      }))
       router.push('/driver/pre-trip')
     } catch {
       setErrorMessage('Network error. Please check your connection.')
@@ -64,34 +67,30 @@ export default function LockScreen() {
   }
 
   return (
-    <div
-      style={{ background: '#1B3A5C' }}
-      className="min-h-screen flex flex-col items-center justify-center gap-10 px-4"
-    >
-      {/* Brand header */}
-      <div className="text-center flex flex-col items-center gap-2">
-        <h1 style={{ color: '#F5A825' }} className="text-5xl font-bold tracking-tight">
-          RouteGuard
-        </h1>
-        <p className="text-blue-300 text-lg">{getGreeting()}</p>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-10 px-4">
+      <div className="flex flex-col items-center gap-2">
+        <Logo className="h-10 w-auto" />
+        <p className="text-muted-foreground text-lg">{getGreeting()}</p>
       </div>
 
-      {/* PIN card */}
-      <div
-        className="rounded-3xl px-8 py-8 flex flex-col items-center gap-6 w-full max-w-xs"
-        style={{ background: '#152D47', border: '1px solid rgba(255,255,255,0.08)' }}
-      >
-        <p className="text-blue-300 text-xs uppercase tracking-widest">Enter your PIN</p>
-        <PinPad onSubmit={handlePinSubmit} loading={loading} error={pinError} />
-        {errorMessage && (
-          <p className="text-red-400 text-sm text-center">{errorMessage}</p>
-        )}
-      </div>
+      <Card className="w-full max-w-xs">
+        <CardContent className="pt-6 flex flex-col items-center gap-6">
+          <p className="text-muted-foreground text-xs uppercase tracking-widest">
+            Enter your PIN
+          </p>
+          <PinPad onSubmit={handlePinSubmit} loading={loading} error={pinError} />
+          {errorMessage && (
+            <p className="text-destructive text-sm text-center">{errorMessage}</p>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* RFID hint */}
-      <div className="flex flex-col items-center gap-2 opacity-50">
-        <div className="w-12 h-px bg-blue-500" />
-        <p className="text-blue-300 text-sm">or tap your RFID badge</p>
+      <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+        <Separator />
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <CreditCard className="size-4" />
+          <span>or tap your RFID badge</span>
+        </div>
       </div>
     </div>
   )
