@@ -190,7 +190,7 @@ CHROMIUM_PID=$!
 
 echo "rg-checkin: polling for claim..."
 while true; do
-    STATUS=$(curl -sf "$API_URL/api/v1/devices/checkin/status?serial=$SERIAL" 2>/dev/null || echo "")
+    STATUS=$(curl -sf "$API_URL/api/v1/devices/checkin/status?claim_code=$CLAIM_CODE" 2>/dev/null || echo "")
     if [ -n "$STATUS" ]; then
         TOKEN=$(echo "$STATUS" | python3 -c \
             "import json,sys; d=json.load(sys.stdin); print(d.get('device_token',''))" 2>/dev/null || echo "")
@@ -230,7 +230,7 @@ until /usr/local/bin/rg-checkin; do
     sleep 10
 done
 
-TOKEN=$(cat "$TOKEN_FILE" | tr -d '[:space:]')
+TOKEN=$(tr -d '[:space:]' < "$TOKEN_FILE")
 
 mkdir -p "$EXT_DIR"
 cat > "$EXT_DIR/manifest.json" << 'MANIFEST'
