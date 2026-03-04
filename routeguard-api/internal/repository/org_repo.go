@@ -204,6 +204,7 @@ func (r *OrgRepo) SeedSystemRoles(ctx context.Context, orgID string) error {
 				"vehicles:read", "vehicles:write",
 				"routes:read", "routes:write",
 				"trips:read", "reports:read",
+				"devices:read", "devices:write",
 			},
 		},
 		{
