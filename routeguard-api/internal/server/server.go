@@ -81,6 +81,7 @@ func (s *Server) buildRouter() chi.Router {
 
 	// Trip lifecycle — trip session auth (issued after driver PIN/RFID auth)
 	tripSessionAuth := middleware.TripSessionAuthenticate(s.cache)
+	r.With(tripSessionAuth).Get("/api/v1/trips/assignment", h.GetAssignment)
 	r.With(tripSessionAuth).Post("/api/v1/trips/start", h.StartTrip)
 	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/location", h.RecordLocation)
 	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/end", h.EndTrip)

@@ -133,6 +133,81 @@ func (h *Handler) StartTrip(w http.ResponseWriter, r *http.Request) {
 	JSON(w, http.StatusCreated, manifest)
 }
 
+// assignmentPreviewResponse is returned by GetAssignment.
+type assignmentPreviewResponse struct {
+	RouteName   string `json:"route_name"`
+	RouteType   string `json:"route_type"`
+	StopCount   int    `json:"stop_count"`
+	VehicleName string `json:"vehicle_name"`
+	Date        string `json:"date"`
+}
+
+// GetAssignment handles GET /api/v1/trips/assignment.
+// Requires trip session auth. Returns the driver's active route assignment preview
+// without creating a trip. Returns 404 if no active assignment exists.
+func (h *Handler) GetAssignment(w http.ResponseWriter, r *http.Request) {
+	session := tripauth.TripSessionFromContext(r.Context())
+	if session == nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	deviceRepo := repository.NewDeviceRepo(h.pool)
+	device, err := deviceRepo.FindByIDAndCache(r.Context(), session.DeviceID, h.cache)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusUnauthorized, "unauthorized")
+		} else {
+			Error(w, http.StatusInternalServerError, "internal server error")
+		}
+		return
+	}
+
+	if device.VehicleID == nil {
+		Error(w, http.StatusNotFound, "device has no assigned vehicle")
+		return
+	}
+
+	tripDeviceRepo := repository.NewTripDeviceRepo(h.pool)
+	assignment, err := tripDeviceRepo.FindActiveAssignment(r.Context(), session.DriverID, *device.VehicleID, session.OrgID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusNotFound, "no active route assignment found")
+		} else {
+			Error(w, http.StatusInternalServerError, "internal server error")
+		}
+		return
+	}
+
+	routeRepo := repository.NewRouteRepo(h.pool)
+	route, err := routeRepo.Get(r.Context(), assignment.RouteID, session.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	stops, err := tripDeviceRepo.ListStopsWithStudents(r.Context(), assignment.RouteID, session.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	vehicleRepo := repository.NewVehicleRepo(h.pool)
+	vehicle, err := vehicleRepo.Get(r.Context(), *device.VehicleID, session.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	JSON(w, http.StatusOK, assignmentPreviewResponse{
+		RouteName:   route.Name,
+		RouteType:   route.Type,
+		StopCount:   len(stops),
+		VehicleName: vehicle.Name,
+		Date:        time.Now().Format("2006-01-02"),
+	})
+}
+
 // RecordLocation handles POST /api/v1/trips/{id}/location.
 // Requires trip session auth. Records a GPS location for the trip and publishes
 // a real-time event to the Redis pub/sub channel.
