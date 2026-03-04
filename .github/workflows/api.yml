@@ -10,7 +10,7 @@ on:
 
 jobs:
   setup:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: self-hosted
     permissions:
       contents: read
       deployments: write
@@ -41,7 +41,7 @@ jobs:
           result-encoding: string
 
   test:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: self-hosted
     needs: setup
     defaults:
       run:
@@ -60,7 +60,7 @@ jobs:
         run: go test ./...
 
   build:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: self-hosted
     needs: setup
     steps:
       - name: Checkout
@@ -84,7 +84,7 @@ jobs:
           docker push localhost:5000/routeguard-api:${{ github.sha }}
 
   deploy:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: self-hosted
     needs: [setup, test, build]
     permissions:
       deployments: write
@@ -109,7 +109,7 @@ jobs:
             });
 
   notify-failure:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: self-hosted
     needs: [setup, test, build, deploy]
     if: failure() && needs.setup.result == 'success'
     permissions:
