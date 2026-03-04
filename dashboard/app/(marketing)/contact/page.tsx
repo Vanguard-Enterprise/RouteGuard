@@ -23,9 +23,9 @@ export default function ContactPage() {
 
   return (
     <div className="flex flex-col flex-1 min-h-full">
-      {/* Navy hero - keeps navbar text visible */}
+      {/* Navy hero - pulls up behind the sticky header (same trick as HeroSection) */}
       <div
-        className="py-16 px-4 sm:px-6 text-center"
+        className="-mt-14 pt-14 py-16 px-4 sm:px-6 text-center"
         style={{ backgroundColor: 'var(--color-brand-navy)' }}
       >
         <h1 className="text-4xl font-bold text-white mb-3">Get in Touch</h1>
