@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, Tablet, ScrollText, Users, Shield, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Building2, Tablet, ScrollText, Users, Shield, type LucideIcon } from 'lucide-react'
 
 import { type User } from '@/lib/api'
 import {
@@ -14,7 +14,8 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-const navItems: { title: string; url: string; icon: LucideIcon }[] = [
+const navItems: { title: string; url: string; icon: LucideIcon; exact?: boolean }[] = [
+  { title: 'Overview', url: '/admin', icon: LayoutDashboard, exact: true },
   { title: 'Organizations', url: '/admin/organizations', icon: Building2 },
   { title: 'Devices', url: '/admin/devices', icon: Tablet },
   { title: 'Audit Logs', url: '/admin/audit-logs', icon: ScrollText },
@@ -39,7 +40,9 @@ export function AdminNavMain({ user }: Props) {
         <SidebarGroupContent>
           <SidebarMenu>
             {navItems.map((item) => {
-              const isActive = pathname === item.url || pathname.startsWith(item.url + '/')
+              const isActive = item.exact
+                ? pathname === item.url
+                : pathname === item.url || pathname.startsWith(item.url + '/')
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
