@@ -222,15 +222,11 @@ func (r *OrgRepo) SeedSystemRoles(ctx context.Context, orgID string) error {
 	}
 
 	for _, role := range roles {
-		permsJSON, err := json.Marshal(role.permissions)
-		if err != nil {
-			return fmt.Errorf("seed system roles: marshal permissions for %s: %w", role.name, err)
-		}
-		_, err = r.pool.Exec(ctx, `
+		_, err := r.pool.Exec(ctx, `
 			INSERT INTO org_roles (id, org_id, name, permissions, is_system)
 			VALUES (gen_random_uuid(), $1, $2, $3, true)
 			ON CONFLICT (org_id, name) DO NOTHING
-		`, orgID, role.name, permsJSON)
+		`, orgID, role.name, role.permissions)
 		if err != nil {
 			return fmt.Errorf("seed system roles: insert %s: %w", role.name, err)
 		}
