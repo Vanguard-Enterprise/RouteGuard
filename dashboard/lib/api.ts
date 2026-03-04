@@ -307,6 +307,27 @@ export interface AuditLog {
   created_at: string
 }
 
+export interface ContactSubmission {
+  id: string
+  name: string
+  email: string
+  organization: string
+  message: string
+  status: 'new' | 'in_progress' | 'closed'
+  read_at: string | null
+  created_at: string
+  notes?: ContactNote[]
+}
+
+export interface ContactNote {
+  id: string
+  submission_id: string
+  author_id: string
+  author_name: string
+  body: string
+  created_at: string
+}
+
 // ============================================================
 // API Methods
 // ============================================================
@@ -379,6 +400,31 @@ export const api = {
           body: form,
         })
       },
+    },
+    contacts: {
+      list: (params?: { status?: string; limit?: number; offset?: number }) => {
+        const qs = params
+          ? '?' + new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(params)
+                  .filter(([, v]) => v != null)
+                  .map(([k, v]) => [k, String(v)])
+              )
+            ).toString()
+          : ''
+        return request<ContactSubmission[]>(`/admin/contacts${qs}`)
+      },
+      get: (id: string) => request<ContactSubmission>(`/admin/contacts/${id}`),
+      patch: (id: string, data: { status?: string; mark_read?: boolean }) =>
+        request<ContactSubmission>(`/admin/contacts/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+      addNote: (id: string, body: string) =>
+        request<ContactNote>(`/admin/contacts/${id}/notes`, {
+          method: 'POST',
+          body: JSON.stringify({ body }),
+        }),
     },
     staff: {
       users: {
