@@ -1,24 +1,31 @@
 import { redirect } from 'next/navigation'
-import { User } from '@/lib/api'
 import { getServerUser } from '@/lib/server-api'
-import AppSidebar from '@/components/dashboard/app-sidebar'
-import DashboardHeader from '@/components/dashboard/header'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { DashboardAppSidebar } from '@/components/dashboard/dashboard-app-sidebar'
+import { DashboardSiteHeader } from '@/components/dashboard/dashboard-site-header'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const user: User | null = await getServerUser()
+  const user = await getServerUser()
   if (!user) {
     redirect('/staff/login')
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <AppSidebar user={user} />
-      <div className="flex-1 ml-60 flex flex-col min-h-screen">
-        <DashboardHeader user={user} orgId={user.org_id ?? ''} />
-        <main className="flex-1 p-6">{children}</main>
-      </div>
-    </div>
+    <SidebarProvider
+      style={{
+        '--sidebar-width': 'calc(var(--spacing) * 64)',
+        '--header-height': 'calc(var(--spacing) * 14)',
+      } as React.CSSProperties}
+    >
+      <DashboardAppSidebar user={user} variant="inset" />
+      <SidebarInset>
+        <DashboardSiteHeader orgId={user.org_id ?? ''} />
+        <div className="flex flex-1 flex-col">
+          <main className="flex-1 p-4 lg:p-6">{children}</main>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
