@@ -111,14 +111,22 @@ export default function DeviceTable({ devices: initial }: { devices: Device[] })
         <h2 className="text-xl font-semibold" style={{ color: 'var(--color-brand-navy)' }}>
           Devices
         </h2>
-        <Link
-          href="/dashboard/devices/claim"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-brand-navy)' }}
-        >
-          <Plus size={15} />
-          Add Device
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/devices/provision"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Provision Device
+          </Link>
+          <Link
+            href="/dashboard/devices/claim"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-brand-navy)' }}
+          >
+            <Plus size={15} />
+            Add Device
+          </Link>
+        </div>
       </div>
 
       <DataTable
