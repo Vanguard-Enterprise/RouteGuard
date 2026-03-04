@@ -68,6 +68,9 @@ func (s *Server) buildRouter() chi.Router {
 	r.Get("/auth/sso/{slug}/saml/init", h.SAMLInit)
 	r.Post("/auth/sso/saml/acs", h.SAMLACS)
 
+	// Contact form (public, rate-limited)
+	r.With(middleware.RateLimit(s.cache, 20)).Post("/api/v1/contact", h.SubmitContact)
+
 	// Device check-in (unauthenticated, rate-limited)
 	r.With(middleware.RateLimit(s.cache, 10)).Post("/api/v1/devices/checkin", h.DeviceCheckin)
 	r.With(middleware.RateLimit(s.cache, 12)).Get("/api/v1/devices/checkin/status", h.DeviceCheckinStatus)
@@ -112,6 +115,13 @@ func (s *Server) buildRouter() chi.Router {
 
 		// Audit logs
 		r.Get("/audit-logs", h.ListAuditLogs)
+
+		// Contact submissions
+		r.With(middleware.RequireStaffPermission("contacts:read")).Get("/contacts", h.ListContacts)
+		r.With(middleware.RequireStaffPermission("contacts:read")).Get("/contacts/{id}", h.GetContact)
+		r.With(middleware.RequireStaffPermission("contacts:read")).Patch("/contacts/{id}", h.PatchContact)
+		r.With(middleware.RequireStaffPermission("contacts:read")).Post("/contacts/{id}/notes", h.AddContactNote)
+		r.With(middleware.RequireStaffPermission("contacts:read")).Get("/contacts/{id}/stream", h.StreamContactNotes)
 
 		// Staff users
 		r.With(middleware.RequireStaffPermission("staff:manage")).Get("/staff/users", h.ListStaffUsers)
