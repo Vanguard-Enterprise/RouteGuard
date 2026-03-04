@@ -394,3 +394,26 @@ type AuditLog struct {
 	CreatedAt  time.Time       `json:"created_at"`
 }
 
+// ContactSubmission maps to the contact_submissions table.
+type ContactSubmission struct {
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Email        string        `json:"email"`
+	Organization string        `json:"organization"`
+	Message      string        `json:"message"`
+	Status       string        `json:"status"`
+	ReadAt       *time.Time    `json:"read_at"`
+	CreatedAt    time.Time     `json:"created_at"`
+	Notes        []ContactNote `json:"notes,omitempty"`
+}
+
+// ContactNote maps to the contact_notes table.
+type ContactNote struct {
+	ID           string    `json:"id"`
+	SubmissionID string    `json:"submission_id"`
+	AuthorID     string    `json:"author_id"`
+	AuthorName   string    `json:"author_name"`
+	Body         string    `json:"body"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
