@@ -10,7 +10,7 @@ export default function LandingPage() {
     <div className="space-y-16 pb-8">
       <HeroSection />
       {/* <LogosSection /> */}
-      <section id="features" className="px-4">
+      <section id="features" className="scroll-mt-20 px-4">
         <div className="mx-auto mb-10 max-w-5xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Everything you need to run safer routes
