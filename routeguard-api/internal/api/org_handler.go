@@ -53,8 +53,8 @@ func (h *Handler) CreateOrg(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := repo.SeedSystemRoles(r.Context(), org.ID); err != nil {
-		// Non-fatal: org was created; log and continue.
-		_ = err
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
 	}
 
 	JSON(w, http.StatusCreated, org)
