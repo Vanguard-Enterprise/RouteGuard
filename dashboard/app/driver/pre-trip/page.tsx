@@ -60,10 +60,16 @@ export default function PreTripPage() {
         return
       }
 
-      const data = (await res.json()) as { trip_id: string }
-      const updatedSession: DriverSession = { ...session, trip_id: data.trip_id }
+      // NEW - save full manifest so active-run has stops
+      interface TripManifest {
+        trip: { id: string }
+        stops: Array<{ stop: { id: string; name: string; sequence_order: number }; students: unknown[] }>
+      }
+      const data = (await res.json()) as TripManifest
+      localStorage.setItem('trip_manifest', JSON.stringify(data.stops))
+      const updatedSession: DriverSession = { ...session, trip_id: data.trip.id }
       localStorage.setItem('driver_session', JSON.stringify(updatedSession))
-      router.push(`/driver/run/${data.trip_id}`)
+      router.push(`/driver/run/${data.trip.id}`)
     } catch {
       setError('Network error. Please check your connection.')
     } finally {
