@@ -15,6 +15,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build ARM64 image
+        env:
+          DOCKER_BUILDKIT: "0"
         run: |
           cd device/build
           mkdir -p arm64/output
@@ -45,6 +47,8 @@ jobs:
           done
 
       - name: Build x86-64 image
+        env:
+          DOCKER_BUILDKIT: "0"
         run: |
           cd device/build
           mkdir -p x86-64/output
