@@ -108,9 +108,6 @@ func (s *Server) buildRouter() chi.Router {
 		r.Get("/organizations/{id}/users", h.ListOrgUsersAdmin)
 		r.Post("/organizations/{id}/users", h.CreateOrgUserAdmin)
 
-		// Base device image downloads
-		r.Get("/images", h.GetBaseImages)
-
 		// Audit logs
 		r.Get("/audit-logs", h.ListAuditLogs)
 

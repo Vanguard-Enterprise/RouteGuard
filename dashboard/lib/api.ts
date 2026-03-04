@@ -295,11 +295,6 @@ export interface ClaimDeviceRequest {
   seat_count?: number
 }
 
-export interface BaseImages {
-  arm64: string
-  x86_64: string
-}
-
 export interface AuditLog {
   id: string
   actor_id: string | null
@@ -360,9 +355,6 @@ export const api = {
             body: JSON.stringify(data),
           }),
       },
-    },
-    images: {
-      get: () => request<BaseImages>('/admin/images'),
     },
     auditLogs: {
       list: (params?: Record<string, string>) => {
