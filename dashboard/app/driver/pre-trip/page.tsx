@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RouteSummary from '@/components/driver/route-summary'
 
@@ -21,19 +21,44 @@ interface RoutePreview {
   date: string
 }
 
+interface ManifestStudent {
+  id: string
+  name: string
+}
+
 interface TripManifest {
   trip: { id: string }
-  stops: Array<{ stop: { id: string; name: string; sequence_order: number }; students: unknown[] }>
+  stops: Array<{ stop: { id: string; name: string; sequence_order: number }; students: ManifestStudent[] }>
 }
 
 export default function PreTripPage() {
   const router = useRouter()
   const [session, setSession] = useState<DriverSession | null>(null)
   const [preview, setPreview] = useState<RoutePreview | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(true)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+
+  const fetchAssignment = useCallback((token: string) => {
+    setPreviewLoading(true)
+    setPreviewError(null)
+    setPreview(null)
+    fetch(`${API_BASE}/api/v1/trips/assignment`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (res.status === 404) {
+          setPreview(null)
+          return
+        }
+        if (!res.ok) throw new Error('Failed to load assignment')
+        const data = await res.json() as RoutePreview
+        setPreview(data)
+      })
+      .catch(() => setPreviewError('Could not load your assignment. Check your connection.'))
+      .finally(() => setPreviewLoading(false))
+  }, [])
 
   useEffect(() => {
     const raw = localStorage.getItem('driver_session')
@@ -49,27 +74,16 @@ export default function PreTripPage() {
       return
     }
     setSession(parsed)
-
-    // Fetch assignment preview
-    fetch(`${API_BASE}/api/v1/trips/assignment`, {
-      headers: { Authorization: `Bearer ${parsed.session_token}` },
-    })
-      .then(async (res) => {
-        if (res.status === 404) {
-          setPreview(null)
-          return
-        }
-        if (!res.ok) throw new Error('Failed to load assignment')
-        const data = await res.json() as RoutePreview
-        setPreview(data)
-      })
-      .catch(() => setPreviewError('Could not load your assignment. Check your connection.'))
-      .finally(() => setPreviewLoading(false))
-  }, [router])
+    fetchAssignment(parsed.session_token)
+  }, [router, fetchAssignment])
 
   const handleLogout = () => {
     localStorage.removeItem('driver_session')
     router.replace('/driver')
+  }
+
+  const handleRetry = () => {
+    if (session) fetchAssignment(session.session_token)
   }
 
   const handleStartRun = async () => {
@@ -138,6 +152,7 @@ export default function PreTripPage() {
           preview={preview}
           loading={previewLoading}
           error={previewError}
+          onRetry={handleRetry}
         />
 
         {startError && (

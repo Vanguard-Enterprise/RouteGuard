@@ -13,15 +13,23 @@ interface RouteSummaryProps {
   preview: RoutePreview | null
   loading: boolean
   error: string | null
+  onRetry?: () => void
 }
 
-export default function RouteSummary({ driverName, preview, loading, error }: RouteSummaryProps) {
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+export default function RouteSummary({ driverName, preview, loading, error, onRetry }: RouteSummaryProps) {
+  const dateString = preview
+    ? new Date(preview.date + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-sm">
@@ -32,7 +40,7 @@ export default function RouteSummary({ driverName, preview, loading, error }: Ro
       >
         <p className="text-blue-300 text-xs uppercase tracking-widest">Driver</p>
         <p className="text-white text-2xl font-semibold">{driverName}</p>
-        <p className="text-blue-400 text-sm">{today}</p>
+        <p className="text-blue-400 text-sm">{dateString}</p>
       </div>
 
       {/* Route assignment */}
@@ -67,7 +75,17 @@ export default function RouteSummary({ driverName, preview, loading, error }: Ro
         )}
 
         {!loading && !error && !preview && (
-          <p className="text-blue-400 text-sm">No route assigned for today.</p>
+          <div className="flex flex-col gap-3">
+            <p className="text-blue-400 text-sm">No route assigned for today.</p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="self-start text-blue-300 text-xs px-3 py-1.5 rounded-lg border border-blue-700 hover:border-blue-500 transition-colors"
+              >
+                Retry
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

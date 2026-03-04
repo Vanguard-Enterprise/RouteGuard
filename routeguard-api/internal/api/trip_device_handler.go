@@ -164,7 +164,7 @@ func (h *Handler) GetAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if device.VehicleID == nil {
-		Error(w, http.StatusNotFound, "device has no assigned vehicle")
+		Error(w, http.StatusBadRequest, "device has no assigned vehicle")
 		return
 	}
 
