@@ -31,7 +31,7 @@ export default function LockScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${deviceToken}`,
+          Authorization: `Bearer ${deviceToken}`,
         },
         body: JSON.stringify({ pin }),
       })
@@ -66,28 +66,31 @@ export default function LockScreen() {
   return (
     <div
       style={{ background: '#1B3A5C' }}
-      className="min-h-screen flex flex-col items-center justify-center gap-8 px-4"
+      className="min-h-screen flex flex-col items-center justify-center gap-10 px-4"
     >
-      {/* Logo / brand */}
-      <div className="text-center">
-        <h1 style={{ color: '#F5A825' }} className="text-4xl font-bold tracking-tight">
+      {/* Brand header */}
+      <div className="text-center flex flex-col items-center gap-2">
+        <h1 style={{ color: '#F5A825' }} className="text-5xl font-bold tracking-tight">
           RouteGuard
         </h1>
-        <p className="text-blue-200 text-lg mt-2">{getGreeting()}</p>
+        <p className="text-blue-300 text-lg">{getGreeting()}</p>
       </div>
 
-      {/* PIN pad section */}
-      <div className="flex flex-col items-center gap-4">
-        <p className="text-blue-100 text-sm uppercase tracking-widest">Enter your PIN</p>
+      {/* PIN card */}
+      <div
+        className="rounded-3xl px-8 py-8 flex flex-col items-center gap-6 w-full max-w-xs"
+        style={{ background: '#152D47', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        <p className="text-blue-300 text-xs uppercase tracking-widest">Enter your PIN</p>
         <PinPad onSubmit={handlePinSubmit} loading={loading} error={pinError} />
         {errorMessage && (
-          <p className="text-red-400 text-sm text-center mt-2">{errorMessage}</p>
+          <p className="text-red-400 text-sm text-center">{errorMessage}</p>
         )}
       </div>
 
-      {/* RFID option */}
-      <div className="flex flex-col items-center gap-2 opacity-60">
-        <div className="w-16 h-px bg-blue-400" />
+      {/* RFID hint */}
+      <div className="flex flex-col items-center gap-2 opacity-50">
+        <div className="w-12 h-px bg-blue-500" />
         <p className="text-blue-300 text-sm">or tap your RFID badge</p>
       </div>
     </div>

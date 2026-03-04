@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RouteSummary from '@/components/driver/route-summary'
 
@@ -13,12 +13,52 @@ interface DriverSession {
   session_token: string
 }
 
+interface RoutePreview {
+  route_name: string
+  route_type: string
+  stop_count: number
+  vehicle_name: string
+  date: string
+}
+
+interface ManifestStudent {
+  id: string
+  name: string
+}
+
+interface TripManifest {
+  trip: { id: string }
+  stops: Array<{ stop: { id: string; name: string; sequence_order: number }; students: ManifestStudent[] }>
+}
+
 export default function PreTripPage() {
   const router = useRouter()
   const [session, setSession] = useState<DriverSession | null>(null)
-  const [routeAssignmentId, setRouteAssignmentId] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<RoutePreview | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
+
+  const fetchAssignment = useCallback((token: string) => {
+    setPreviewLoading(true)
+    setPreviewError(null)
+    setPreview(null)
+    fetch(`${API_BASE}/api/v1/trips/assignment`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (res.status === 404) {
+          setPreview(null)
+          return
+        }
+        if (!res.ok) throw new Error('Failed to load assignment')
+        const data = await res.json() as RoutePreview
+        setPreview(data)
+      })
+      .catch(() => setPreviewError('Could not load your assignment. Check your connection.'))
+      .finally(() => setPreviewLoading(false))
+  }, [])
 
   useEffect(() => {
     const raw = localStorage.getItem('driver_session')
@@ -26,48 +66,55 @@ export default function PreTripPage() {
       router.replace('/driver')
       return
     }
+    let parsed: DriverSession
     try {
-      setSession(JSON.parse(raw) as DriverSession)
+      parsed = JSON.parse(raw) as DriverSession
     } catch {
       router.replace('/driver')
-    }
-  }, [router])
-
-  const handleStartRun = async () => {
-    if (!routeAssignmentId.trim()) {
-      setError('Please enter a route assignment ID.')
       return
     }
-    if (!session) return
+    setSession(parsed)
+    fetchAssignment(parsed.session_token)
+  }, [router, fetchAssignment])
 
-    const deviceToken = localStorage.getItem('device_token')
-    setLoading(true)
-    setError(null)
+  const handleLogout = () => {
+    localStorage.removeItem('driver_session')
+    router.replace('/driver')
+  }
+
+  const handleRetry = () => {
+    if (session) fetchAssignment(session.session_token)
+  }
+
+  const handleStartRun = async () => {
+    if (!session) return
+    setStarting(true)
+    setStartError(null)
 
     try {
       const res = await fetch(`${API_BASE}/api/v1/trips/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${deviceToken}`,
+          Authorization: `Bearer ${session.session_token}`,
         },
-        body: JSON.stringify({ route_assignment_id: routeAssignmentId.trim() }),
       })
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setError((body as { error?: string }).error ?? 'Failed to start trip. Please try again.')
+        setStartError((body as { error?: string }).error ?? 'Failed to start trip. Please try again.')
         return
       }
 
-      const data = (await res.json()) as { trip_id: string }
-      const updatedSession: DriverSession = { ...session, trip_id: data.trip_id }
+      const data = (await res.json()) as TripManifest
+      localStorage.setItem('trip_manifest', JSON.stringify(data.stops))
+      const updatedSession: DriverSession = { ...session, trip_id: data.trip.id }
       localStorage.setItem('driver_session', JSON.stringify(updatedSession))
-      router.push(`/driver/run/${data.trip_id}`)
+      router.push(`/driver/run/${data.trip.id}`)
     } catch {
-      setError('Network error. Please check your connection.')
+      setStartError('Network error. Please check your connection.')
     } finally {
-      setLoading(false)
+      setStarting(false)
     }
   }
 
@@ -76,42 +123,62 @@ export default function PreTripPage() {
   return (
     <div
       style={{ background: '#1B3A5C' }}
-      className="min-h-screen flex flex-col items-center justify-center gap-10 px-6"
+      className="min-h-screen flex flex-col"
     >
-      <div className="text-center">
-        <h1 style={{ color: '#F5A825' }} className="text-3xl font-bold">
-          Ready to start your run
+      {/* Header with logout */}
+      <div className="flex items-center justify-between px-6 py-5">
+        <h1 style={{ color: '#F5A825' }} className="text-2xl font-bold tracking-tight">
+          RouteGuard
         </h1>
-        <p className="text-blue-300 mt-2">Complete the pre-trip check below</p>
+        <button
+          onClick={handleLogout}
+          className="text-blue-300 text-sm px-4 py-2 rounded-lg border border-blue-700 hover:border-blue-500 transition-colors"
+        >
+          Log Out
+        </button>
       </div>
 
-      <RouteSummary
-        driverName={session.driver_name}
-        routeAssignmentId={routeAssignmentId}
-        onRouteAssignmentChange={setRouteAssignmentId}
-      />
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 pb-8">
+        <div className="text-center">
+          <h2 style={{ color: '#F5A825' }} className="text-3xl font-bold">
+            Ready for your run?
+          </h2>
+          <p className="text-blue-300 mt-2">Review your assignment below</p>
+        </div>
 
-      {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+        <RouteSummary
+          driverName={session.driver_name}
+          preview={preview}
+          loading={previewLoading}
+          error={previewError}
+          onRetry={handleRetry}
+        />
 
-      <button
-        onClick={handleStartRun}
-        disabled={loading || !routeAssignmentId.trim()}
-        className="
-          w-full max-w-sm py-4 rounded-xl text-xl font-bold text-white
-          transition-all duration-150 active:scale-95
-          disabled:opacity-40 disabled:cursor-not-allowed
-        "
-        style={{ background: loading ? '#1e6b40' : '#2A7D4F' }}
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-3">
-            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Starting...
-          </span>
-        ) : (
-          'Start Run'
+        {startError && (
+          <p className="text-red-400 text-sm text-center">{startError}</p>
         )}
-      </button>
+
+        <button
+          onClick={handleStartRun}
+          disabled={starting || previewLoading || (!preview && !previewError)}
+          className="
+            w-full max-w-sm py-4 rounded-xl text-xl font-bold text-white
+            transition-all duration-150 active:scale-95
+            disabled:opacity-40 disabled:cursor-not-allowed
+          "
+          style={{ background: starting ? '#1e6b40' : '#2A7D4F' }}
+        >
+          {starting ? (
+            <span className="flex items-center justify-center gap-3">
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Starting...
+            </span>
+          ) : (
+            'Start Run'
+          )}
+        </button>
+      </div>
     </div>
   )
 }
