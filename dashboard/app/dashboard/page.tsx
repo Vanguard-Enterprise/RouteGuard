@@ -243,7 +243,7 @@ export default async function DashboardOverviewPage({ searchParams }: PageProps)
       safeCount(api.students.list),
     ])
     const todayTrips = trips.filter((t) => t.date === today)
-    const activeCount = trips.filter((t) => t.status === 'in_progress').length
+    const activeCount = todayTrips.filter((t) => t.status === 'in_progress').length
 
     return (
       <div>
