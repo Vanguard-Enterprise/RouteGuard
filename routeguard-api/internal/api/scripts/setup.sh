@@ -66,14 +66,31 @@ echo "==> Configuring firewall (skipped for now)"
 # netfilter-persistent save
 
 # --- NetworkManager ---
-# Hand all interfaces over to NetworkManager by removing them from /etc/network/interfaces
+# Remove all interface config so NetworkManager takes over wired networking
 cat > /etc/network/interfaces << 'IFACES'
 # Managed by NetworkManager
-source /etc/network/interfaces.d/*
-
 auto lo
 iface lo inet loopback
 IFACES
+# Remove any per-interface files the Debian installer may have created
+rm -f /etc/network/interfaces.d/*
+# Create a wired connection profile so NM brings up Ethernet on boot
+mkdir -p /etc/NetworkManager/system-connections
+cat > /etc/NetworkManager/system-connections/wired.nmconnection << 'NMWIRED'
+[connection]
+id=wired
+type=ethernet
+autoconnect=true
+
+[ethernet]
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+NMWIRED
+chmod 600 /etc/NetworkManager/system-connections/wired.nmconnection
 systemctl enable NetworkManager
 
 # --- Install rg-checkin ---
@@ -165,7 +182,9 @@ chromium \
     --app="file://$CLAIM_HTML" \
     --no-first-run \
     --disable-infobars \
-    --noerrdialogs &
+    --noerrdialogs \
+    --no-sandbox \
+    --test-type &
 CHROMIUM_PID=$!
 
 echo "rg-checkin: polling for claim..."
@@ -198,12 +217,12 @@ EXT_DIR="/etc/routeguard/extension"
 APP_URL="https://app.route-guard.com/driver"
 CHROMIUM_DATA="/var/lib/routeguard/chromium"
 
+export DISPLAY=:0
 if ! pidof Xorg > /dev/null 2>&1; then
     Xorg :0 vt1 -nolisten tcp &
     sleep 2
     openbox &
 fi
-export DISPLAY=:0
 
 until /usr/local/bin/rg-checkin; do
     echo "rg-kiosk: checkin failed, retrying in 10s..."
@@ -249,6 +268,8 @@ exec chromium \
     --disable-session-crashed-bubble \
     --disable-translate \
     --noerrdialogs \
+    --no-sandbox \
+    --test-type \
     --disable-features=TranslateUI
 KIOSK
 chmod 755 /usr/local/bin/rg-kiosk.sh

@@ -114,3 +114,4 @@ Traefik uses static certs from `deploy/traefik/certs/` (acme.sh). CI/CD via GitH
 
 ### Additional Notes
 The server running our infrastructure is located at 10.1.40.125. You can login using the deploy/keys and the root user.
+The test kiosk device is Proxmox VM 100 (routeguard-kiosk) on pve1a (10.1.40.15) at 10.1.40.254. SSH as root (password: routeguard) or as user routeguard (password: routeguard).
