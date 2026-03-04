@@ -14,10 +14,16 @@ export default async function ForbiddenPage({ searchParams }: PageProps) {
 
   let href = '/'
   let label = 'Go Home'
-  if (from === 'admin' || userType === 'org') {
+  if (from === 'admin') {
     href = '/dashboard'
     label = 'Go to Dashboard'
-  } else if (from === 'dashboard' || userType === 'staff') {
+  } else if (from === 'dashboard') {
+    href = '/admin'
+    label = 'Go to Admin'
+  } else if (userType === 'org') {
+    href = '/dashboard'
+    label = 'Go to Dashboard'
+  } else if (userType === 'staff') {
     href = '/admin'
     label = 'Go to Admin'
   }

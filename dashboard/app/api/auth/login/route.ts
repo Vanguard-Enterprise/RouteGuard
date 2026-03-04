@@ -33,10 +33,9 @@ export async function POST(req: NextRequest) {
     const match = setCookie.match(/rg_session=([^;]+)/)
     if (match) {
       response.cookies.set('rg_session', match[1], cookieOpts)
+      response.cookies.set('rg_user_type', data.is_staff ? 'staff' : 'org', cookieOpts)
     }
   }
-
-  response.cookies.set('rg_user_type', data.is_staff ? 'staff' : 'org', cookieOpts)
 
   return response
 }
