@@ -179,8 +179,7 @@ func (h *Handler) AddContactNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish to Redis so SSE subscribers receive the note immediately.
-	noteJSON, _ := json.Marshal(note)
-	_ = h.cache.Publish(r.Context(), "contact:notes:"+id, string(noteJSON))
+	_ = h.cache.Publish(r.Context(), "contact:notes:"+id, note)
 
 	JSON(w, http.StatusCreated, note)
 }
