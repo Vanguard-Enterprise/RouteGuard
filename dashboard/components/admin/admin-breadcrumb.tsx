@@ -1,11 +1,14 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 
@@ -13,8 +16,12 @@ const SEGMENT_LABELS: Record<string, string> = {
   organizations: 'Organizations',
   devices: 'Devices',
   'audit-logs': 'Audit Logs',
+  staff: 'Staff',
+  users: 'Users',
+  roles: 'Roles',
   new: 'New',
   edit: 'Edit',
+  profile: 'Profile',
 }
 
 function isUuid(segment: string) {
@@ -34,31 +41,28 @@ export function AdminBreadcrumb() {
     return null
   }
 
-  const crumbs: string[] = []
-  for (const seg of segments) {
-    if (isUuid(seg)) {
-      crumbs.push('Detail')
-    } else {
-      crumbs.push(SEGMENT_LABELS[seg] ?? seg)
-    }
+  const crumbs: { label: string; href: string }[] = []
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]
+    const label = isUuid(seg) ? 'Detail' : (SEGMENT_LABELS[seg] ?? seg)
+    const href = '/admin/' + segments.slice(0, i + 1).join('/')
+    crumbs.push({ label, href })
   }
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        {crumbs.map((label, i) => (
-          <React.Fragment key={i}>
+        {crumbs.map(({ label, href }, i) => (
+          <React.Fragment key={href}>
             {i > 0 && <BreadcrumbSeparator />}
             <BreadcrumbItem>
-              <span
-                className={
-                  i === crumbs.length - 1
-                    ? 'text-foreground font-medium'
-                    : 'text-muted-foreground'
-                }
-              >
-                {label}
-              </span>
+              {i === crumbs.length - 1 ? (
+                <BreadcrumbPage>{label}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink asChild>
+                  <Link href={href}>{label}</Link>
+                </BreadcrumbLink>
+              )}
             </BreadcrumbItem>
           </React.Fragment>
         ))}
