@@ -52,17 +52,17 @@ mkdir -p /var/lib/routeguard/chromium
 chown -R routeguard:routeguard /var/lib/routeguard
 
 # --- Firewall ---
-echo "==> Configuring firewall"
-iptables -F
-iptables -X
-iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
-iptables -P INPUT DROP
-iptables -P FORWARD DROP
-iptables -P OUTPUT DROP
-netfilter-persistent save
+echo "==> Configuring firewall (skipped for now)"
+# iptables -F
+# iptables -X
+# iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+# iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+# iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+# iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+# iptables -P INPUT DROP
+# iptables -P FORWARD DROP
+# iptables -P OUTPUT DROP
+# netfilter-persistent save
 
 # --- NetworkManager ---
 systemctl enable NetworkManager
