@@ -20,5 +20,12 @@ export async function POST() {
     domain: 'route-guard.com',
     maxAge: 0,
   })
+  response.cookies.set('rg_user_type', '', {
+    path: '/',
+    domain: 'route-guard.com',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 0,
+  })
   return response
 }

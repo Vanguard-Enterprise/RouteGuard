@@ -31,6 +31,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/staff/login', request.url))
   }
 
+  const userType = request.cookies.get('rg_user_type')?.value
+  if (userType) {
+    if (pathname.startsWith('/admin') && userType !== 'staff') {
+      return NextResponse.redirect(new URL('/forbidden?from=admin', request.url))
+    }
+    if (pathname.startsWith('/dashboard') && userType !== 'org') {
+      return NextResponse.redirect(new URL('/forbidden?from=dashboard', request.url))
+    }
+  }
+
   return response
 }
 

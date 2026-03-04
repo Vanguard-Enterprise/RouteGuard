@@ -20,17 +20,20 @@ export async function POST(req: NextRequest) {
   const setCookie = apiRes.headers.get('set-cookie')
   const response = NextResponse.json(data)
 
+  const cookieOpts = {
+    path: '/',
+    domain: 'route-guard.com',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 60 * 60 * 24 * 7,
+  }
+
   if (setCookie) {
     const match = setCookie.match(/rg_session=([^;]+)/)
     if (match) {
-      response.cookies.set('rg_session', match[1], {
-        path: '/',
-        domain: 'route-guard.com',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-      })
+      response.cookies.set('rg_session', match[1], cookieOpts)
+      response.cookies.set('rg_user_type', data.is_staff ? 'staff' : 'org', cookieOpts)
     }
   }
 
