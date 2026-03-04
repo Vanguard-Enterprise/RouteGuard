@@ -48,6 +48,9 @@ func (s *Server) buildRouter() chi.Router {
 		w.Write([]byte("ok"))
 	})
 
+	// Device setup script (public)
+	r.Get("/setup", h.SetupScript)
+
 	// Twilio webhook (no auth — Twilio calls this directly)
 	r.Post("/webhooks/twilio/status", h.TwilioStatusWebhook)
 
