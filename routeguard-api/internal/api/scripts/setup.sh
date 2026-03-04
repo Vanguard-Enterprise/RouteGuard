@@ -66,6 +66,14 @@ echo "==> Configuring firewall (skipped for now)"
 # netfilter-persistent save
 
 # --- NetworkManager ---
+# Hand all interfaces over to NetworkManager by removing them from /etc/network/interfaces
+cat > /etc/network/interfaces << 'IFACES'
+# Managed by NetworkManager
+source /etc/network/interfaces.d/*
+
+auto lo
+iface lo inet loopback
+IFACES
 systemctl enable NetworkManager
 
 # --- Install rg-checkin ---
@@ -190,14 +198,17 @@ EXT_DIR="/etc/routeguard/extension"
 APP_URL="https://app.route-guard.com/driver"
 CHROMIUM_DATA="/var/lib/routeguard/chromium"
 
-Xorg :0 vt1 -nolisten tcp &
-XORG_PID=$!
+if ! pidof Xorg > /dev/null 2>&1; then
+    Xorg :0 vt1 -nolisten tcp &
+    sleep 2
+    openbox &
+fi
 export DISPLAY=:0
-sleep 2
 
-openbox &
-
-/usr/local/bin/rg-checkin
+until /usr/local/bin/rg-checkin; do
+    echo "rg-kiosk: checkin failed, retrying in 10s..."
+    sleep 10
+done
 
 TOKEN=$(cat "$TOKEN_FILE" | tr -d '[:space:]')
 
