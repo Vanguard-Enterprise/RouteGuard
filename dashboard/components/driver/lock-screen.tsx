@@ -69,12 +69,12 @@ export default function LockScreen() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-10 px-4">
       <div className="flex flex-col items-center gap-2">
-        <Logo className="h-10 w-auto" />
+        <Logo className="h-10 w-auto max-w-full" />
         <p className="text-muted-foreground text-lg">{getGreeting()}</p>
       </div>
 
       <Card className="w-full max-w-xs">
-        <CardContent className="pt-6 flex flex-col items-center gap-6">
+        <CardContent className="flex flex-col items-center gap-6">
           <p className="text-muted-foreground text-xs uppercase tracking-widest">
             Enter your PIN
           </p>

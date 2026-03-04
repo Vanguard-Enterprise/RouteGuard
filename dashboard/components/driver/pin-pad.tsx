@@ -59,10 +59,10 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
               i < digits.length
                 ? error
                   ? 'bg-destructive border-destructive'
-                  : 'border-[#F5A825]'
+                  : 'border-[var(--color-brand-amber)]'
                 : 'bg-transparent border-border'
             }`}
-            style={i < digits.length && !error ? { background: '#F5A825' } : undefined}
+            style={i < digits.length && !error ? { background: 'var(--color-brand-amber)' } : undefined}
           />
         ))}
       </div>
@@ -76,7 +76,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
             onClick={() => handleDigit(btn)}
             disabled={loading}
             aria-label={btn}
-            className="w-[72px] h-[72px] rounded-full text-xl font-semibold"
+            className="w-[72px] h-[72px] rounded-full text-xl font-semibold active:scale-95 select-none"
           >
             {btn}
           </Button>
@@ -87,7 +87,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
           onClick={handleBackspace}
           disabled={loading}
           aria-label="Backspace"
-          className="w-[72px] h-[72px] rounded-full"
+          className="w-[72px] h-[72px] rounded-full active:scale-95 select-none"
         >
           <Delete className="size-5" />
         </Button>
@@ -96,7 +96,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
           onClick={() => handleDigit('0')}
           disabled={loading}
           aria-label="0"
-          className="w-[72px] h-[72px] rounded-full text-xl font-semibold"
+          className="w-[72px] h-[72px] rounded-full text-xl font-semibold active:scale-95 select-none"
         >
           0
         </Button>
@@ -104,7 +104,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
           onClick={handleConfirm}
           disabled={loading || digits.length < 4}
           aria-label="Confirm"
-          className="w-[72px] h-[72px] rounded-full text-xl font-semibold bg-green-600 hover:bg-green-500 text-white"
+          className="w-[72px] h-[72px] rounded-full text-xl font-semibold bg-[#2A7D4F] hover:bg-[#2A7D4F]/90 text-white"
         >
           {loading ? (
             <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
