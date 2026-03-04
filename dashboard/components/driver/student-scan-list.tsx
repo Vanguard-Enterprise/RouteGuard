@@ -1,4 +1,6 @@
 'use client'
+import { UserCheck, UserMinus, AlertCircle, Users } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 export interface ScanEvent {
   id: string
@@ -9,57 +11,70 @@ export interface ScanEvent {
 }
 
 interface StudentScanListProps {
-  stopId: string
   scans: ScanEvent[]
 }
 
-const BADGE_STYLES: Record<ScanEvent['scan_type'], { label: string; className: string }> = {
-  board: { label: 'Boarded', className: 'bg-green-900 text-green-200' },
-  exit: { label: 'Exited', className: 'bg-yellow-900 text-yellow-200' },
-  unauthorized: { label: 'Unknown', className: 'bg-red-900 text-red-200' },
+function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000)
+  if (s < 60) return `${s}s ago`
+  return `${Math.floor(s / 60)}m ago`
 }
 
-export default function StudentScanList({ stopId, scans }: StudentScanListProps) {
+const SCAN_CONFIG = {
+  board: {
+    Icon: UserCheck,
+    iconClass: 'text-green-400',
+    badgeClass: 'bg-green-900/50 text-green-200 border-green-700',
+    label: 'Boarded',
+  },
+  exit: {
+    Icon: UserMinus,
+    iconClass: 'text-amber-400',
+    badgeClass: 'bg-amber-900/50 text-amber-200 border-amber-700',
+    label: 'Exited',
+  },
+  unauthorized: {
+    Icon: AlertCircle,
+    iconClass: 'text-destructive',
+    badgeClass: 'bg-destructive/20 text-destructive border-destructive/50',
+    label: 'Unknown',
+  },
+}
+
+export default function StudentScanList({ scans }: StudentScanListProps) {
   if (scans.length === 0) {
     return (
-      <div className="text-blue-300 text-sm text-center py-4">
-        Awaiting scans for this stop…
+      <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
+        <Users className="size-8" />
+        <p className="text-sm">Awaiting scans for this stop</p>
       </div>
     )
   }
 
   return (
-    <div className="w-full overflow-auto">
-      <table className="w-full text-sm text-left text-blue-100">
-        <thead>
-          <tr className="border-b border-blue-700">
-            <th className="py-2 pr-4 text-blue-300 font-medium">Student</th>
-            <th className="py-2 pr-4 text-blue-300 font-medium">Tag</th>
-            <th className="py-2 text-blue-300 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scans.map((scan) => {
-            const badge = BADGE_STYLES[scan.scan_type]
-            return (
-              <tr key={scan.id} className="border-b border-blue-800">
-                <td className="py-2 pr-4">
-                  {scan.student_name ?? <span className="text-blue-400 italic">Unknown</span>}
-                </td>
-                <td className="py-2 pr-4 font-mono text-xs text-blue-300">
-                  {scan.rfid_tag_id.slice(0, 8)}…
-                </td>
-                <td className="py-2">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.className}`}>
-                    {badge.label}
-                  </span>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-      <p className="text-xs text-blue-400 mt-2 text-right">Stop: {stopId}</p>
+    <div className="flex flex-col gap-2">
+      {scans.map((scan) => {
+        const cfg = SCAN_CONFIG[scan.scan_type]
+        return (
+          <div
+            key={scan.id}
+            className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
+          >
+            <cfg.Icon className={`size-5 shrink-0 ${cfg.iconClass}`} />
+            <span className="flex-1 text-foreground text-sm font-medium">
+              {scan.student_name ?? (
+                <span className="text-muted-foreground italic">Unknown</span>
+              )}
+            </span>
+            <Badge className={`text-xs ${cfg.badgeClass}`} variant="outline">
+              {cfg.label}
+            </Badge>
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {timeAgo(scan.timestamp)}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
