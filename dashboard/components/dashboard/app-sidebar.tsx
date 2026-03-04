@@ -44,7 +44,7 @@ export default function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname()
 
   const visibleItems = navItems.filter(
-    (item) => item.permission === null || user.permissions.includes(item.permission),
+    (item) => item.permission === null || (user.permissions ?? []).includes(item.permission),
   )
 
   const initials = user.name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? 'U'
