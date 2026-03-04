@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Eye, Pencil, Trash2, ArrowUpDown } from 'lucide-react'
+import { toast } from 'sonner'
 import { type ColumnDef } from '@tanstack/react-table'
 import {
   AlertDialog,
@@ -37,8 +38,9 @@ export default function OrgTable({ organizations: initial }: OrgTableProps) {
       setOrgs((prev) => prev.filter((o) => o.id !== deleteTarget.id))
       setDeleteTarget(null)
       router.refresh()
-    } catch {
-      alert('Failed to delete organization.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete organization.'
+      toast.error(msg)
     } finally {
       setDeleting(false)
     }
