@@ -19,6 +19,9 @@ COPY common /common
 RUN chmod +x stage-routeguard/00-routeguard/00-run.sh
 
 # binfmt_misc is built-in on PVE kernels (not a loadable module). Mount it
-# directly, then register the QEMU ARM handler - post-install ran at image build
-# time when binfmt_misc wasn't mounted so the handler was never written.
-CMD ["bash", "-c", "mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true && update-binfmts --enable qemu-arm 2>/dev/null || true && bash build.sh"]
+# directly, then register the QEMU ARM handler by writing directly to the
+# register file (avoids needing binfmt-support package / update-binfmts).
+CMD ["bash", "-c", "\
+  mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true; \
+  echo ':qemu-arm:M::\\x7fELF\\x01\\x01\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x02\\x00\\x28\\x00:\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\x00\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xfe\\xff\\xff\\xff:/usr/bin/qemu-arm-static:F' > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true; \
+  bash build.sh"]

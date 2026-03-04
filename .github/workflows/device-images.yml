@@ -55,6 +55,7 @@ jobs:
           docker build -t rg-build-x86 -f x86-64/Dockerfile .
           docker run --privileged \
             -v /dev:/dev \
+            -v /sys/block:/sys/block:ro \
             -v "$(pwd)/x86-64/output:/output" \
             rg-build-x86
 
