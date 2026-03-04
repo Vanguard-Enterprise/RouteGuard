@@ -29,8 +29,11 @@ export default function LockScreen() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/pin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, device_token: deviceToken }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${deviceToken}`,
+        },
+        body: JSON.stringify({ pin }),
       })
 
       if (res.status === 401) {
@@ -49,8 +52,7 @@ export default function LockScreen() {
         driver_id: data.driver_id,
         driver_name: data.driver_name,
         org_id: data.org_id,
-        trip_id: data.trip_id ?? null,
-        session_token: data.session_token ?? '',
+        session_token: data.session_token,
       }
       localStorage.setItem('driver_session', JSON.stringify(session))
       router.push('/driver/pre-trip')

@@ -193,7 +193,7 @@ while true; do
     STATUS=$(curl -sf "$API_URL/api/v1/devices/checkin/status?claim_code=$CLAIM_CODE" 2>/dev/null || echo "")
     if [ -n "$STATUS" ]; then
         TOKEN=$(echo "$STATUS" | python3 -c \
-            "import json,sys; d=json.load(sys.stdin); print(d.get('device_token',''))" 2>/dev/null || echo "")
+            "import json,sys; d=json.load(sys.stdin); did=d.get('device_id',''); tok=d.get('device_token',''); print(did+':'+tok if did and tok else '')" 2>/dev/null || echo "")
         if [ -n "$TOKEN" ]; then
             echo "rg-checkin: device claimed, storing token"
             mkdir -p /etc/routeguard

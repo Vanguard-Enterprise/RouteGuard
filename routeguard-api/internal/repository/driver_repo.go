@@ -63,6 +63,27 @@ func (r *DriverRepo) FindByRFIDHash(ctx context.Context, rfidHash, orgID string)
 	return scanDriver(row)
 }
 
+// ListWithPINByOrg returns all active drivers in an org that have a PIN set.
+// Used by PIN auth to iterate and bcrypt-compare candidates.
+func (r *DriverRepo) ListWithPINByOrg(ctx context.Context, orgID string) ([]domain.Driver, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+driverSelectCols+` FROM drivers WHERE org_id = $1 AND status = 'active' AND pin_hash IS NOT NULL`,
+		orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.Driver
+	for rows.Next() {
+		d, err := scanDriver(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *d)
+	}
+	return out, rows.Err()
+}
+
 // ListByOrg returns drivers for an org ordered by last_name, first_name.
 // Default limit 50, max 500.
 func (r *DriverRepo) ListByOrg(ctx context.Context, orgID string, limit, offset int) ([]domain.Driver, error) {

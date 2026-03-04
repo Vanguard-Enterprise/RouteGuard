@@ -42,7 +42,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
   }
 
   const handleConfirm = () => {
-    if (loading || digits.length === 0) return
+    if (loading || digits.length < 4) return
     onSubmit(digits)
   }
 
@@ -75,7 +75,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
             <button
               key={btn}
               onClick={isBackspace ? handleBackspace : isConfirm ? handleConfirm : () => handleDigit(btn)}
-              disabled={loading || (isConfirm && digits.length === 0)}
+              disabled={loading || (isConfirm && digits.length < 4)}
               aria-label={isBackspace ? 'Backspace' : isConfirm ? 'Confirm' : btn}
               style={{ width: 70, height: 70 }}
               className={`

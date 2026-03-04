@@ -304,13 +304,13 @@ func (h *Handler) SetDriverPIN(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if len(req.PIN) < 4 || len(req.PIN) > 8 {
-		Error(w, http.StatusBadRequest, "pin must be 4-8 digits")
+	if len(req.PIN) < 4 || len(req.PIN) > 6 {
+		Error(w, http.StatusBadRequest, "pin must be 4-6 digits")
 		return
 	}
 	for _, ch := range req.PIN {
 		if !unicode.IsDigit(ch) {
-			Error(w, http.StatusBadRequest, "pin must be 4-8 digits")
+			Error(w, http.StatusBadRequest, "pin must be 4-6 digits")
 			return
 		}
 	}

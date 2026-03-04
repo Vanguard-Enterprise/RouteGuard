@@ -13,6 +13,7 @@ import (
 	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/deviceauth"
+	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/repository"
 	"github.com/routeguard/api/internal/tripauth"
 )
@@ -24,8 +25,7 @@ const (
 
 // pinAuthRequest is the request body for POST /api/v1/auth/pin.
 type pinAuthRequest struct {
-	DriverID string `json:"driver_id"`
-	PIN      string `json:"pin"`
+	PIN string `json:"pin"`
 }
 
 // rfidAuthRequest is the request body for POST /api/v1/auth/rfid.
@@ -78,10 +78,11 @@ func (h *Handler) DeviceHeartbeat(w http.ResponseWriter, r *http.Request) {
 }
 
 // DriverPINAuth handles POST /api/v1/auth/pin.
-// Requires device auth middleware. Verifies the driver's PIN and issues a trip session token.
+// Requires device auth middleware. Looks up the driver by PIN within the org
+// (no driver_id needed - iterates all PIN-enabled drivers and bcrypt-compares).
 func (h *Handler) DriverPINAuth(w http.ResponseWriter, r *http.Request) {
 	device := deviceauth.DeviceFromContext(r.Context())
-	if device == nil {
+	if device == nil || device.OrgID == nil {
 		Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -91,40 +92,41 @@ func (h *Handler) DriverPINAuth(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.DriverID == "" || req.PIN == "" {
-		Error(w, http.StatusBadRequest, "driver_id and pin are required")
+	if req.PIN == "" {
+		Error(w, http.StatusBadRequest, "pin is required")
 		return
 	}
 
 	driverRepo := repository.NewDriverRepo(h.pool)
-	driver, err := driverRepo.FindByIDAndOrg(r.Context(), req.DriverID, *device.OrgID)
+	candidates, err := driverRepo.ListWithPINByOrg(r.Context(), *device.OrgID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			Error(w, http.StatusUnauthorized, "invalid credentials")
-		} else {
-			Error(w, http.StatusInternalServerError, "internal server error")
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	var matched *domain.Driver
+	for i := range candidates {
+		if err := crypto.CheckPIN(req.PIN, *candidates[i].PinHash); err == nil {
+			matched = &candidates[i]
+			break
 		}
-		return
 	}
-
-	if driver.PinHash == nil {
+	if matched == nil {
 		Error(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 
-	if err := crypto.CheckPIN(req.PIN, *driver.PinHash); err != nil {
-		Error(w, http.StatusUnauthorized, "invalid credentials")
-		return
-	}
-
-	tripToken, err := issueTripSession(r, h.cache, driver.ID, device.ID, *device.OrgID)
+	sessionToken, err := issueTripSession(r, h.cache, matched.ID, device.ID, *device.OrgID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
 	JSON(w, http.StatusOK, map[string]string{
-		"trip_token": tripToken,
+		"session_token": sessionToken,
+		"driver_id":     matched.ID,
+		"driver_name":   matched.FirstName + " " + matched.LastName,
+		"org_id":        matched.OrgID,
 	})
 }
 
