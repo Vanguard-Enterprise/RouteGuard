@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RouteSummary from '@/components/driver/route-summary'
+import { Button } from '@/components/ui/button'
+import { LogoIcon } from '@/components/logo'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
@@ -121,30 +123,22 @@ export default function PreTripPage() {
   if (!session) return null
 
   return (
-    <div
-      style={{ background: '#1B3A5C' }}
-      className="min-h-screen flex flex-col"
-    >
-      {/* Header with logout */}
-      <div className="flex items-center justify-between px-6 py-5">
-        <h1 style={{ color: '#F5A825' }} className="text-2xl font-bold tracking-tight">
-          RouteGuard
-        </h1>
-        <button
-          onClick={handleLogout}
-          className="text-blue-300 text-sm px-4 py-2 rounded-lg border border-blue-700 hover:border-blue-500 transition-colors"
-        >
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <LogoIcon className="h-8 w-8" />
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
           Log Out
-        </button>
+        </Button>
       </div>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 pb-8">
         <div className="text-center">
-          <h2 style={{ color: '#F5A825' }} className="text-3xl font-bold">
+          <h2 className="text-foreground text-3xl font-bold">
             Ready for your run?
           </h2>
-          <p className="text-blue-300 mt-2">Review your assignment below</p>
+          <p className="text-muted-foreground mt-2">Review your assignment below</p>
         </div>
 
         <RouteSummary
@@ -156,28 +150,24 @@ export default function PreTripPage() {
         />
 
         {startError && (
-          <p className="text-red-400 text-sm text-center">{startError}</p>
+          <p className="text-destructive text-sm text-center">{startError}</p>
         )}
 
-        <button
+        <Button
           onClick={handleStartRun}
           disabled={starting || previewLoading || (!preview && !previewError)}
-          className="
-            w-full max-w-sm py-4 rounded-xl text-xl font-bold text-white
-            transition-all duration-150 active:scale-95
-            disabled:opacity-40 disabled:cursor-not-allowed
-          "
-          style={{ background: starting ? '#1e6b40' : '#2A7D4F' }}
+          size="lg"
+          className="w-full max-w-sm h-14 text-base bg-[#2A7D4F] hover:bg-[#2A7D4F]/90 text-white"
         >
           {starting ? (
-            <span className="flex items-center justify-center gap-3">
+            <span className="flex items-center gap-3">
               <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               Starting...
             </span>
           ) : (
             'Start Run'
           )}
-        </button>
+        </Button>
       </div>
     </div>
   )
