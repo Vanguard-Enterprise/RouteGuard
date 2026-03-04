@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'device/**'
+      - '.github/workflows/device-images.yml'
 
 jobs:
   build-arm64:
