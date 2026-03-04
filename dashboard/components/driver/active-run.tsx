@@ -1,6 +1,18 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { MapPin, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { LogoIcon } from '@/components/logo'
 import ScanFeedback, { type FeedbackType } from './scan-feedback'
 import StudentScanList, { type ScanEvent } from './student-scan-list'
 
@@ -30,7 +42,6 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const lastPingRef = useRef<number>(0)
   const watchIdRef = useRef<number | null>(null)
 
-  // Load trip manifest from localStorage (external system → state init)
   useEffect(() => {
     const raw = localStorage.getItem('trip_manifest')
     if (raw) {
@@ -43,7 +54,6 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     }
   }, [])
 
-  // GPS tracking
   const postLocation = useCallback(
     (lat: number, lng: number, heading: number | null, speed: number | null) => {
       const now = Date.now()
@@ -100,14 +110,13 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
         headers: { Authorization: `Bearer ${deviceToken}` },
       })
     } catch {
-      // Best-effort — still navigate
+      // Best-effort
     }
     router.push(`/driver/run/${tripId}/complete`)
   }
 
   const handleDismissFeedback = useCallback(() => setFeedbackType(null), [])
 
-  // Dev-mode simulated scan
   const simulateScan = () => {
     const types: FeedbackType[] = ['board', 'exit', 'unauthorized']
     const type = types[Math.floor(Math.random() * types.length)]
@@ -125,13 +134,10 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   }
 
   const currentStop = stops[currentStopIdx]
+  const progressPct = stops.length > 0 ? ((currentStopIdx + 1) / stops.length) * 100 : 0
 
   return (
-    <div
-      style={{ background: '#1B3A5C' }}
-      className="min-h-screen flex flex-col"
-    >
-      {/* Scan feedback overlay */}
+    <div className="min-h-screen flex flex-col">
       <ScanFeedback
         feedbackType={feedbackType}
         studentName={feedbackStudentName}
@@ -139,100 +145,110 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
       />
 
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-6 py-4 border-b border-blue-800"
-      >
-        <h1 style={{ color: '#F5A825' }} className="text-xl font-bold">
-          RouteGuard
-        </h1>
-        <span className="text-blue-300 text-sm">Trip #{tripId.slice(0, 8)}</span>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <LogoIcon className="h-8 w-8" />
+        <Badge variant="outline" className="font-mono text-xs">
+          Trip #{tripId.slice(0, 8)}
+        </Badge>
       </div>
 
-      {/* Current stop */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
-        {stops.length > 0 ? (
-          <>
-            <p className="text-blue-300 text-sm uppercase tracking-widest">
+      {/* Progress strip */}
+      {stops.length > 0 && (
+        <div className="px-6 pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-muted-foreground text-xs uppercase tracking-widest">
+              Progress
+            </span>
+            <Badge variant="secondary" className="text-xs">
               Stop {currentStopIdx + 1} of {stops.length}
-            </p>
-            <h2 className="text-white text-4xl font-bold text-center">
+            </Badge>
+          </div>
+          <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${progressPct}%`, background: '#2A7D4F' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Current stop */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-6">
+        {stops.length > 0 ? (
+          <div className="flex items-center gap-3 text-center">
+            <MapPin className="size-7 shrink-0" style={{ color: 'var(--color-brand-amber)' }} />
+            <h2 className="text-foreground text-4xl font-bold">
               {currentStop?.name ?? 'Unknown Stop'}
             </h2>
-          </>
+          </div>
         ) : (
-          <p className="text-blue-300 text-lg text-center">
-            Trip in progress — no manifest loaded
+          <p className="text-muted-foreground text-lg text-center">
+            Trip in progress - no manifest loaded
           </p>
         )}
 
-        {/* Scan list */}
-        <div className="w-full max-w-lg mt-4">
-          <StudentScanList
-            scans={scans.filter((_, i) => i < 5)}
-          />
+        <div className="w-full max-w-lg">
+          <StudentScanList scans={scans.filter((_, i) => i < 5)} />
         </div>
       </div>
 
       {/* Action buttons */}
       <div className="flex flex-col gap-3 px-6 pb-8">
         {stops.length > 0 && currentStopIdx < stops.length - 1 && (
-          <button
+          <Button
             onClick={handleNextStop}
-            className="w-full py-4 rounded-xl text-white text-lg font-semibold active:scale-95 transition-transform"
-            style={{ background: '#2A7D4F' }}
+            size="lg"
+            className="w-full h-14 text-base bg-[#2A7D4F] hover:bg-[#235f3c] text-white"
           >
+            <ChevronRight className="size-5" />
             Next Stop
-          </button>
+          </Button>
         )}
 
         {process.env.NODE_ENV === 'development' && (
-          <button
+          <Button
             onClick={simulateScan}
-            className="w-full py-3 rounded-xl text-blue-200 text-sm font-medium border border-blue-600 active:scale-95 transition-transform"
+            variant="outline"
+            size="sm"
+            className="w-full text-muted-foreground text-xs"
           >
             Simulate Scan (dev)
-          </button>
+          </Button>
         )}
 
-        <button
+        <Button
           onClick={() => setShowConfirmEnd(true)}
-          className="w-full py-4 rounded-xl text-white text-lg font-semibold border border-red-600 active:scale-95 transition-transform"
-          style={{ background: 'transparent' }}
+          variant="outline"
+          size="lg"
+          className="w-full h-14 text-base border-destructive text-destructive hover:bg-destructive/10"
         >
           End Run
-        </button>
+        </Button>
       </div>
 
       {/* End run confirmation dialog */}
-      {showConfirmEnd && (
-        <div className="fixed inset-0 z-40 bg-black/70 flex items-center justify-center px-6">
-          <div
-            className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4"
-            style={{ background: '#152D47' }}
-          >
-            <h3 className="text-white text-xl font-bold">End this run?</h3>
-            <p className="text-blue-300">
+      <Dialog open={showConfirmEnd} onOpenChange={setShowConfirmEnd}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>End this run?</DialogTitle>
+            <DialogDescription>
               This will complete the trip and submit all scan records.
-            </p>
-            <div className="flex gap-3 mt-2">
-              <button
-                onClick={() => setShowConfirmEnd(false)}
-                className="flex-1 py-3 rounded-lg text-white border border-blue-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEndRun}
-                disabled={endingRun}
-                className="flex-1 py-3 rounded-lg text-white font-semibold disabled:opacity-60"
-                style={{ background: '#C0392B' }}
-              >
-                {endingRun ? 'Ending…' : 'End Run'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-3">
+            <Button variant="outline" onClick={() => setShowConfirmEnd(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={endingRun}
+              onClick={handleEndRun}
+            >
+              {endingRun ? 'Ending...' : 'End Run'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
