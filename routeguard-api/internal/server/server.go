@@ -107,6 +107,7 @@ func (s *Server) buildRouter() chi.Router {
 		// Org users (admin bootstrap)
 		r.Get("/organizations/{id}/users", h.ListOrgUsersAdmin)
 		r.Post("/organizations/{id}/users", h.CreateOrgUserAdmin)
+		r.Delete("/organizations/{id}/users/{userId}", h.DeleteOrgUserAdmin)
 
 		// Audit logs
 		r.Get("/audit-logs", h.ListAuditLogs)
