@@ -24,8 +24,6 @@ type Config struct {
 	RustFSSecretKey         string
 	RustFSBucket            string
 	RustFSPublicURL         string
-	RustFSImagesBucket      string
-	RustFSImagesPublicURL   string
 	IsProd            bool
 }
 
@@ -61,8 +59,6 @@ func Load() (*Config, error) {
 		RustFSSecretKey:   envOr("RUSTFS_SECRET_KEY", "rustfsadmin"),
 		RustFSBucket:          envOr("RUSTFS_BUCKET", "avatars"),
 		RustFSPublicURL:       envOr("RUSTFS_PUBLIC_URL", "http://localhost:9000/avatars"),
-		RustFSImagesBucket:    envOr("RUSTFS_IMAGES_BUCKET", "device-images"),
-		RustFSImagesPublicURL: envOr("RUSTFS_IMAGES_PUBLIC_URL", "http://localhost:9000/device-images"),
 		IsProd:            os.Getenv("NODE_ENV") == "production" || os.Getenv("ENV") == "production",
 	}, nil
 }
