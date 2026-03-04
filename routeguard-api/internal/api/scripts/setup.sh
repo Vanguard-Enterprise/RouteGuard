@@ -33,6 +33,7 @@ apt-get install -y --no-install-recommends \
     firmware-linux-free firmware-realtek firmware-iwlwifi \
     curl python3 \
     iptables iptables-persistent \
+    openssh-server \
     systemd-sysv \
     locales
 
