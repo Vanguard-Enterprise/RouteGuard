@@ -2,6 +2,7 @@
 import { User, MapPin, Bus, Hash, Navigation } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface RoutePreview {
@@ -69,12 +70,9 @@ export default function RouteSummary({ driverName, preview, loading, error, onRe
             <div className="flex flex-col gap-3">
               <p className="text-destructive text-sm">{error}</p>
               {onRetry && (
-                <button
-                  onClick={onRetry}
-                  className="self-start text-muted-foreground text-xs px-3 py-1.5 rounded-lg border border-border hover:text-foreground transition-colors"
-                >
+                <Button variant="outline" size="sm" onClick={onRetry} className="self-start">
                   Retry
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -108,12 +106,9 @@ export default function RouteSummary({ driverName, preview, loading, error, onRe
             <div className="flex flex-col gap-3">
               <p className="text-muted-foreground text-sm">No route assigned for today.</p>
               {onRetry && (
-                <button
-                  onClick={onRetry}
-                  className="self-start text-muted-foreground text-xs px-3 py-1.5 rounded-lg border border-border hover:text-foreground transition-colors"
-                >
+                <Button variant="outline" size="sm" onClick={onRetry} className="self-start">
                   Retry
-                </button>
+                </Button>
               )}
             </div>
           )}

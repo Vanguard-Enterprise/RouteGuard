@@ -157,7 +157,7 @@ export default function PreTripPage() {
           onClick={handleStartRun}
           disabled={starting || previewLoading || (!preview && !previewError)}
           size="lg"
-          className="w-full max-w-sm h-14 text-base bg-[#2A7D4F] hover:bg-[#2A7D4F]/90 text-white"
+          className="w-full max-w-sm h-14 text-base bg-[#2A7D4F] hover:bg-[#235f3c] text-white"
         >
           {starting ? (
             <span className="flex items-center gap-3">

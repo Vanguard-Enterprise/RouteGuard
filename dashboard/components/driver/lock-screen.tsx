@@ -74,7 +74,7 @@ export default function LockScreen() {
       </div>
 
       <Card className="w-full max-w-xs">
-        <CardContent className="flex flex-col items-center gap-6">
+        <CardContent className="pt-6 flex flex-col items-center gap-6">
           <p className="text-muted-foreground text-xs uppercase tracking-widest">
             Enter your PIN
           </p>
