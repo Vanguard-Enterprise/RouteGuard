@@ -9,16 +9,6 @@ OUTPUT=/output
 
 mkdir -p "$WORK" "$OUTPUT"
 
-# Ensure loop devices are available. The container has an isolated devtmpfs so
-# host loop nodes are absent. --privileged gives CAP_MKNOD and CAP_SYS_MODULE.
-# loop-control (c 10 237) lets losetup --find allocate dynamically; loop nodes
-# 0-31 cover cases where loop-control dynamic allocation needs pre-existing nodes.
-modprobe loop 2>/dev/null || true
-mknod /dev/loop-control c 10 237 2>/dev/null || true
-for i in $(seq 0 31); do
-    [ -b /dev/loop$i ] || mknod /dev/loop$i b 7 $i 2>/dev/null || true
-done
-
 echo "==> Creating ${IMG_SIZE_MB}MB disk image"
 dd if=/dev/zero of="$WORK/routeguard.img" bs=1M count=$IMG_SIZE_MB status=progress
 
@@ -33,6 +23,17 @@ parted -s "$LOOP" mkpart primary ext4 257MiB 100%
 
 partprobe "$LOOP"
 sleep 1
+
+# udev is not running in the container so partition nodes are not auto-created.
+# Read major:minor from sysfs and create them manually.
+LOOPNAME=$(basename "$LOOP")
+for part in 1 2; do
+    DEV_FILE="/sys/block/${LOOPNAME}/${LOOPNAME}p${part}/dev"
+    if [ -f "$DEV_FILE" ]; then
+        read MAJOR MINOR <<< $(awk -F: '{print $1, $2}' "$DEV_FILE")
+        mknod "${LOOP}p${part}" b "$MAJOR" "$MINOR" 2>/dev/null || true
+    fi
+done
 
 echo "==> Formatting"
 mkfs.fat -F32 "${LOOP}p1"
