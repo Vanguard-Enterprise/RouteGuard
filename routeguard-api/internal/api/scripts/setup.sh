@@ -32,7 +32,7 @@ apt-get install -y --no-install-recommends \
     network-manager \
     firmware-linux-free firmware-realtek firmware-iwlwifi \
     curl python3 \
-    ufw \
+    iptables iptables-persistent \
     systemd-sysv \
     locales
 
@@ -51,14 +51,18 @@ mkdir -p /etc/routeguard
 mkdir -p /var/lib/routeguard/chromium
 chown -R routeguard:routeguard /var/lib/routeguard
 
-# --- UFW ---
+# --- Firewall ---
 echo "==> Configuring firewall"
-ufw --force reset
-ufw default deny outgoing
-ufw default deny incoming
-ufw allow out to any port 53 proto udp
-ufw allow out 443 proto tcp
-ufw --force enable
+iptables -F
+iptables -X
+iptables -P INPUT DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT DROP
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+netfilter-persistent save
 
 # --- NetworkManager ---
 systemctl enable NetworkManager
