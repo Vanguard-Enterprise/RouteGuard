@@ -1,6 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { CheckCircle2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 
 interface DriverSession {
   driver_id: string
@@ -17,7 +21,7 @@ export default function RunCompletePage() {
   const tripId = params.tripId as string
   const [session, setSession] = useState<DriverSession | null>(null)
   const [totalBoarded, setTotalBoarded] = useState(0)
-  const [duration, setDuration] = useState<string>('—')
+  const [duration, setDuration] = useState<string>('-')
 
   useEffect(() => {
     const raw = localStorage.getItem('driver_session')
@@ -30,7 +34,6 @@ export default function RunCompletePage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSession(s)
 
-      // Compute duration if started_at is present
       if (s.started_at) {
         const elapsed = Math.floor((Date.now() - s.started_at) / 1000)
         const hours = Math.floor(elapsed / 3600)
@@ -44,7 +47,6 @@ export default function RunCompletePage() {
       router.replace('/driver')
     }
 
-    // Count boarded scans from session storage if available
     const scansRaw = localStorage.getItem(`trip_scans_${tripId}`)
     if (scansRaw) {
       try {
@@ -72,53 +74,44 @@ export default function RunCompletePage() {
     day: 'numeric',
   })
 
+  const rows = [
+    { label: 'Driver', value: session.driver_name },
+    { label: 'Date', value: today },
+    { label: 'Trip ID', value: tripId.slice(0, 8) + '...' },
+    { label: 'Students boarded', value: String(totalBoarded) },
+    { label: 'Run duration', value: duration },
+  ]
+
   return (
-    <div
-      style={{ background: '#1B3A5C' }}
-      className="min-h-screen flex flex-col items-center justify-center gap-8 px-6"
-    >
-      {/* Success icon */}
-      <div
-        className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white"
-        style={{ background: '#2A7D4F' }}
-      >
-        ✓
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-8 px-6">
+      <CheckCircle2 className="size-24 text-green-400" strokeWidth={1.5} />
 
-      {/* Header */}
       <div className="text-center">
-        <h1 className="text-white text-4xl font-bold">Run Complete!</h1>
-        <p className="text-blue-300 mt-2">Great work today, {session.driver_name}</p>
+        <h1 className="text-foreground text-4xl font-bold">Run Complete!</h1>
+        <p className="text-muted-foreground mt-2">Great work today, {session.driver_name}</p>
       </div>
 
-      {/* Summary card */}
-      <div
-        className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4"
-        style={{ background: '#152D47' }}
-      >
-        <SummaryRow label="Driver" value={session.driver_name} />
-        <SummaryRow label="Date" value={today} />
-        <SummaryRow label="Trip ID" value={tripId.slice(0, 8) + '…'} />
-        <SummaryRow label="Total students boarded" value={String(totalBoarded)} />
-        <SummaryRow label="Run duration" value={duration} />
-      </div>
+      <Card className="w-full max-w-sm">
+        <CardContent className="pt-5 flex flex-col">
+          {rows.map((row, i) => (
+            <div key={row.label}>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-muted-foreground text-sm">{row.label}</span>
+                <span className="text-foreground font-medium">{row.value}</span>
+              </div>
+              {i < rows.length - 1 && <Separator />}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
-      <button
+      <Button
         onClick={handleDone}
-        className="w-full max-w-sm py-4 rounded-xl text-white text-xl font-bold active:scale-95 transition-transform"
-        style={{ background: '#2A7D4F' }}
+        size="lg"
+        className="w-full max-w-sm h-14 text-base bg-[#2A7D4F] hover:bg-[#235f3c] text-white"
       >
         Done
-      </button>
-    </div>
-  )
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-blue-300 text-sm">{label}</span>
-      <span className="text-white font-medium">{value}</span>
+      </Button>
     </div>
   )
 }
