@@ -157,12 +157,12 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusOK, map[string]any{
-		"user_id":  session.UserID,
-		"email":    session.Email,
-		"name":     session.Name,
-		"is_staff": session.IsStaff,
-		"org_id":   session.OrgID,
-		"roles":    session.Roles,
+		"id":          session.UserID,
+		"email":       session.Email,
+		"name":        session.Name,
+		"is_staff":    session.IsStaff,
+		"org_id":      session.OrgID,
+		"permissions": session.Roles,
 	})
 }
 
