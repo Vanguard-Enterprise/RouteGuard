@@ -1,3 +1,5 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowRightIcon, CalendarIcon } from "lucide-react";
@@ -73,14 +75,16 @@ export function HeroSection() {
 							</Link>
 						</Button>
 						<Button
-							asChild
 							className="text-[#1B3A5C] hover:opacity-90"
 							style={{ backgroundColor: "var(--color-brand-amber)" }}
+							onClick={() =>
+								document
+									.getElementById("features")
+									?.scrollIntoView({ behavior: "smooth" })
+							}
 						>
-							<Link href="/#features">
-								See How It Works
-								<ArrowRightIcon data-icon="inline-end" />
-							</Link>
+							See How It Works
+							<ArrowRightIcon data-icon="inline-end" />
 						</Button>
 					</div>
 				</div>
