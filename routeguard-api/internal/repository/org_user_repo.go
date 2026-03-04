@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/domain"
@@ -100,4 +101,20 @@ func (r *OrgUserRepo) CreateWithPasswordAndAdminRole(ctx context.Context, orgID,
 	}
 
 	return &u, tx.Commit(ctx)
+}
+
+// HardDelete permanently deletes a user scoped to orgID.
+// Returns pgx.ErrNoRows if no matching user is found.
+func (r *OrgUserRepo) HardDelete(ctx context.Context, orgID, userID string) error {
+	tag, err := r.pool.Exec(ctx,
+		"DELETE FROM users WHERE id = $1 AND org_id = $2",
+		userID, orgID,
+	)
+	if err != nil {
+		return fmt.Errorf("org user hard delete: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
