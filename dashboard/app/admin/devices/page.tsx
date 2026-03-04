@@ -5,7 +5,7 @@ import Link from "next/link"
 import { CopyButton } from "@/components/ui/copy-button"
 
 const SETUP_CMD = "curl -fsSL https://api.route-guard.com/setup | sudo bash"
-const DEBIAN_ISO_URL = "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.10.0-amd64-netinst.iso"
+const DEBIAN_ISO_URL = "https://cdimage.debian.org/cdimage/archive/latest-oldstable/amd64/iso-cd/debian-12.13.0-amd64-netinst.iso"
 
 export const metadata = {
   title: "Device Setup - RouteGuard",
