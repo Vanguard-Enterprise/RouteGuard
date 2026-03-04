@@ -2,7 +2,7 @@
 
 on_chroot << CHROOT
 apt-get install -y --no-install-recommends \
-    chromium-browser \
+    chromium \
     xorg openbox x11-xserver-utils unclutter \
     network-manager \
     linux-firmware firmware-realtek firmware-iwlwifi firmware-mediatek \
