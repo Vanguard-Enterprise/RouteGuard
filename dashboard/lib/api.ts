@@ -354,6 +354,8 @@ export const api = {
             method: 'POST',
             body: JSON.stringify(data),
           }),
+        delete: (orgId: string, userId: string) =>
+          request<void>(`/admin/organizations/${orgId}/users/${userId}`, { method: 'DELETE' }),
       },
     },
     auditLogs: {

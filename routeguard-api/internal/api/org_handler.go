@@ -117,7 +117,7 @@ func (h *Handler) DeleteOrg(w http.ResponseWriter, r *http.Request) {
 	// Guard: reject if org has users or devices
 	var userCount int
 	err := h.pool.QueryRow(r.Context(),
-		"SELECT COUNT(*) FROM users WHERE org_id = $1", id,
+		"SELECT COUNT(*) FROM users WHERE org_id = $1 AND deleted_at IS NULL", id,
 	).Scan(&userCount)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")

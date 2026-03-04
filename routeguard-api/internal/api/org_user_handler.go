@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/repository"
 )
 
@@ -110,4 +111,27 @@ func (h *Handler) CreateOrgUserAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	JSON(w, http.StatusCreated, resp)
 	h.LogAudit(r, "org_user.created", "user", user.ID, map[string]any{"org_id": orgID})
+}
+
+// DeleteOrgUserAdmin handles DELETE /admin/organizations/{id}/users/{userId}
+func (h *Handler) DeleteOrgUserAdmin(w http.ResponseWriter, r *http.Request) {
+	orgID := chi.URLParam(r, "id")
+	userID := chi.URLParam(r, "userId")
+	if orgID == "" || userID == "" {
+		Error(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	repo := repository.NewOrgUserRepo(h.pool)
+	if err := repo.HardDelete(r.Context(), orgID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusNotFound, "user not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	_ = auth.InvalidateUserSessions(r.Context(), h.cache, userID)
+	NoContent(w)
+	h.LogAudit(r, "org_user.deleted", "user", userID, map[string]any{"org_id": orgID})
 }
