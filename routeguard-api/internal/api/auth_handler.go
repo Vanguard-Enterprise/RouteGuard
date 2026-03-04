@@ -123,12 +123,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	auth.SetSessionCookie(w, token, h.cfg.IsProd)
 	JSON(w, http.StatusOK, map[string]any{
-		"user_id":  user.ID,
-		"email":    user.Email,
-		"name":     user.Name,
-		"is_staff": isStaff,
-		"org_id":   orgID,
-		"roles":    permissions,
+		"id":          user.ID,
+		"email":       user.Email,
+		"name":        user.Name,
+		"is_staff":    isStaff,
+		"org_id":      orgID,
+		"permissions": permissions,
 	})
 	h.logLoginEvent(r, user.ID, orgID)
 }
