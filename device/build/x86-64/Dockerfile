@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY x86-64/build.sh /build.sh
 COPY common /common
-RUN chmod +x /build.sh
+RUN sed -i 's/\r$//' /build.sh /common/*.sh 2>/dev/null || true && chmod +x /build.sh
 
 VOLUME ["/output"]
 
