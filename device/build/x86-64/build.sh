@@ -12,7 +12,7 @@ mkdir -p "$WORK" "$OUTPUT"
 echo "==> Creating ${IMG_SIZE_MB}MB disk image"
 dd if=/dev/zero of="$WORK/routeguard.img" bs=1M count=$IMG_SIZE_MB status=progress
 
-LOOP=$(losetup --find --partscan --show "$WORK/routeguard.img")
+LOOP=$(losetup --find --show "$WORK/routeguard.img")
 echo "==> Loop device: $LOOP"
 
 echo "==> Partitioning (GPT: 256MB EFI + rest root)"
@@ -21,32 +21,29 @@ parted -s "$LOOP" mkpart ESP fat32 1MiB 257MiB
 parted -s "$LOOP" set 1 esp on
 parted -s "$LOOP" mkpart primary ext4 257MiB 100%
 
-partprobe "$LOOP"
-sleep 1
+# Use offset loop devices instead of partition block devices (major 259) which
+# are blocked by the LXC cgroup eBPF device filter. Offset loop devices use
+# major 7 which is already allowed.
+EFI_OFFSET=$((1 * 1024 * 1024))
+EFI_SIZE=$((256 * 1024 * 1024))
+ROOT_OFFSET=$((257 * 1024 * 1024))
 
-# udev is not running in the container so partition nodes are not auto-created.
-# Read major:minor from sysfs and create them manually.
-LOOPNAME=$(basename "$LOOP")
-for part in 1 2; do
-    DEV_FILE="/sys/block/${LOOPNAME}/${LOOPNAME}p${part}/dev"
-    if [ -f "$DEV_FILE" ]; then
-        read MAJOR MINOR <<< $(awk -F: '{print $1, $2}' "$DEV_FILE")
-        mknod "${LOOP}p${part}" b "$MAJOR" "$MINOR" 2>/dev/null || true
-    fi
-done
+LOOP_EFI=$(losetup --find --show --offset "$EFI_OFFSET" --sizelimit "$EFI_SIZE" "$WORK/routeguard.img")
+LOOP_ROOT=$(losetup --find --show --offset "$ROOT_OFFSET" "$WORK/routeguard.img")
+echo "==> Partition loop devices: EFI=$LOOP_EFI ROOT=$LOOP_ROOT"
 
 echo "==> Formatting"
-mkfs.fat -F32 "${LOOP}p1"
-mkfs.ext4 -q "${LOOP}p2"
+mkfs.fat -F32 "$LOOP_EFI"
+mkfs.ext4 -q "$LOOP_ROOT"
 
-ROOT_UUID=$(blkid -s UUID -o value "${LOOP}p2")
-EFI_UUID=$(blkid -s UUID -o value "${LOOP}p1")
+ROOT_UUID=$(blkid -s UUID -o value "$LOOP_ROOT")
+EFI_UUID=$(blkid -s UUID -o value "$LOOP_EFI")
 
 echo "==> Mounting"
 mkdir -p "$WORK/rootfs"
-mount "${LOOP}p2" "$WORK/rootfs"
+mount "$LOOP_ROOT" "$WORK/rootfs"
 mkdir -p "$WORK/rootfs/boot/efi"
-mount "${LOOP}p1" "$WORK/rootfs/boot/efi"
+mount "$LOOP_EFI" "$WORK/rootfs/boot/efi"
 
 echo "==> Bootstrapping Debian $SUITE"
 debootstrap --arch=$ARCH "$SUITE" "$WORK/rootfs" http://deb.debian.org/debian
@@ -154,6 +151,8 @@ umount "$WORK/rootfs/dev/pts"
 umount "$WORK/rootfs/dev"
 umount "$WORK/rootfs/boot/efi"
 umount "$WORK/rootfs"
+losetup -d "$LOOP_EFI"
+losetup -d "$LOOP_ROOT"
 losetup -d "$LOOP"
 
 echo "==> Compressing image"
