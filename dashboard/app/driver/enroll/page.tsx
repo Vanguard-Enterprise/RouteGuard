@@ -54,17 +54,9 @@ export default function RFIDEnrollPage() {
   }
 
   const submitEnroll = async (rfidTagId: string) => {
-    const sessionRaw = localStorage.getItem('driver_session')
-    if (!sessionRaw) {
-      setErrorMsg('Not logged in.')
-      setStep('error')
-      return
-    }
-    let token: string
-    try {
-      token = (JSON.parse(sessionRaw) as { session_token: string }).session_token
-    } catch {
-      setErrorMsg('Invalid session.')
+    const deviceToken = localStorage.getItem('device_token')
+    if (!deviceToken) {
+      setErrorMsg('Device not provisioned.')
       setStep('error')
       return
     }
@@ -72,7 +64,7 @@ export default function RFIDEnrollPage() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/device/rfid-enroll`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceToken}` },
         body: JSON.stringify({ code: code.trim().toUpperCase(), rfid_tag_id: rfidTagId }),
       })
       if (res.status === 404) {
