@@ -81,6 +81,26 @@ func (h *Handler) DeviceConfig(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DeviceContacts handles GET /api/v1/device/contacts.
+// Requires trip session auth. Returns users with the dispatcher role
+// who have a phone set, scoped to the driver's org.
+func (h *Handler) DeviceContacts(w http.ResponseWriter, r *http.Request) {
+	session := tripauth.TripSessionFromContext(r.Context())
+	if session == nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	repo := repository.NewSettingsUserRepo(h.pool)
+	contacts, err := repo.ListDispatchersByOrg(r.Context(), session.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	JSON(w, http.StatusOK, contacts)
+}
+
 // DeviceHeartbeat handles POST /api/v1/devices/heartbeat.
 // Requires device auth middleware. Updates the device's last-seen timestamp in Redis.
 func (h *Handler) DeviceHeartbeat(w http.ResponseWriter, r *http.Request) {

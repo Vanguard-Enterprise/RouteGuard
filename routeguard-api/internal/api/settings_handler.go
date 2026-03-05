@@ -392,3 +392,41 @@ func (h *Handler) DeleteMyAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 	NoContent(w)
 }
+
+type patchOrgUserPhoneRequest struct {
+	Phone *string `json:"phone"` // nil clears the phone
+}
+
+// PatchOrgUserPhone handles PATCH /dashboard/settings/users/{id}/phone.
+// Requires org:manage permission. Sets or clears the phone for a user in the caller's org.
+func (h *Handler) PatchOrgUserPhone(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+	if session == nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userID := chi.URLParam(r, "id")
+	if userID == "" {
+		Error(w, http.StatusBadRequest, "user id required")
+		return
+	}
+
+	var req patchOrgUserPhoneRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	repo := repository.NewSettingsUserRepo(h.pool)
+	if err := repo.UpdatePhone(r.Context(), session.OrgID, userID, req.Phone); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusNotFound, "user not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	NoContent(w)
+}

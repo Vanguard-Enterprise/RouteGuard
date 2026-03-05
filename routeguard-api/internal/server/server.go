@@ -86,6 +86,7 @@ func (s *Server) buildRouter() chi.Router {
 	// Trip lifecycle — trip session auth (issued after driver PIN/RFID auth)
 	tripSessionAuth := middleware.TripSessionAuthenticate(s.cache)
 	r.With(tripSessionAuth).Get("/api/v1/trips/assignment", h.GetAssignment)
+	r.With(tripSessionAuth).Get("/api/v1/device/contacts", h.DeviceContacts)
 	r.With(tripSessionAuth).Post("/api/v1/trips/start", h.StartTrip)
 	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/location", h.RecordLocation)
 	r.With(tripSessionAuth).Post("/api/v1/trips/{id}/end", h.EndTrip)
@@ -235,6 +236,7 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("org:manage")).Get("/settings/users/{id}/roles", h.ListUserRoles)
 		r.With(middleware.RequirePermission("org:manage")).Post("/settings/users/{id}/roles", h.AssignUserRole)
 		r.With(middleware.RequirePermission("org:manage")).Delete("/settings/users/{id}/roles/{roleId}", h.UnassignUserRole)
+		r.With(middleware.RequirePermission("org:manage")).Patch("/settings/users/{id}/phone", h.PatchOrgUserPhone)
 
 		r.With(middleware.RequirePermission("org:manage")).Get("/settings/roles", h.ListMyRoles)
 		r.With(middleware.RequirePermission("org:manage")).Post("/settings/roles", h.CreateMyRole)
