@@ -48,6 +48,7 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const [showConfirmEnd, setShowConfirmEnd] = useState(false)
   const [endingRun, setEndingRun] = useState(false)
 
+  const [sessionToken, setSessionToken] = useState<string | null>(null)
   const lastPingRef = useRef<number>(0)
   const [scanMode, setScanMode] = useState<'board' | 'exit'>('board')
   const scanBufferRef = useRef('')
@@ -59,11 +60,20 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const allStudentStopMap = useRef<Map<string, string[]>>(new Map())
 
   useEffect(() => {
+    // Load the trip session token for API calls
+    const sessionRaw = localStorage.getItem('driver_session')
+    if (sessionRaw) {
+      try {
+        const session = JSON.parse(sessionRaw) as { session_token: string }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSessionToken(session.session_token)
+      } catch { /* ignore */ }
+    }
+
     const raw = localStorage.getItem('trip_manifest')
     if (!raw) return
     try {
       const parsed = JSON.parse(raw) as StopEntry[]
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setManifest(parsed)
       // Build map: studentId -> [stopId, ...]
       const map = new Map<string, string[]>()
@@ -88,15 +98,15 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     (lat: number, lng: number, heading: number | null, speed: number | null) => {
       const now = Date.now()
       if (now - lastPingRef.current < GPS_INTERVAL_MS) return
+      if (!sessionToken) return
       lastPingRef.current = now
-      const deviceToken = localStorage.getItem('device_token')
       fetch(`${API_BASE}/api/v1/trips/${tripId}/location`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
         body: JSON.stringify({ lat, lng, heading: heading ?? 0, speed: speed ?? 0 }),
       }).catch(() => {})
     },
-    [tripId]
+    [tripId, sessionToken]
   )
 
   const handleNextStop = () => {
@@ -106,11 +116,10 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
 
   const handleEndRun = async () => {
     setEndingRun(true)
-    const deviceToken = localStorage.getItem('device_token')
     try {
       await fetch(`${API_BASE}/api/v1/trips/${tripId}/end`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${deviceToken}` },
+        headers: { Authorization: `Bearer ${sessionToken}` },
       })
     } catch {
       // Best-effort
@@ -124,14 +133,14 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     const now = Date.now()
     const lastSeen = lastScannedRef.current.get(rfidTagId) ?? 0
     if (now - lastSeen < DEDUP_MS) return
+    if (!sessionToken) return
     lastScannedRef.current.set(rfidTagId, now)
 
-    const deviceToken = localStorage.getItem('device_token')
     const currentStop = stops[currentStopIdx]
     try {
       const res = await fetch(`${API_BASE}/api/v1/trips/${tripId}/scan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
         body: JSON.stringify({
           rfid_tag_id: rfidTagId,
           scan_type: scanMode,
@@ -174,7 +183,7 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     } catch {
       // Silent fail
     }
-  }, [tripId, scanMode, stops, currentStopIdx, currentStopId])
+  }, [tripId, scanMode, stops, currentStopIdx, currentStopId, sessionToken])
 
   // Keyboard wedge listener
   useEffect(() => {
