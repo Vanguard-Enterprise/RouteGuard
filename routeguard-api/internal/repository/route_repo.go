@@ -134,8 +134,9 @@ func (r *RouteRepo) Create(ctx context.Context, orgID, name, routeType, status s
 }
 
 // Update applies a partial update to a route scoped to orgID. Only non-nil fields are updated.
+// Pass updateSchool=true to include school_id in the SET clause (even when clearing it to nil).
 // If no fields are provided, returns the current route via Get.
-func (r *RouteRepo) Update(ctx context.Context, id, orgID string, name, routeType, status, description *string, estimatedDurationMin *int, schoolID *string) (*domain.Route, error) {
+func (r *RouteRepo) Update(ctx context.Context, id, orgID string, name, routeType, status, description *string, estimatedDurationMin *int, schoolID *string, updateSchool bool) (*domain.Route, error) {
 	setClauses := make([]string, 0)
 	args := make([]any, 0)
 
@@ -159,8 +160,8 @@ func (r *RouteRepo) Update(ctx context.Context, id, orgID string, name, routeTyp
 		args = append(args, *estimatedDurationMin)
 		setClauses = append(setClauses, fmt.Sprintf("estimated_duration_min = $%d", len(args)))
 	}
-	if schoolID != nil {
-		args = append(args, *schoolID)
+	if updateSchool {
+		args = append(args, schoolID)
 		setClauses = append(setClauses, fmt.Sprintf("school_id = $%d", len(args)))
 	}
 

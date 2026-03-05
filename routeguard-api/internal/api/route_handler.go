@@ -13,6 +13,28 @@ import (
 	"github.com/routeguard/api/internal/repository"
 )
 
+// nullableString is a JSON-decodable type that distinguishes "field absent"
+// from "field present but null". Used for partial-update request fields that
+// support explicit clearing.
+type nullableString struct {
+	Set   bool
+	Value *string
+}
+
+func (n *nullableString) UnmarshalJSON(data []byte) error {
+	n.Set = true
+	if string(data) == "null" {
+		n.Value = nil
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	n.Value = &s
+	return nil
+}
+
 // ── Request types ────────────────────────────────────────────────────────────
 
 type createRouteRequest struct {
@@ -25,12 +47,12 @@ type createRouteRequest struct {
 }
 
 type updateRouteRequest struct {
-	Name                 *string `json:"name"`
-	Type                 *string `json:"type"`
-	Status               *string `json:"status"`
-	Description          *string `json:"description"`
-	EstimatedDurationMin *int    `json:"estimated_duration_min"`
-	SchoolID             *string `json:"school_id"`
+	Name                 *string      `json:"name"`
+	Type                 *string      `json:"type"`
+	Status               *string      `json:"status"`
+	Description          *string      `json:"description"`
+	EstimatedDurationMin *int         `json:"estimated_duration_min"`
+	SchoolID             nullableString `json:"school_id"`
 }
 
 type createStopRequest struct {
@@ -153,7 +175,7 @@ func (h *Handler) UpdateMyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
-	route, err := repo.Update(r.Context(), id, orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, req.SchoolID)
+	route, err := repo.Update(r.Context(), id, orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, req.SchoolID.Value, req.SchoolID.Set)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "route not found")
