@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import MapView from '@/components/map/map-view'
 import type { Trip, Stop } from '@/lib/api'
 import { useTripStream } from '@/hooks/use-trip-stream'
+import DriverAssignment from '@/components/dashboard/driver-assignment'
 
 export interface StopRow {
   id: string
@@ -37,11 +39,11 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-export default function TripDetailMap({ trip, stops = [], orgId }: TripDetailMapProps) {
+export default function TripDetailMap({ trip: initialTrip, stops = [], orgId }: TripDetailMapProps) {
+  const [trip, setTrip] = useState(initialTrip)
   const { locations, scans } = useTripStream(orgId)
   const busLocation = locations[trip.id]
 
-  // Build scan counts keyed by stop_id
   const boardCounts: Record<string, number> = {}
   const exitCounts: Record<string, number> = {}
   scans.forEach((s) => {
@@ -52,28 +54,46 @@ export default function TripDetailMap({ trip, stops = [], orgId }: TripDetailMap
     }
   })
 
-  // Convert StopRow[] to the Stop[] shape MapView expects (only needs lat/lng/sequence_order/name/address)
-  // We pass an empty array here since StopRow doesn't carry coordinates — the full Stop[] is on the page
-  // The parent page should pass stops as Stop[] if available; for now we pass [] to satisfy types.
   const mapStops: Stop[] = []
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Trip Metadata</h2>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
-          {[
-            { label: 'Status', value: <StatusBadge status={trip.status} /> },
-            { label: 'Date', value: trip.date },
-            { label: 'Started At', value: trip.started_at ? new Date(trip.started_at).toLocaleString() : '—' },
-            { label: 'Completed At', value: trip.completed_at ? new Date(trip.completed_at).toLocaleString() : '—' },
-            { label: 'Notes', value: trip.notes ?? '—' },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex flex-col">
-              <dt className="text-xs text-gray-500">{label}</dt>
-              <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Trip Details</h2>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+          <div className="flex flex-col">
+            <dt className="text-xs text-gray-500">Status</dt>
+            <dd className="text-sm text-gray-900 mt-0.5"><StatusBadge status={trip.status} /></dd>
+          </div>
+          <div className="flex flex-col">
+            <dt className="text-xs text-gray-500">Date</dt>
+            <dd className="text-sm text-gray-900 mt-0.5">{trip.date}</dd>
+          </div>
+          <div className="flex flex-col">
+            <dt className="text-xs text-gray-500">Route</dt>
+            <dd className="text-sm text-gray-900 mt-0.5">{trip.route_name ?? '—'}</dd>
+          </div>
+          <div className="flex flex-col">
+            <dt className="text-xs text-gray-500">Bus</dt>
+            <dd className="text-sm text-gray-900 mt-0.5">{trip.vehicle_number ? `Bus ${trip.vehicle_number}` : '—'}</dd>
+          </div>
+          <div className="flex flex-col">
+            <dt className="text-xs text-gray-500">Started At</dt>
+            <dd className="text-sm text-gray-900 mt-0.5">{trip.started_at ? new Date(trip.started_at).toLocaleString() : '—'}</dd>
+          </div>
+          <div className="flex flex-col">
+            <dt className="text-xs text-gray-500">Completed At</dt>
+            <dd className="text-sm text-gray-900 mt-0.5">{trip.completed_at ? new Date(trip.completed_at).toLocaleString() : '—'}</dd>
+          </div>
+          {trip.notes && (
+            <div className="flex flex-col col-span-2">
+              <dt className="text-xs text-gray-500">Notes</dt>
+              <dd className="text-sm text-gray-900 mt-0.5">{trip.notes}</dd>
             </div>
-          ))}
+          )}
+          <div className="flex flex-col col-span-2">
+            <DriverAssignment trip={trip} onUpdated={setTrip} />
+          </div>
         </dl>
       </div>
 
@@ -86,7 +106,7 @@ export default function TripDetailMap({ trip, stops = [], orgId }: TripDetailMap
           {!busLocation && (
             <div className="absolute top-3 right-3 pointer-events-none">
               <span className="bg-white/90 border border-gray-200 rounded px-2.5 py-1 text-xs text-gray-500 shadow-sm">
-                Awaiting GPS signal…
+                Awaiting GPS signal...
               </span>
             </div>
           )}

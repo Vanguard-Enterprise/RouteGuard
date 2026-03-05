@@ -222,6 +222,7 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("trips:write")).Post("/trips", h.CreateMyTrip)
 		r.With(middleware.RequirePermission("trips:write")).Post("/trips/auto-plan", h.AutoPlanTrips)
 		r.With(middleware.RequirePermission("trips:write")).Post("/trips/auto-plan/confirm", h.AutoPlanConfirm)
+		r.With(middleware.RequirePermission("trips:write")).Patch("/trips/{id}/assignment", h.UpdateMyTripAssignment)
 		r.With(middleware.RequirePermission("trips:read")).Get("/trips/{id}", h.GetMyTrip)
 		r.With(middleware.RequirePermission("trips:write")).Patch("/trips/{id}", h.UpdateMyTrip)
 

@@ -163,3 +163,37 @@ func (h *Handler) UpdateMyTrip(w http.ResponseWriter, r *http.Request) {
 	}
 	JSON(w, http.StatusOK, trip)
 }
+
+type updateTripAssignmentRequest struct {
+	DriverID *string `json:"driver_id"`
+}
+
+// UpdateMyTripAssignment handles PATCH /dashboard/trips/{id}/assignment
+// Sets the driver_id on the route_assignment linked to this trip.
+func (h *Handler) UpdateMyTripAssignment(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+	if session == nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	orgID := session.OrgID
+	id := chi.URLParam(r, "id")
+
+	var req updateTripAssignmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	repo := repository.NewTripRepo(h.pool)
+	trip, err := repo.SetAssignmentDriver(r.Context(), id, orgID, req.DriverID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			Error(w, http.StatusNotFound, "trip not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	JSON(w, http.StatusOK, trip)
+}
