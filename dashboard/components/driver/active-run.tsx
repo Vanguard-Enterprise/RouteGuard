@@ -1,17 +1,9 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, X, LogIn, LogOut } from 'lucide-react'
+import { ChevronRight, X, LogIn, LogOut, ChevronUp, ChevronDown, UserCheck, UserX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog'
 import { LogoIcon } from '@/components/logo'
 import ScanFeedback, { type FeedbackType } from './scan-feedback'
 import StudentScanList, { type ScanEvent } from './student-scan-list'
@@ -29,6 +21,20 @@ export interface ActiveRunStop {
   address: string | null
 }
 
+interface ManifestStudent {
+  id: string
+  first_name: string
+  last_name: string
+  rfid_tag_id?: string | null
+}
+
+interface StopEntry {
+  stop: ActiveRunStop
+  students: ManifestStudent[]
+}
+
+type BoardingStatus = 'pending' | 'boarded' | 'absent'
+
 interface ActiveRunProps {
   tripId: string
 }
@@ -39,30 +45,32 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const [feedbackType, setFeedbackType] = useState<FeedbackType>(null)
   const [feedbackStudentName, setFeedbackStudentName] = useState<string | undefined>()
   const [scans, setScans] = useState<ScanEvent[]>([])
-  const [stops, setStops] = useState<ActiveRunStop[]>([])
+  const [manifest, setManifest] = useState<StopEntry[]>([])
+  const [boardingStatus, setBoardingStatus] = useState<Map<string, BoardingStatus>>(new Map())
   const [showConfirmEnd, setShowConfirmEnd] = useState(false)
   const [endingRun, setEndingRun] = useState(false)
+  const [showStudentPanel, setShowStudentPanel] = useState(false)
 
   const lastPingRef = useRef<number>(0)
   const [scanMode, setScanMode] = useState<'board' | 'exit'>('board')
   const scanBufferRef = useRef('')
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Deduplication: UHF readers re-read continuously while a tag is in range
   const lastScannedRef = useRef<Map<string, number>>(new Map())
   const DEDUP_MS = 3000
 
   useEffect(() => {
     const raw = localStorage.getItem('trip_manifest')
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as Array<{ stop: ActiveRunStop; students: unknown[] }>
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setStops(parsed.map((item) => item.stop))
-      } catch {
-        setStops([])
-      }
+    if (!raw) return
+    try {
+      const parsed = JSON.parse(raw) as StopEntry[]
+      setManifest(parsed)
+    } catch {
+      setManifest([])
     }
   }, [])
+
+  const stops = manifest.map((e) => e.stop)
+  const currentStopStudents = manifest[currentStopIdx]?.students ?? []
 
   const postLocation = useCallback(
     (lat: number, lng: number, heading: number | null, speed: number | null) => {
@@ -82,6 +90,7 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const handleNextStop = () => {
     setCurrentStopIdx((prev) => Math.min(prev + 1, Math.max(stops.length - 1, 0)))
     setFeedbackType(null)
+    setShowStudentPanel(false)
   }
 
   const handleEndRun = async () => {
@@ -130,6 +139,16 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
       const resolvedType = data.authorized ? scanMode : 'unauthorized'
       setFeedbackType(resolvedType)
       setFeedbackStudentName(studentName)
+
+      // Auto-mark student as boarded/exited from the boarding checklist
+      if (data.authorized && data.student) {
+        setBoardingStatus((prev) => {
+          const next = new Map(prev)
+          next.set(data.student!.id, scanMode === 'board' ? 'boarded' : 'absent')
+          return next
+        })
+      }
+
       setScans((prev) => [
         {
           id: data.scan_event.id,
@@ -141,11 +160,11 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
         ...prev,
       ])
     } catch {
-      // Silent fail - scan will be retried on next swipe
+      // Silent fail
     }
   }, [tripId, scanMode, stops, currentStopIdx])
 
-  // Keyboard wedge listener - captures HID RFID scanner output globally
+  // Keyboard wedge listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (showConfirmEnd) return
@@ -171,21 +190,24 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [showConfirmEnd, submitScan])
 
-  const simulateScan = () => {
-    const types: FeedbackType[] = ['board', 'exit', 'unauthorized']
-    const type = types[Math.floor(Math.random() * types.length)]
-    const name = type !== 'unauthorized' ? 'Alex Johnson' : undefined
-    setFeedbackType(type)
-    setFeedbackStudentName(name)
-    const event: ScanEvent = {
-      id: crypto.randomUUID(),
-      rfid_tag_id: 'TAG' + Math.random().toString(16).slice(2, 10).toUpperCase(),
-      student_name: name,
-      scan_type: type ?? 'unauthorized',
-      timestamp: Date.now(),
-    }
-    setScans((prev) => [event, ...prev])
+  const toggleStudentStatus = (studentId: string, current: BoardingStatus) => {
+    setBoardingStatus((prev) => {
+      const next = new Map(prev)
+      if (current === 'pending' || current === 'absent') {
+        next.set(studentId, 'boarded')
+      } else {
+        next.set(studentId, 'absent')
+      }
+      return next
+    })
   }
+
+  const boardedCount = currentStopStudents.filter(
+    (s) => (boardingStatus.get(s.id) ?? 'pending') === 'boarded'
+  ).length
+  const absentCount = currentStopStudents.filter(
+    (s) => (boardingStatus.get(s.id) ?? 'pending') === 'absent'
+  ).length
 
   return (
     <div className="fixed inset-0">
@@ -202,89 +224,161 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
         onArrival={handleNextStop}
         onPositionUpdate={postLocation}
       >
-        {/* Floating header */}
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-2xl shadow px-3 py-2">
+        {/* Top header */}
+        <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-2xl shadow px-3 py-2">
           <LogoIcon className="h-6 w-6" />
           <Badge variant="outline" className="font-mono text-xs">
             Trip #{tripId.slice(0, 8)}
           </Badge>
         </div>
 
-        {/* Bottom controls */}
-        <div className="absolute bottom-6 left-0 right-0 z-10 flex items-end justify-center gap-3 px-4">
-          {stops.length > 0 && currentStopIdx < stops.length - 1 && (
-            <Button
-              onClick={handleNextStop}
-              size="lg"
-              className="flex-1 max-w-xs h-14 text-base bg-[#2A7D4F] hover:bg-[#235f3c] text-white shadow-lg"
-            >
-              <ChevronRight className="size-5" />
-              Arrived
-            </Button>
-          )}
-          <Button
-            onClick={() => setScanMode((m) => m === 'board' ? 'exit' : 'board')}
-            variant="secondary"
-            size="icon"
-            className="h-14 w-14 rounded-2xl shadow-lg shrink-0"
-            title={scanMode === 'board' ? 'Scan mode: Board (tap to switch to Exit)' : 'Scan mode: Exit (tap to switch to Board)'}
-          >
-            {scanMode === 'board' ? <LogIn className="size-5 text-green-600" /> : <LogOut className="size-5 text-amber-600" />}
-          </Button>
+        {/* End run button - top right */}
+        <div className="absolute top-3 right-3 z-[1000]">
           <Button
             onClick={() => setShowConfirmEnd(true)}
             variant="secondary"
             size="icon"
-            className="h-14 w-14 rounded-2xl shadow-lg shrink-0"
-            title="End Run"
+            className="h-11 w-11 rounded-full shadow-lg bg-background/95 backdrop-blur-sm"
           >
             <X className="size-5" />
           </Button>
         </div>
 
-        {/* Dev buttons */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="absolute bottom-24 left-3 z-10 flex flex-col gap-2">
-            <Button onClick={simulateScan} variant="outline" size="sm" className="text-xs bg-background/90">
-              Simulate Scan
-            </Button>
-            <Button onClick={handleNextStop} variant="outline" size="sm" className="text-xs bg-background/90">
-              Simulate Arrival
-            </Button>
-          </div>
-        )}
+        {/* Bottom panel */}
+        <div className="absolute bottom-0 left-0 right-0 z-[1000]">
+          {/* Student boarding panel (expanded) */}
+          {showStudentPanel && currentStopStudents.length > 0 && (
+            <div className="bg-background border-t border-border shadow-2xl max-h-72 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div>
+                  <p className="font-semibold text-sm">{stops[currentStopIdx]?.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {boardedCount} boarded · {absentCount} absent · {currentStopStudents.length - boardedCount - absentCount} pending
+                  </p>
+                </div>
+                <button onClick={() => setShowStudentPanel(false)} className="p-1 text-muted-foreground">
+                  <ChevronDown className="size-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1">
+                {currentStopStudents.map((student) => {
+                  const status = boardingStatus.get(student.id) ?? 'pending'
+                  return (
+                    <div key={student.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-0">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {student.first_name} {student.last_name}
+                        </p>
+                        {!student.rfid_tag_id && (
+                          <p className="text-xs text-muted-foreground">No RFID - mark manually</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => toggleStudentStatus(student.id, status)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                            status === 'boarded'
+                              ? 'bg-green-100 text-green-700 border border-green-300'
+                              : status === 'absent'
+                                ? 'bg-red-100 text-red-600 border border-red-300'
+                                : 'bg-muted text-muted-foreground border border-border'
+                          }`}
+                        >
+                          {status === 'boarded' ? (
+                            <><UserCheck className="size-3.5" /> Boarded</>
+                          ) : status === 'absent' ? (
+                            <><UserX className="size-3.5" /> Absent</>
+                          ) : (
+                            'Pending'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
-        {/* Scan list overlay */}
+          {/* Bottom controls bar */}
+          <div className="bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3 flex items-center gap-3">
+            {/* Stop info + student toggle */}
+            <button
+              className="flex-1 text-left min-w-0"
+              onClick={() => currentStopStudents.length > 0 && setShowStudentPanel((v) => !v)}
+            >
+              <p className="text-sm font-semibold text-foreground truncate">
+                {stops[currentStopIdx]?.name ?? 'No stops'}
+              </p>
+              {currentStopStudents.length > 0 ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {boardedCount}/{currentStopStudents.length} boarded
+                  {showStudentPanel ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">No students at this stop</p>
+              )}
+            </button>
+
+            {/* Scan mode toggle */}
+            <Button
+              onClick={() => setScanMode((m) => m === 'board' ? 'exit' : 'board')}
+              variant="secondary"
+              size="icon"
+              className="h-12 w-12 rounded-2xl shadow shrink-0"
+              title={scanMode === 'board' ? 'Board mode' : 'Exit mode'}
+            >
+              {scanMode === 'board'
+                ? <LogIn className="size-5 text-green-600" />
+                : <LogOut className="size-5 text-amber-600" />}
+            </Button>
+
+            {/* Next stop */}
+            {stops.length > 0 && currentStopIdx < stops.length - 1 && (
+              <Button
+                onClick={handleNextStop}
+                size="lg"
+                className="h-12 px-5 text-sm bg-[#2A7D4F] hover:bg-[#235f3c] text-white shadow shrink-0"
+              >
+                <ChevronRight className="size-4" />
+                Next Stop
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Recent scans list */}
         {scans.length > 0 && (
-          <div className="absolute bottom-24 right-3 z-10 w-56 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
+          <div className="absolute bottom-24 right-3 z-[1000] w-56 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
             <StudentScanList scans={scans.filter((_, i) => i < 5)} />
           </div>
         )}
       </NavigationMap>
 
-      {/* End run dialog */}
-      <Dialog open={showConfirmEnd} onOpenChange={setShowConfirmEnd}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>End this run?</DialogTitle>
-            <DialogDescription>
+      {/* End run confirmation */}
+      {showConfirmEnd && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm">
+            <h2 className="text-lg font-semibold mb-1">End this run?</h2>
+            <p className="text-sm text-muted-foreground mb-6">
               This will complete the trip and submit all scan records.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-3">
-            <Button variant="outline" onClick={() => setShowConfirmEnd(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={endingRun}
-              onClick={handleEndRun}
-            >
-              {endingRun ? 'Ending...' : 'End Run'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowConfirmEnd(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={endingRun}
+                onClick={handleEndRun}
+              >
+                {endingRun ? 'Ending...' : 'End Run'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
