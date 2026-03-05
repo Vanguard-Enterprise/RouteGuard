@@ -1,12 +1,11 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, X, LogIn, LogOut, ChevronUp, ChevronDown, UserCheck, UserX } from 'lucide-react'
+import { ChevronRight, X, LogIn, LogOut, UserCheck, UserX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { LogoIcon } from '@/components/logo'
 import ScanFeedback, { type FeedbackType } from './scan-feedback'
-import StudentScanList, { type ScanEvent } from './student-scan-list'
 import NavigationMap from '@/components/driver/navigation-map'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
@@ -44,12 +43,10 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const [currentStopIdx, setCurrentStopIdx] = useState(0)
   const [feedbackType, setFeedbackType] = useState<FeedbackType>(null)
   const [feedbackStudentName, setFeedbackStudentName] = useState<string | undefined>()
-  const [scans, setScans] = useState<ScanEvent[]>([])
   const [manifest, setManifest] = useState<StopEntry[]>([])
   const [boardingStatus, setBoardingStatus] = useState<Map<string, BoardingStatus>>(new Map())
   const [showConfirmEnd, setShowConfirmEnd] = useState(false)
   const [endingRun, setEndingRun] = useState(false)
-  const [showStudentPanel, setShowStudentPanel] = useState(false)
 
   const lastPingRef = useRef<number>(0)
   const [scanMode, setScanMode] = useState<'board' | 'exit'>('board')
@@ -58,6 +55,9 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const lastScannedRef = useRef<Map<string, number>>(new Map())
   const DEDUP_MS = 3000
 
+  // All students across all stops (for wrong-stop detection)
+  const allStudentStopMap = useRef<Map<string, string[]>>(new Map())
+
   useEffect(() => {
     const raw = localStorage.getItem('trip_manifest')
     if (!raw) return
@@ -65,14 +65,24 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
       const parsed = JSON.parse(raw) as StopEntry[]
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setManifest(parsed)
+      // Build map: studentId -> [stopId, ...]
+      const map = new Map<string, string[]>()
+      for (const entry of parsed) {
+        for (const student of entry.students) {
+          const existing = map.get(student.id) ?? []
+          existing.push(entry.stop.id)
+          map.set(student.id, existing)
+        }
+      }
+      allStudentStopMap.current = map
     } catch {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setManifest([])
     }
   }, [])
 
   const stops = manifest.map((e) => e.stop)
   const currentStopStudents = manifest[currentStopIdx]?.students ?? []
+  const currentStopId = stops[currentStopIdx]?.id
 
   const postLocation = useCallback(
     (lat: number, lng: number, heading: number | null, speed: number | null) => {
@@ -92,7 +102,6 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const handleNextStop = () => {
     setCurrentStopIdx((prev) => Math.min(prev + 1, Math.max(stops.length - 1, 0)))
     setFeedbackType(null)
-    setShowStudentPanel(false)
   }
 
   const handleEndRun = async () => {
@@ -138,33 +147,34 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
       const studentName = data.student
         ? `${data.student.first_name} ${data.student.last_name}`
         : undefined
-      const resolvedType = data.authorized ? scanMode : 'unauthorized'
-      setFeedbackType(resolvedType)
-      setFeedbackStudentName(studentName)
 
-      // Auto-mark student as boarded/exited from the boarding checklist
-      if (data.authorized && data.student) {
+      if (!data.authorized) {
+        setFeedbackType('unauthorized')
+        setFeedbackStudentName(undefined)
+      } else if (data.student) {
+        // Check if this student belongs to the current stop
+        const studentStops = allStudentStopMap.current.get(data.student.id) ?? []
+        const isCorrectStop = currentStopId ? studentStops.includes(currentStopId) : false
+
+        if (isCorrectStop) {
+          setFeedbackType(scanMode)
+          setFeedbackStudentName(studentName)
+        } else {
+          setFeedbackType('wrong-stop')
+          setFeedbackStudentName(studentName)
+        }
+
+        // Mark student as boarded/exited
         setBoardingStatus((prev) => {
           const next = new Map(prev)
           next.set(data.student!.id, scanMode === 'board' ? 'boarded' : 'absent')
           return next
         })
       }
-
-      setScans((prev) => [
-        {
-          id: data.scan_event.id,
-          rfid_tag_id: rfidTagId,
-          student_name: studentName,
-          scan_type: resolvedType,
-          timestamp: Date.now(),
-        },
-        ...prev,
-      ])
     } catch {
       // Silent fail
     }
-  }, [tripId, scanMode, stops, currentStopIdx])
+  }, [tripId, scanMode, stops, currentStopIdx, currentStopId])
 
   // Keyboard wedge listener
   useEffect(() => {
@@ -207,155 +217,162 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const boardedCount = currentStopStudents.filter(
     (s) => (boardingStatus.get(s.id) ?? 'pending') === 'boarded'
   ).length
-  const absentCount = currentStopStudents.filter(
-    (s) => (boardingStatus.get(s.id) ?? 'pending') === 'absent'
-  ).length
+  const totalStudents = manifest.reduce((sum, e) => sum + e.students.length, 0)
+  const totalBoarded = [...boardingStatus.values()].filter((s) => s === 'boarded').length
 
   return (
-    <div className="fixed inset-0">
+    <div className="fixed inset-0 flex">
       <ScanFeedback
         feedbackType={feedbackType}
         studentName={feedbackStudentName}
         onDismiss={handleDismissFeedback}
       />
 
-      <NavigationMap
-        mode="route"
-        stops={stops}
-        currentStopIdx={currentStopIdx}
-        onArrival={handleNextStop}
-        onPositionUpdate={postLocation}
-      >
-        {/* Top header */}
-        <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-2xl shadow px-3 py-2">
-          <LogoIcon className="h-6 w-6" />
-          <Badge variant="outline" className="font-mono text-xs">
-            Trip #{tripId.slice(0, 8)}
-          </Badge>
-        </div>
+      {/* Left: Navigation Map */}
+      <div className="flex-1 relative">
+        <NavigationMap
+          mode="route"
+          stops={stops}
+          currentStopIdx={currentStopIdx}
+          onArrival={handleNextStop}
+          onPositionUpdate={postLocation}
+        >
+          {/* Trip badge */}
+          <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-2xl shadow px-3 py-2">
+            <LogoIcon className="h-6 w-6" />
+            <Badge variant="outline" className="font-mono text-xs">
+              Trip #{tripId.slice(0, 8)}
+            </Badge>
+          </div>
+        </NavigationMap>
+      </div>
 
-        {/* End run button - top right */}
-        <div className="absolute top-3 right-3 z-[1000]">
-          <Button
-            onClick={() => setShowConfirmEnd(true)}
-            variant="secondary"
-            size="icon"
-            className="h-11 w-11 rounded-full shadow-lg bg-background/95 backdrop-blur-sm"
-          >
-            <X className="size-5" />
-          </Button>
-        </div>
-
-        {/* Bottom panel */}
-        <div className="absolute bottom-0 left-0 right-0 z-[1000]">
-          {/* Student boarding panel (expanded) */}
-          {showStudentPanel && currentStopStudents.length > 0 && (
-            <div className="bg-background border-t border-border shadow-2xl max-h-72 flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <div>
-                  <p className="font-semibold text-sm">{stops[currentStopIdx]?.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {boardedCount} boarded · {absentCount} absent · {currentStopStudents.length - boardedCount - absentCount} pending
-                  </p>
-                </div>
-                <button onClick={() => setShowStudentPanel(false)} className="p-1 text-muted-foreground">
-                  <ChevronDown className="size-5" />
-                </button>
-              </div>
-              <div className="overflow-y-auto flex-1">
-                {currentStopStudents.map((student) => {
-                  const status = boardingStatus.get(student.id) ?? 'pending'
-                  return (
-                    <div key={student.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-0">
-                      <div>
-                        <p className="text-sm font-medium">
-                          {student.first_name} {student.last_name}
-                        </p>
-                        {!student.rfid_tag_id && (
-                          <p className="text-xs text-muted-foreground">No RFID - mark manually</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => toggleStudentStatus(student.id, status)}
-                          className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                            status === 'boarded'
-                              ? 'bg-green-100 text-green-700 border border-green-300'
-                              : status === 'absent'
-                                ? 'bg-red-100 text-red-600 border border-red-300'
-                                : 'bg-muted text-muted-foreground border border-border'
-                          }`}
-                        >
-                          {status === 'boarded' ? (
-                            <><UserCheck className="size-3.5" /> Boarded</>
-                          ) : status === 'absent' ? (
-                            <><UserX className="size-3.5" /> Absent</>
-                          ) : (
-                            'Pending'
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Bottom controls bar */}
-          <div className="bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3 flex items-center gap-3">
-            {/* Stop info + student toggle */}
-            <button
-              className="flex-1 text-left min-w-0"
-              onClick={() => currentStopStudents.length > 0 && setShowStudentPanel((v) => !v)}
+      {/* Right: Student Boarding Panel */}
+      <div className="w-80 bg-background border-l border-border flex flex-col">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-border">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-sm" style={{ color: 'var(--color-brand-navy)' }}>
+              Student Boarding
+            </h2>
+            <Button
+              onClick={() => setShowConfirmEnd(true)}
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground h-7 px-2"
             >
-              <p className="text-sm font-semibold text-foreground truncate">
+              <X className="size-4 mr-1" /> End
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {totalBoarded}/{totalStudents} total boarded
+          </p>
+        </div>
+
+        {/* Current Stop */}
+        <div className="px-4 py-3 border-b border-border bg-muted/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Current Stop
+              </p>
+              <p className="font-semibold text-sm mt-0.5 text-foreground">
                 {stops[currentStopIdx]?.name ?? 'No stops'}
               </p>
-              {currentStopStudents.length > 0 ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  {boardedCount}/{currentStopStudents.length} boarded
-                  {showStudentPanel ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">No students at this stop</p>
-              )}
-            </button>
-
-            {/* Scan mode toggle */}
-            <Button
-              onClick={() => setScanMode((m) => m === 'board' ? 'exit' : 'board')}
-              variant="secondary"
-              size="icon"
-              className="h-12 w-12 rounded-2xl shadow shrink-0"
-              title={scanMode === 'board' ? 'Board mode' : 'Exit mode'}
-            >
-              {scanMode === 'board'
-                ? <LogIn className="size-5 text-green-600" />
-                : <LogOut className="size-5 text-amber-600" />}
-            </Button>
-
-            {/* Next stop */}
-            {stops.length > 0 && currentStopIdx < stops.length - 1 && (
-              <Button
-                onClick={handleNextStop}
-                size="lg"
-                className="h-12 px-5 text-sm bg-[#2A7D4F] hover:bg-[#235f3c] text-white shadow shrink-0"
-              >
-                <ChevronRight className="size-4" />
-                Next Stop
-              </Button>
-            )}
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">{boardedCount}/{currentStopStudents.length}</p>
+              <p className="text-xs text-muted-foreground">boarded</p>
+            </div>
           </div>
         </div>
 
-        {/* Recent scans list */}
-        {scans.length > 0 && (
-          <div className="absolute bottom-24 right-3 z-[1000] w-56 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
-            <StudentScanList scans={scans.filter((_, i) => i < 5)} />
+        {/* Student List */}
+        <div className="flex-1 overflow-y-auto">
+          {currentStopStudents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <p className="text-sm">No students at this stop</p>
+            </div>
+          ) : (
+            currentStopStudents.map((student) => {
+              const status = boardingStatus.get(student.id) ?? 'pending'
+              return (
+                <div
+                  key={student.id}
+                  className={`flex items-center justify-between px-4 py-3 border-b border-border transition-colors ${
+                    status === 'boarded'
+                      ? 'bg-green-50'
+                      : status === 'absent'
+                        ? 'bg-red-50'
+                        : ''
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {student.first_name} {student.last_name}
+                    </p>
+                    {!student.rfid_tag_id && (
+                      <p className="text-xs text-muted-foreground">No RFID</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => toggleStudentStatus(student.id, status)}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors shrink-0 ${
+                      status === 'boarded'
+                        ? 'bg-green-100 text-green-700 border border-green-300'
+                        : status === 'absent'
+                          ? 'bg-red-100 text-red-600 border border-red-300'
+                          : 'bg-muted text-muted-foreground border border-border'
+                    }`}
+                  >
+                    {status === 'boarded' ? (
+                      <><UserCheck className="size-3.5" /> Boarded</>
+                    ) : status === 'absent' ? (
+                      <><UserX className="size-3.5" /> Absent</>
+                    ) : (
+                      'Pending'
+                    )}
+                  </button>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Bottom Controls */}
+        <div className="border-t border-border px-4 py-3 space-y-2">
+          {/* Scan mode toggle */}
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setScanMode('board')}
+              variant={scanMode === 'board' ? 'default' : 'outline'}
+              size="sm"
+              className={`flex-1 ${scanMode === 'board' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+            >
+              <LogIn className="size-4 mr-1" /> Board
+            </Button>
+            <Button
+              onClick={() => setScanMode('exit')}
+              variant={scanMode === 'exit' ? 'default' : 'outline'}
+              size="sm"
+              className={`flex-1 ${scanMode === 'exit' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
+            >
+              <LogOut className="size-4 mr-1" /> Exit
+            </Button>
           </div>
-        )}
-      </NavigationMap>
+
+          {/* Next stop */}
+          {stops.length > 0 && currentStopIdx < stops.length - 1 && (
+            <Button
+              onClick={handleNextStop}
+              className="w-full bg-[var(--color-brand-navy)] hover:opacity-90 text-white"
+            >
+              <ChevronRight className="size-4 mr-1" />
+              Next Stop: {stops[currentStopIdx + 1]?.name}
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* End run confirmation */}
       {showConfirmEnd && (

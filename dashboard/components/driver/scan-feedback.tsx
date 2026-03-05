@@ -1,8 +1,7 @@
 'use client'
 import { useEffect } from 'react'
-import { CheckCircle2, LogOut, ShieldX } from 'lucide-react'
 
-export type FeedbackType = 'board' | 'exit' | 'unauthorized' | null
+export type FeedbackType = 'board' | 'exit' | 'unauthorized' | 'wrong-stop' | null
 
 interface ScanFeedbackProps {
   feedbackType: FeedbackType
@@ -10,20 +9,21 @@ interface ScanFeedbackProps {
   onDismiss: () => void
 }
 
-const FEEDBACK_CONFIG = {
+const GLOW_CONFIG: Record<Exclude<FeedbackType, null>, { color: string; label: (name?: string) => string }> = {
   board: {
-    bgClass: 'bg-green-600',
-    Icon: CheckCircle2,
+    color: 'rgba(34, 197, 94, 0.7)',
     label: (name?: string) => `${name ?? 'Student'} - Boarded`,
   },
   exit: {
-    bgClass: 'bg-amber-600',
-    Icon: LogOut,
+    color: 'rgba(245, 158, 11, 0.7)',
     label: (name?: string) => `${name ?? 'Student'} - Exited`,
   },
+  'wrong-stop': {
+    color: 'rgba(245, 158, 11, 0.7)',
+    label: (name?: string) => `${name ?? 'Student'} - Wrong Stop`,
+  },
   unauthorized: {
-    bgClass: 'bg-destructive',
-    Icon: ShieldX,
+    color: 'rgba(239, 68, 68, 0.7)',
     label: () => 'Unknown Tag',
   },
 }
@@ -35,34 +35,64 @@ export default function ScanFeedback({
 }: ScanFeedbackProps) {
   useEffect(() => {
     if (!feedbackType) return
-    const timer = setTimeout(onDismiss, 2000)
+    const timer = setTimeout(onDismiss, 2500)
     return () => clearTimeout(timer)
   }, [feedbackType, onDismiss])
 
   if (!feedbackType) return null
 
-  const config = FEEDBACK_CONFIG[feedbackType]
+  const config = GLOW_CONFIG[feedbackType]
 
   return (
-    <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 animate-scan-feedback ${config.bgClass}`}
-      onClick={onDismiss}
-    >
-      <config.Icon className="size-24 text-white" strokeWidth={1.5} />
-      <p className="text-white text-3xl font-semibold text-center px-8">
-        {config.label(studentName)}
-      </p>
-      <p className="text-white/60 text-sm">Tap to dismiss</p>
+    <>
+      {/* Border glow overlay */}
+      <div
+        className="fixed inset-0 z-[9999] pointer-events-none animate-glow-pulse"
+        style={{
+          boxShadow: `inset 0 0 80px 20px ${config.color}, inset 0 0 200px 40px ${config.color}`,
+        }}
+      />
+      {/* Notification toast at top center */}
+      <div
+        className="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] animate-glow-slide-in pointer-events-none"
+        onClick={onDismiss}
+      >
+        <div
+          className="px-6 py-3 rounded-2xl shadow-2xl text-white font-semibold text-lg whitespace-nowrap"
+          style={{
+            backgroundColor: feedbackType === 'unauthorized'
+              ? 'rgb(220, 38, 38)'
+              : feedbackType === 'wrong-stop'
+                ? 'rgb(217, 119, 6)'
+                : feedbackType === 'exit'
+                  ? 'rgb(217, 119, 6)'
+                  : 'rgb(22, 163, 74)',
+          }}
+        >
+          {config.label(studentName)}
+        </div>
+      </div>
 
       <style>{`
-        @keyframes scan-feedback-in {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
+        @keyframes glow-pulse {
+          0% { opacity: 0; }
+          15% { opacity: 1; }
+          70% { opacity: 1; }
+          100% { opacity: 0; }
         }
-        .animate-scan-feedback {
-          animation: scan-feedback-in 0.15s ease-out;
+        .animate-glow-pulse {
+          animation: glow-pulse 2.5s ease-out forwards;
+        }
+        @keyframes glow-slide-in {
+          0% { opacity: 0; transform: translate(-50%, -20px); }
+          15% { opacity: 1; transform: translate(-50%, 0); }
+          70% { opacity: 1; transform: translate(-50%, 0); }
+          100% { opacity: 0; transform: translate(-50%, -10px); }
+        }
+        .animate-glow-slide-in {
+          animation: glow-slide-in 2.5s ease-out forwards;
         }
       `}</style>
-    </div>
+    </>
   )
 }
