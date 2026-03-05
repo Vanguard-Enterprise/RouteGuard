@@ -1,4 +1,5 @@
 'use client'
+import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   ArrowUp, ArrowLeft, ArrowRight, ArrowUpLeft, ArrowUpRight,
@@ -134,15 +135,6 @@ export default function NavigationMap({
     import('leaflet').then((L) => {
       if (!containerRef.current || mapRef.current) return
 
-      // Fix default icon paths for Next.js
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl
-      L.Icon.Default.mergeOptions({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      })
-
       const map = L.map(containerRef.current, {
         center: [39.5, -98.5],
         zoom: 4,
@@ -165,14 +157,6 @@ export default function NavigationMap({
     }
   }, [])
 
-  // Import leaflet CSS
-  useEffect(() => {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
-    return () => { document.head.removeChild(link) }
-  }, [])
 
   const drawRoute = useCallback((coords: [number, number][]) => {
     import('leaflet').then((L) => {
