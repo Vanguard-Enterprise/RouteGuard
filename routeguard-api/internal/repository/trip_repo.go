@@ -101,16 +101,29 @@ func (r *TripRepo) List(ctx context.Context, orgID string, limit, offset int, st
 
 // Get returns a trip by ID scoped to orgID. Returns pgx.ErrNoRows if not found.
 func (r *TripRepo) Get(ctx context.Context, id, orgID string) (*domain.Trip, error) {
-	row := r.pool.QueryRow(ctx, `
-		SELECT `+tripSelectCols+`
-		FROM trips
-		WHERE id = $1 AND org_id = $2
-	`, id, orgID)
-	t, err := scanTrip(row)
+	var t domain.Trip
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			t.id, t.route_assignment_id, t.org_id, t.date, t.status,
+			t.started_at, t.completed_at, t.notes, t.created_at,
+			r.name AS route_name, v.number AS vehicle_number,
+			ra.driver_id, u.name AS driver_name
+		FROM trips t
+		LEFT JOIN route_assignments ra ON ra.id = t.route_assignment_id
+		LEFT JOIN routes r ON r.id = ra.route_id
+		LEFT JOIN vehicles v ON v.id = ra.vehicle_id
+		LEFT JOIN users u ON u.id = ra.driver_id
+		WHERE t.id = $1 AND t.org_id = $2
+	`, id, orgID).Scan(
+		&t.ID, &t.RouteAssignmentID, &t.OrgID, &t.Date, &t.Status,
+		&t.StartedAt, &t.CompletedAt, &t.Notes, &t.CreatedAt,
+		&t.RouteName, &t.VehicleNumber,
+		&t.DriverID, &t.DriverName,
+	)
 	if err != nil {
 		return nil, err
 	}
-	return t, nil
+	return &t, nil
 }
 
 // Create inserts a new trip, verifying atomically that the route_assignment belongs to the org.
