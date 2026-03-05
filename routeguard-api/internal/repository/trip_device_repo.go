@@ -43,7 +43,8 @@ func scanTripLocation(row pgx.Row) (*domain.TripLocation, error) {
 // end_date IS NULL OR >= TODAY). Returns pgx.ErrNoRows if none found.
 func (r *TripDeviceRepo) FindActiveAssignment(ctx context.Context, driverID, vehicleID, orgID string) (*domain.RouteAssignment, error) {
 	row := r.pool.QueryRow(ctx, `
-		SELECT `+routeAssignmentSelectCols+`
+		SELECT ra.id, ra.route_id, ra.vehicle_id, ra.driver_id,
+		       ra.effective_date, ra.end_date, ra.days_of_week, ra.created_at
 		FROM route_assignments ra
 		JOIN routes rt ON rt.id = ra.route_id
 		WHERE ra.driver_id  = $1
