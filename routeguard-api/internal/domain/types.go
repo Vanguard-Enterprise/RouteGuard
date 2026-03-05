@@ -353,6 +353,8 @@ type Trip struct {
 	CreatedAt         time.Time   `json:"created_at"`
 	RouteName         *string     `json:"route_name,omitempty"`
 	VehicleNumber     *string     `json:"vehicle_number,omitempty"`
+	DriverID          *string     `json:"driver_id,omitempty"`
+	DriverName        *string     `json:"driver_name,omitempty"`
 }
 
 // TripLocation maps to the trip_locations table.
