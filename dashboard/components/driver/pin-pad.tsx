@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Delete } from 'lucide-react'
+import { Delete, Check } from 'lucide-react'
 
 interface PinPadProps {
   onSubmit: (pin: string) => void
@@ -108,7 +108,7 @@ export default function PinPad({ onSubmit, loading = false, error = false, maxDi
           {loading ? (
             <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : (
-            '✓'
+            <Check className="size-6" strokeWidth={2.5} />
           )}
         </Button>
       </div>
