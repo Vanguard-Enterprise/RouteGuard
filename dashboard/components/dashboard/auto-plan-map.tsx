@@ -73,6 +73,21 @@ export default function AutoPlanMap({ plan: initialPlan, onConfirm, onBack, conf
         })
       })
 
+      // School pin
+      if (plan.school_lat && plan.school_lng) {
+        const el = document.createElement('div')
+        el.style.cssText = 'width:32px;height:32px;border-radius:4px;background:#1B3A5C;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:14px;cursor:pointer'
+        el.textContent = '🏫'
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat([plan.school_lng, plan.school_lat])
+          .addTo(map!)
+        if (plan.school_name) {
+          marker.setPopup(new mapboxgl.Popup({ offset: 25 }).setText(plan.school_name))
+        }
+        markersRef.current.push(marker)
+        bounds.extend([plan.school_lng, plan.school_lat])
+      }
+
       if (!bounds.isEmpty()) {
         map!.fitBounds(bounds, { padding: 60 })
       }
@@ -94,6 +109,12 @@ export default function AutoPlanMap({ plan: initialPlan, onConfirm, onBack, conf
     <div className="flex gap-4 h-[600px]">
       {/* Sidebar */}
       <div className="w-72 shrink-0 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden">
+        {plan.school_name && (
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 text-sm text-gray-600">
+            <span>🏫</span>
+            <span>{plan.school_name}</span>
+          </div>
+        )}
         <div className="px-4 py-3 border-b border-gray-100">
           <p className="text-sm font-semibold text-gray-800">
             {plan.buses.length} bus{plan.buses.length !== 1 ? 'es' : ''} - {totalStudents} students
