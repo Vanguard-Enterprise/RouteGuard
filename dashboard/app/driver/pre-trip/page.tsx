@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RouteSummary from '@/components/driver/route-summary'
 import { Button } from '@/components/ui/button'
@@ -33,19 +33,25 @@ interface TripManifest {
   stops: Array<{ stop: { id: string; name: string; sequence_order: number }; students: ManifestStudent[] }>
 }
 
+interface KioskContact {
+  name: string
+  phone: string
+}
+
 export default function PreTripPage() {
   const router = useRouter()
   const [session, setSession] = useState<DriverSession | null>(null)
   const [preview, setPreview] = useState<RoutePreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [contacts, setContacts] = useState<KioskContact[]>([])
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchAssignment = useCallback((token: string) => {
     setPreviewLoading(true)
     setPreviewError(null)
-    setPreview(null)
     fetch(`${API_BASE}/api/v1/trips/assignment`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -60,6 +66,18 @@ export default function PreTripPage() {
       })
       .catch(() => setPreviewError('Could not load your assignment. Check your connection.'))
       .finally(() => setPreviewLoading(false))
+  }, [])
+
+  const fetchContacts = useCallback((token: string) => {
+    fetch(`${API_BASE}/api/v1/device/contacts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return
+        const data = await res.json() as KioskContact[]
+        setContacts(data)
+      })
+      .catch(() => undefined)
   }, [])
 
   useEffect(() => {
@@ -77,9 +95,33 @@ export default function PreTripPage() {
     }
     setSession(parsed)
     fetchAssignment(parsed.session_token)
-  }, [router, fetchAssignment])
+    fetchContacts(parsed.session_token)
+  }, [router, fetchAssignment, fetchContacts])
+
+  // Poll every 15s when no route is assigned
+  useEffect(() => {
+    if (!session) return
+    if (preview !== null) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      return
+    }
+    if (pollingRef.current) return
+    pollingRef.current = setInterval(() => {
+      fetchAssignment(session.session_token)
+    }, 15000)
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [session, preview, fetchAssignment])
 
   const handleLogout = () => {
+    if (pollingRef.current) clearInterval(pollingRef.current)
     localStorage.removeItem('driver_session')
     router.replace('/driver')
   }
@@ -127,7 +169,7 @@ export default function PreTripPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <LogoIcon className="h-8 w-8" />
-        <Button variant="outline" size="sm" onClick={handleLogout}>
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
           Log Out
         </Button>
       </div>
@@ -146,6 +188,7 @@ export default function PreTripPage() {
           preview={preview}
           loading={previewLoading}
           error={previewError}
+          contacts={contacts}
           onRetry={handleRetry}
         />
 
