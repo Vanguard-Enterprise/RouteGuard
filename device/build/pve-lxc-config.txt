@@ -1,15 +1,20 @@
-cat >> /etc/pve/lxc/42069.conf << 'LXCEOF'
-lxc.cgroup2.devices.allow: b 7:* rwm
-lxc.cgroup2.devices.allow: c 10:237 rwm
-lxc.mount.entry: /dev/loop-control dev/loop-control none bind,optional,create=file
-lxc.mount.entry: /dev/loop0 dev/loop0 none bind,optional,create=file
-lxc.mount.entry: /dev/loop1 dev/loop1 none bind,optional,create=file
-lxc.mount.entry: /dev/loop2 dev/loop2 none bind,optional,create=file
-lxc.mount.entry: /dev/loop3 dev/loop3 none bind,optional,create=file
-lxc.mount.entry: /dev/loop4 dev/loop4 none bind,optional,create=file
-lxc.mount.entry: /dev/loop5 dev/loop5 none bind,optional,create=file
-lxc.mount.entry: /dev/loop6 dev/loop6 none bind,optional,create=file
-lxc.mount.entry: /dev/loop7 dev/loop7 none bind,optional,create=file
-LXCEOF
+  Demo District is ready.
 
-pct restart 42069
+  ┌─────────────────┬─────────────────────────────────────┐
+  │                 │                                     │
+  ├─────────────────┼─────────────────────────────────────┤
+  │ Dashboard login │ admin@demo-district.com / Demo1234! │
+  ├─────────────────┼─────────────────────────────────────┤
+  │ Org slug        │ demo-district                       │
+  └─────────────────┴─────────────────────────────────────┘
+
+  Sample data:
+  - School: Lincoln Elementary
+  - Route: Morning Route A
+  - Students: Emma Rivera, Liam Thompson, Sofia Nguyen
+  - Driver: Marcus Bell - PIN 4821
+
+  To connect your device:
+  1. Boot the device - it will call checkin and get a claim code on screen
+  2. OR - the device RG-DEMO-001 is already seeded with claim code DEMO9999 if you want to simulate it
+  3. Log in to the dashboard as admin@demo-district.com, go to Devices, and enter the claim code

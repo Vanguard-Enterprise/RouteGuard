@@ -121,10 +121,13 @@ while true; do
         TOKEN=$(echo "$STATUS" | python3 -c \
             "import json,sys; d=json.load(sys.stdin); print(d.get('device_token',''))" \
             2>/dev/null || echo "")
-        if [ -n "$TOKEN" ]; then
+        DEVICE_ID=$(echo "$STATUS" | python3 -c \
+            "import json,sys; d=json.load(sys.stdin); print(d.get('device_id',''))" \
+            2>/dev/null || echo "")
+        if [ -n "$TOKEN" ] && [ -n "$DEVICE_ID" ]; then
             echo "rg-checkin: device claimed, storing token"
             mkdir -p /etc/routeguard
-            echo "$TOKEN" > "$TOKEN_FILE"
+            printf '%s:%s' "$DEVICE_ID" "$TOKEN" > "$TOKEN_FILE"
             chmod 600 "$TOKEN_FILE"
             kill "$CHROMIUM_PID" 2>/dev/null || true
             exit 0

@@ -1,11 +1,12 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm, FormProvider } from 'react-hook-form'
 import AddressAutocomplete from '@/components/dashboard/address-autocomplete'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ScanLine, CheckCircle, X, Loader2 } from 'lucide-react'
 import { api, School, Student } from '@/lib/api'
 
 const schema = z.object({
@@ -33,8 +34,56 @@ interface StudentFormProps {
   mode: 'create' | 'edit'
 }
 
+type ScanState = 'idle' | 'waiting' | 'scanned' | 'error'
+
 export default function StudentForm({ student, schools, mode }: StudentFormProps) {
   const router = useRouter()
+  const [scanState, setScanState] = useState<ScanState>('idle')
+  const [scanCode, setScanCode] = useState('')
+  const [scanError, setScanError] = useState('')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const codeRef = useRef('')
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+  }
+
+  useEffect(() => () => stopPolling(), [])
+
+  const startScan = async () => {
+    setScanError('')
+    setScanState('waiting')
+    try {
+      const { code } = await api.rfidEnroll.create()
+      setScanCode(code)
+      codeRef.current = code
+      pollRef.current = setInterval(async () => {
+        try {
+          const result = await api.rfidEnroll.poll(codeRef.current)
+          if (result.scanned && result.rfid_tag_id) {
+            stopPolling()
+            methods.setValue('rfid_tag_id', result.rfid_tag_id)
+            setScanState('scanned')
+          }
+        } catch {
+          // keep polling on transient errors
+        }
+      }, 2000)
+    } catch {
+      setScanState('error')
+      setScanError('Failed to start enrollment session.')
+    }
+  }
+
+  const cancelScan = async () => {
+    stopPolling()
+    if (codeRef.current) {
+      await api.rfidEnroll.cancel(codeRef.current).catch(() => undefined)
+      codeRef.current = ''
+    }
+    setScanState('idle')
+    setScanCode('')
+  }
 
   const methods = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -228,20 +277,71 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
               </div>
 
               <div>
-                <label htmlFor="rfid_tag_id" className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   RFID Tag
-                  {mode === 'edit' && student?.rfid_tag_id && (
-                    <span className="ml-2 text-xs text-gray-400">(leave blank to keep current)</span>
+                  {mode === 'edit' && student?.rfid_tag_id && scanState === 'idle' && (
+                    <span className="ml-2 text-xs text-gray-400">currently assigned</span>
                   )}
                 </label>
-                <input
-                  id="rfid_tag_id"
-                  {...register('rfid_tag_id')}
-                  type="password"
-                  autoComplete="off"
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                  placeholder={mode === 'edit' && student?.rfid_tag_id ? '••••••••' : 'Scan or enter tag ID'}
-                />
+
+                {/* Scan-from-device flow */}
+                {scanState === 'idle' && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={startScan}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors w-full"
+                    >
+                      <ScanLine className="size-4 text-gray-400 shrink-0" />
+                      {mode === 'edit' && student?.rfid_tag_id ? 'Replace tag - scan from device' : 'Scan from device'}
+                    </button>
+                  </div>
+                )}
+
+                {scanState === 'waiting' && (
+                  <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-3 text-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <Loader2 className="size-4 text-blue-500 shrink-0 mt-0.5 animate-spin" />
+                        <div>
+                          <p className="font-medium text-blue-800">Waiting for scan...</p>
+                          <p className="text-blue-600 text-xs mt-0.5">
+                            On the bus device, tap <strong>Enroll Student RFID</strong> and enter code:
+                          </p>
+                          <p className="font-mono font-bold text-blue-800 text-lg tracking-widest mt-1">{scanCode}</p>
+                          <p className="text-blue-500 text-xs mt-1">Then hold the card to the scanner.</p>
+                        </div>
+                      </div>
+                      <button type="button" onClick={cancelScan} className="text-blue-400 hover:text-blue-600 shrink-0">
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {scanState === 'scanned' && (
+                  <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="size-4 text-green-600 shrink-0" />
+                      <span className="text-green-800 font-medium">Card scanned successfully</span>
+                    </div>
+                    <button type="button" onClick={() => { setScanState('idle'); methods.setValue('rfid_tag_id', '') }} className="text-green-500 hover:text-green-700 shrink-0">
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                )}
+
+                {scanState === 'error' && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm flex items-center justify-between gap-2">
+                    <span className="text-red-700">{scanError}</span>
+                    <button type="button" onClick={() => setScanState('idle')} className="text-red-400 hover:text-red-600">
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Hidden field stores the actual tag value */}
+                <input type="hidden" {...register('rfid_tag_id')} />
               </div>
             </div>
           </details>

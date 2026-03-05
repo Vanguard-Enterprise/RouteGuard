@@ -78,6 +78,7 @@ func (s *Server) buildRouter() chi.Router {
 	// Device-authenticated routes
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Get("/api/v1/device/config", h.DeviceConfig)
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/devices/heartbeat", h.DeviceHeartbeat)
+	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/device/rfid-enroll", h.DeviceSubmitRFIDEnroll)
 
 	// Driver auth — PIN and RFID (device auth required; auth comes from the device hardware)
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache), middleware.RateLimit(s.cache, 20)).Post("/api/v1/auth/pin", h.DriverPINAuth)
@@ -169,6 +170,11 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("schools:read")).Get("/schools/{id}", h.GetMySchool)
 		r.With(middleware.RequirePermission("schools:write")).Patch("/schools/{id}", h.UpdateMySchool)
 		r.With(middleware.RequirePermission("schools:write")).Delete("/schools/{id}", h.DeleteMySchool)
+
+		// RFID enrollment sessions (device-scan enrollment flow)
+		r.With(middleware.RequirePermission("students:write")).Post("/rfid-enroll", h.CreateRFIDEnrollSession)
+		r.With(middleware.RequirePermission("students:write")).Get("/rfid-enroll/{code}", h.PollRFIDEnrollSession)
+		r.With(middleware.RequirePermission("students:write")).Delete("/rfid-enroll/{code}", h.CancelRFIDEnrollSession)
 
 		// Students
 		r.With(middleware.RequirePermission("students:read")).Get("/students", h.ListMyStudents)

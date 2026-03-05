@@ -27,9 +27,12 @@ parted -s "$LOOP" mkpart primary ext4 257MiB 100%
 EFI_OFFSET=$((1 * 1024 * 1024))
 EFI_SIZE=$((256 * 1024 * 1024))
 ROOT_OFFSET=$((257 * 1024 * 1024))
+# parted with 1MiB alignment ends the last partition 1MiB before the image end
+# (reserves space for backup GPT). Match that exactly so ext4 block count fits.
+ROOT_SIZE=$(( (IMG_SIZE_MB - 1 - 257) * 1024 * 1024 ))
 
 LOOP_EFI=$(losetup --find --show --offset "$EFI_OFFSET" --sizelimit "$EFI_SIZE" "$WORK/routeguard.img")
-LOOP_ROOT=$(losetup --find --show --offset "$ROOT_OFFSET" "$WORK/routeguard.img")
+LOOP_ROOT=$(losetup --find --show --offset "$ROOT_OFFSET" --sizelimit "$ROOT_SIZE" "$WORK/routeguard.img")
 echo "==> Partition loop devices: EFI=$LOOP_EFI ROOT=$LOOP_ROOT"
 
 echo "==> Formatting"
@@ -62,21 +65,38 @@ mount --bind /sys     "$WORK/rootfs/sys"
 mount --bind /proc    "$WORK/rootfs/proc"
 cp /etc/resolv.conf "$WORK/rootfs/etc/resolv.conf"
 
-echo "==> Installing packages"
+echo "==> Installing base packages (udev + initramfs first so kernel post-install works)"
 chroot "$WORK/rootfs" bash -c "
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -q
     apt-get install -y --no-install-recommends \
+        udev \
+        kmod \
+        initramfs-tools \
+        busybox
+"
+
+echo "==> Installing kernel and remaining packages"
+chroot "$WORK/rootfs" bash -c "
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get install -y --no-install-recommends \
         linux-image-amd64 \
         grub-efi-amd64 \
+        wpasupplicant \
         chromium \
         xorg openbox x11-xserver-utils unclutter \
         network-manager \
-        linux-firmware firmware-realtek firmware-iwlwifi firmware-mediatek \
+        firmware-linux-free firmware-realtek firmware-iwlwifi \
         curl python3 \
         ufw \
         systemd-sysv \
         locales
+"
+
+echo "==> Regenerating initramfs"
+chroot "$WORK/rootfs" bash -c "
+    export DEBIAN_FRONTEND=noninteractive
+    update-initramfs -u -k all
 "
 
 echo "==> Configuring system"
@@ -89,6 +109,9 @@ chroot "$WORK/rootfs" bash -c "
     echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
     locale-gen
 
+    # Set root password
+    echo 'root:routeguard' | chpasswd
+
     # routeguard user
     useradd -m -s /bin/bash routeguard
     echo 'routeguard:routeguard' | chpasswd
@@ -98,15 +121,28 @@ chroot "$WORK/rootfs" bash -c "
     mkdir -p /var/lib/routeguard/chromium
     chown -R routeguard:routeguard /var/lib/routeguard
 
-    # UFW
-    ufw default deny outgoing
-    ufw default deny incoming
-    ufw allow out to any port 53 proto udp
-    ufw allow out 443 proto tcp
-    ufw --force enable
+    # UFW (best-effort in chroot - iptables may not be available)
+    ufw default deny outgoing  || true
+    ufw default deny incoming  || true
+    ufw allow out to any port 53 proto udp || true
+    ufw allow out 443 proto tcp || true
+    ufw --force enable || true
 
     # NetworkManager
     systemctl enable NetworkManager
+
+    # Ensure NetworkManager manages all wifi interfaces
+    mkdir -p /etc/NetworkManager/conf.d
+    cat > /etc/NetworkManager/conf.d/managed.conf << 'NMCONF'
+[device]
+wifi.scan-rand-mac-address=no
+
+[main]
+plugins=ifupdown,keyfile
+
+[ifupdown]
+managed=true
+NMCONF
 "
 
 echo "==> Installing common files"
@@ -126,15 +162,35 @@ chroot "$WORK/rootfs" grub-install \
     --efi-directory=/boot/efi \
     --bootloader-id=routeguard \
     --removable \
-    --no-nvram
+    --no-nvram \
+    --modules="part_gpt part_msdos ext2 fat normal linux echo ls search search_fs_uuid gfxterm efi_gop efi_uga"
 
 mkdir -p "$WORK/rootfs/boot/grub"
+
+# Resolve the actual versioned kernel and initrd filenames
+KERNEL=$(chroot "$WORK/rootfs" sh -c 'ls /boot/vmlinuz-* | sort -V | tail -1' | sed 's|/boot/||')
+INITRD=$(chroot "$WORK/rootfs" sh -c 'ls /boot/initrd.img-* | sort -V | tail -1' | sed 's|/boot/||')
+echo "==> Kernel: $KERNEL  Initrd: $INITRD"
+
+if [ -z "$KERNEL" ] || [ -z "$INITRD" ]; then
+    echo "ERROR: kernel or initrd not found in /boot"
+    ls "$WORK/rootfs/boot/" || true
+    exit 1
+fi
+
 cat > "$WORK/rootfs/boot/grub/grub.cfg" << EOF
 set timeout=0
 set default=0
+
+insmod part_gpt
+insmod ext2
+insmod search_fs_uuid
+
+search --no-floppy --fs-uuid --set=root $ROOT_UUID
+
 menuentry "RouteGuard" {
-    linux /boot/vmlinuz root=UUID=$ROOT_UUID ro quiet
-    initrd /boot/initrd.img
+    linux /boot/$KERNEL root=UUID=$ROOT_UUID ro quiet
+    initrd /boot/$INITRD
 }
 EOF
 

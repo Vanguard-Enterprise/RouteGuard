@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY x86-64/build.sh /build.sh
 COPY common /common
-RUN sed -i 's/\r$//' /build.sh /common/*.sh 2>/dev/null || true && chmod +x /build.sh
+RUN find /common -type f | xargs -r sed -i 's/\x0D//' && sed -i 's/\x0D//' /build.sh && chmod +x /build.sh /common/rg-checkin /common/rg-kiosk.sh
 
 VOLUME ["/output"]
 

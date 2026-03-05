@@ -34,3 +34,6 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
+
+# Device build output (large image files)
+device/output/

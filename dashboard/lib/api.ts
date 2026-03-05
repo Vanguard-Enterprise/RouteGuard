@@ -514,6 +514,11 @@ export const api = {
       request<School>(`/dashboard/schools/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/dashboard/schools/${id}`, { method: 'DELETE' }),
   },
+  rfidEnroll: {
+    create: () => request<{ code: string; expires_at: string }>('/dashboard/rfid-enroll', { method: 'POST' }),
+    poll: (code: string) => request<{ scanned: boolean; rfid_tag_id: string | null }>(`/dashboard/rfid-enroll/${code}`),
+    cancel: (code: string) => request<void>(`/dashboard/rfid-enroll/${code}`, { method: 'DELETE' }),
+  },
   students: {
     list: (params?: { limit?: number; offset?: number }) => {
       const qs = params ? '?' + new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''

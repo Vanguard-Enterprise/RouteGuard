@@ -217,6 +217,15 @@ export default function PreTripPage() {
         >
           Skip to Map
         </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground w-full max-w-sm"
+          onClick={() => router.push('/driver/enroll')}
+        >
+          Enroll Student RFID
+        </Button>
       </div>
     </div>
   )

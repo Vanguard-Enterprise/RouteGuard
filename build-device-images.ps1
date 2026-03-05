@@ -14,7 +14,7 @@
 
 param(
     [ValidateSet("arm64", "x86-64", "both")]
-    [string]$Target = "both",
+    [string]$Target = "x86-64",
 
     [string]$Endpoint   = $env:RUSTFS_ENDPOINT,
     [string]$AccessKey  = $env:RUSTFS_ACCESS_KEY,
@@ -51,7 +51,8 @@ function Build-ARM64 {
 
     $outPath = (Resolve-Path "$OutDir\arm64").Path
     docker run --rm --privileged `
-        -v "${outPath}:/pi-gen/deploy" `
+        -v /dev:/dev `
+        -v "${outPath}:/output" `
         rg-build-arm64
     if ($LASTEXITCODE -ne 0) { Write-Error "docker run arm64 failed" }
 
