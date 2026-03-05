@@ -311,8 +311,9 @@ export default function NavigationMap({
         if (moved > REROUTE_DEVIATION_M) {
           lastRouteCheckRef.current = { lat, lng }
           const routeCoords = routeRef.current.geometry.coordinates
-          const minDist = Math.min(
-            ...routeCoords.map(([rLng, rLat]) => haversineMeters(lat, lng, rLat, rLng))
+          const minDist = routeCoords.reduce(
+            (min, [rLng, rLat]) => Math.min(min, haversineMeters(lat, lng, rLat, rLng)),
+            Infinity
           )
           if (minDist > REROUTE_DEVIATION_M) {
             loadRoute({ lat, lng })

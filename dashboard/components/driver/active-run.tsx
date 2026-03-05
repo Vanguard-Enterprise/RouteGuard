@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, ChevronRight } from 'lucide-react'
+import { ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -15,6 +15,7 @@ import {
 import { LogoIcon } from '@/components/logo'
 import ScanFeedback, { type FeedbackType } from './scan-feedback'
 import StudentScanList, { type ScanEvent } from './student-scan-list'
+import NavigationMap from '@/components/driver/navigation-map'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 const GPS_INTERVAL_MS = 5000
@@ -43,13 +44,13 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const [endingRun, setEndingRun] = useState(false)
 
   const lastPingRef = useRef<number>(0)
-  const watchIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     const raw = localStorage.getItem('trip_manifest')
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as Array<{ stop: ActiveRunStop; students: unknown[] }>
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStops(parsed.map((item) => item.stop))
       } catch {
         setStops([])
@@ -62,42 +63,15 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
       const now = Date.now()
       if (now - lastPingRef.current < GPS_INTERVAL_MS) return
       lastPingRef.current = now
-
       const deviceToken = localStorage.getItem('device_token')
       fetch(`${API_BASE}/api/v1/trips/${tripId}/location`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${deviceToken}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceToken}` },
         body: JSON.stringify({ lat, lng, heading: heading ?? 0, speed: speed ?? 0 }),
       }).catch(() => {})
     },
     [tripId]
   )
-
-  useEffect(() => {
-    if (!navigator.geolocation) return
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        postLocation(
-          pos.coords.latitude,
-          pos.coords.longitude,
-          pos.coords.heading,
-          pos.coords.speed
-        )
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 3000 }
-    )
-
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current)
-      }
-    }
-  }, [postLocation])
 
   const handleNextStop = () => {
     setCurrentStopIdx((prev) => Math.min(prev + 1, Math.max(stops.length - 1, 0)))
@@ -136,100 +110,73 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     setScans((prev) => [event, ...prev])
   }
 
-  const currentStop = stops[currentStopIdx]
-  const progressPct = stops.length > 0 ? ((currentStopIdx + 1) / stops.length) * 100 : 0
-
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="fixed inset-0">
       <ScanFeedback
         feedbackType={feedbackType}
         studentName={feedbackStudentName}
         onDismiss={handleDismissFeedback}
       />
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <LogoIcon className="h-8 w-8" />
-        <Badge variant="outline" className="font-mono text-xs">
-          Trip #{tripId.slice(0, 8)}
-        </Badge>
-      </div>
-
-      {/* Progress strip */}
-      {stops.length > 0 && (
-        <div className="px-6 pt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-muted-foreground text-xs uppercase tracking-widest">
-              Progress
-            </span>
-            <Badge variant="secondary" className="text-xs">
-              Stop {currentStopIdx + 1} of {stops.length}
-            </Badge>
-          </div>
-          <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progressPct}%`, background: '#2A7D4F' }}
-            />
-          </div>
+      <NavigationMap
+        mode="route"
+        stops={stops}
+        currentStopIdx={currentStopIdx}
+        onArrival={handleNextStop}
+        onPositionUpdate={postLocation}
+      >
+        {/* Floating header */}
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-2xl shadow px-3 py-2">
+          <LogoIcon className="h-6 w-6" />
+          <Badge variant="outline" className="font-mono text-xs">
+            Trip #{tripId.slice(0, 8)}
+          </Badge>
         </div>
-      )}
 
-      {/* Current stop */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-6">
-        {stops.length > 0 ? (
-          <div className="flex items-center gap-3 text-center">
-            <MapPin className="size-7 shrink-0" style={{ color: 'var(--color-brand-amber)' }} />
-            <h2 className="text-foreground text-4xl font-bold">
-              {currentStop?.name ?? 'Unknown Stop'}
-            </h2>
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-lg text-center">
-            Trip in progress - no manifest loaded
-          </p>
-        )}
-
-        <div className="w-full max-w-lg">
-          <StudentScanList scans={scans.filter((_, i) => i < 5)} />
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex flex-col gap-3 px-6 pb-8">
-        {stops.length > 0 && currentStopIdx < stops.length - 1 && (
+        {/* Bottom controls */}
+        <div className="absolute bottom-6 left-0 right-0 z-10 flex items-end justify-center gap-3 px-4">
+          {stops.length > 0 && currentStopIdx < stops.length - 1 && (
+            <Button
+              onClick={handleNextStop}
+              size="lg"
+              className="flex-1 max-w-xs h-14 text-base bg-[#2A7D4F] hover:bg-[#235f3c] text-white shadow-lg"
+            >
+              <ChevronRight className="size-5" />
+              Arrived
+            </Button>
+          )}
           <Button
-            onClick={handleNextStop}
-            size="lg"
-            className="w-full h-14 text-base bg-[#2A7D4F] hover:bg-[#235f3c] text-white"
+            onClick={() => setShowConfirmEnd(true)}
+            variant="secondary"
+            size="icon"
+            className="h-14 w-14 rounded-2xl shadow-lg shrink-0"
+            title="End Run"
           >
-            <ChevronRight className="size-5" />
-            Next Stop
+            <X className="size-5" />
           </Button>
-        )}
+        </div>
 
+        {/* Dev buttons */}
         {process.env.NODE_ENV === 'development' && (
-          <Button
-            onClick={simulateScan}
-            variant="outline"
-            size="sm"
-            className="w-full text-muted-foreground text-xs"
-          >
-            Simulate Scan (dev)
-          </Button>
+          <div className="absolute bottom-24 left-3 z-10 flex flex-col gap-2">
+            <Button onClick={simulateScan} variant="outline" size="sm" className="text-xs bg-background/90">
+              Simulate Scan
+            </Button>
+            <Button onClick={handleNextStop} variant="outline" size="sm" className="text-xs bg-background/90">
+              Simulate Arrival
+            </Button>
+          </div>
         )}
 
-        <Button
-          onClick={() => setShowConfirmEnd(true)}
-          variant="outline"
-          size="lg"
-          className="w-full h-14 text-base border-destructive text-destructive hover:bg-destructive/10"
-        >
-          End Run
-        </Button>
-      </div>
+        {/* Scan list overlay */}
+        {scans.length > 0 && (
+          <div className="absolute bottom-24 right-3 z-10 w-56 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
+            <StudentScanList scans={scans.filter((_, i) => i < 5)} />
+          </div>
+        )}
+      </NavigationMap>
 
-      {/* End run confirmation dialog */}
+      {/* End run dialog */}
       <Dialog open={showConfirmEnd} onOpenChange={setShowConfirmEnd}>
         <DialogContent>
           <DialogHeader>
