@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { api, type AutoPlanResponse } from '@/lib/api'
+import { useState, useEffect } from 'react'
+import { api, type AutoPlanResponse, type School } from '@/lib/api'
 import AutoPlanMap from '@/components/dashboard/auto-plan-map'
 
 type Step = 'configure' | 'review' | 'confirming' | 'done'
@@ -18,12 +18,18 @@ export default function AutoPlanWizard({ onClose, onConfirmed }: AutoPlanWizardP
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [plan, setPlan] = useState<AutoPlanResponse | null>(null)
+  const [schools, setSchools] = useState<School[]>([])
+  const [schoolId, setSchoolId] = useState<string>('')
+
+  useEffect(() => {
+    api.schools.list().then(setSchools).catch(() => {})
+  }, [])
 
   async function handleGenerate() {
     setLoading(true)
     setError(null)
     try {
-      const result = await api.trips.autoplan(date, type)
+      const result = await api.trips.autoplan(date, type, schoolId || null)
       if (result.buses.length === 0) {
         setError('No active students with addresses found. Add student addresses first.')
         return
@@ -40,7 +46,7 @@ export default function AutoPlanWizard({ onClose, onConfirmed }: AutoPlanWizardP
   async function handleConfirm(finalPlan: AutoPlanResponse) {
     setStep('confirming')
     try {
-      const result = await api.trips.autoPlanConfirm({ date, type, buses: finalPlan.buses })
+      const result = await api.trips.autoPlanConfirm({ date, type, buses: finalPlan.buses, school_id: schoolId || null })
       onConfirmed(result.trips.map((t) => t.id))
       setStep('done')
     } catch {
@@ -106,6 +112,21 @@ export default function AutoPlanWizard({ onClose, onConfirmed }: AutoPlanWizardP
               </button>
             ))}
           </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">School</label>
+          <select
+            value={schoolId}
+            onChange={(e) => setSchoolId(e.target.value)}
+            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition bg-white"
+          >
+            <option value="">No school (optimize freely)</option>
+            {schools.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <div className="flex gap-2 pt-1">
