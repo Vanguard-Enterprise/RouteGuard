@@ -88,8 +88,8 @@ export default function StudentTable({ students: initial }: StudentTableProps) {
       key: 'school_id',
       header: 'School',
       render: (row) => (
-        <span className="font-mono text-xs text-gray-500">
-          {row.school_id ? row.school_id.slice(0, 8) + '…' : '—'}
+        <span className="text-sm text-gray-700">
+          {row.school_name ?? '—'}
         </span>
       ),
     },

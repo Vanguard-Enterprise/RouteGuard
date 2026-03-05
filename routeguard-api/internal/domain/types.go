@@ -200,6 +200,7 @@ type Student struct {
 	ID            string     `json:"id"`
 	OrgID         string     `json:"org_id"`
 	SchoolID      string     `json:"school_id"`
+	SchoolName    *string    `json:"school_name,omitempty"`
 	FirstName     string     `json:"first_name"`
 	LastName      string     `json:"last_name"`
 	StudentNumber *string    `json:"student_number"`

@@ -116,6 +116,7 @@ export interface Student {
   id: string
   org_id: string
   school_id: string
+  school_name?: string | null
   first_name: string
   last_name: string
   student_number: string | null

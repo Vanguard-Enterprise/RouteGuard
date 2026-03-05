@@ -47,10 +47,14 @@ func (r *StudentRepo) List(ctx context.Context, orgID string, limit, offset int)
 		limit = 500
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+studentSelectCols+`
-		FROM students
-		WHERE org_id = $1
-		ORDER BY last_name, first_name
+		SELECT s.id, s.org_id, s.school_id, sc.name,
+		       s.first_name, s.last_name, s.student_number, s.grade,
+		       s.rfid_tag_id, s.rfid_tag_id_hash, s.address, s.city, s.state, s.zip, s.lat, s.lng,
+		       s.status, s.medical_notes, s.created_at, s.updated_at
+		FROM students s
+		LEFT JOIN schools sc ON sc.id = s.school_id
+		WHERE s.org_id = $1
+		ORDER BY s.last_name, s.first_name
 		LIMIT $2 OFFSET $3
 	`, orgID, limit, offset)
 	if err != nil {
@@ -62,8 +66,9 @@ func (r *StudentRepo) List(ctx context.Context, orgID string, limit, offset int)
 	for rows.Next() {
 		var s domain.Student
 		if err := rows.Scan(
-			&s.ID, &s.OrgID, &s.SchoolID, &s.FirstName, &s.LastName,
-			&s.StudentNumber, &s.Grade, &s.RFIDTagID, &s.RFIDTagIDHash, &s.Address,
+			&s.ID, &s.OrgID, &s.SchoolID, &s.SchoolName,
+			&s.FirstName, &s.LastName, &s.StudentNumber, &s.Grade,
+			&s.RFIDTagID, &s.RFIDTagIDHash, &s.Address,
 			&s.City, &s.State, &s.Zip, &s.Lat, &s.Lng,
 			&s.Status, &s.MedicalNotes, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
