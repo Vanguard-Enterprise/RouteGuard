@@ -1,15 +1,11 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
 import {
   ArrowUp, ArrowLeft, ArrowRight, ArrowUpLeft, ArrowUpRight,
   Flag, RotateCcw, CheckCircle2,
 } from 'lucide-react'
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''
-
 const ARRIVAL_RADIUS_M = 50
 const ARRIVAL_COOLDOWN_MS = 10_000
 const REROUTE_DEVIATION_M = 100
@@ -25,14 +21,11 @@ export interface NavigationStop {
 
 export interface NavigationMapProps {
   mode: 'route' | 'free-drive'
-  // route mode
   stops?: NavigationStop[]
   currentStopIdx?: number
   onArrival?: () => void
   onManualAdvance?: () => void
-  // free-drive mode
   destination?: { lat: number; lng: number; name: string } | null
-  // shared
   onPositionUpdate?: (lat: number, lng: number, heading: number | null, speed: number | null) => void
   children?: React.ReactNode
 }
@@ -58,7 +51,6 @@ interface DirectionsRoute {
   distance: number
 }
 
-// Haversine distance in meters between two lat/lng points
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000
   const dLat = (lat2 - lat1) * (Math.PI / 180)
@@ -69,24 +61,18 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-// Format meters as human-readable distance (US units)
 function formatDist(meters: number): string {
   const feet = meters * 3.281
   if (feet < 1000) return `${Math.max(50, Math.round(feet / 50) * 50)} ft`
   return `${(meters / 1609.34).toFixed(1)} mi`
 }
 
-// Map Mapbox maneuver type+modifier to a Lucide icon element
 function ManeuverIcon({ type, modifier }: { type: string; modifier?: string }) {
   if (type === 'arrive') return <Flag className="size-7" />
   if (type === 'roundabout' || type === 'rotary') return <RotateCcw className="size-7" />
   if (
-    type === 'turn' ||
-    type === 'end of road' ||
-    type === 'fork' ||
-    type === 'merge' ||
-    type === 'on ramp' ||
-    type === 'off ramp'
+    type === 'turn' || type === 'end of road' || type === 'fork' ||
+    type === 'merge' || type === 'on ramp' || type === 'off ramp'
   ) {
     if (modifier?.includes('slight left')) return <ArrowUpLeft className="size-7" />
     if (modifier?.includes('slight right')) return <ArrowUpRight className="size-7" />
@@ -96,7 +82,6 @@ function ManeuverIcon({ type, modifier }: { type: string; modifier?: string }) {
   return <ArrowUp className="size-7" />
 }
 
-// Fetch directions from Mapbox between an ordered list of [lng, lat] waypoints
 async function fetchDirections(coords: [number, number][]): Promise<DirectionsRoute | null> {
   if (coords.length < 2) return null
   const coordStr = coords.map(([lng, lat]) => `${lng},${lat}`).join(';')
@@ -122,9 +107,14 @@ export default function NavigationMap({
   children,
 }: NavigationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<mapboxgl.Map | null>(null)
-  const markerRefs = useRef<mapboxgl.Marker[]>([])
-  const driverMarkerRef = useRef<mapboxgl.Marker | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markersRef = useRef<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const driverMarkerRef = useRef<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const routeLayerRef = useRef<any>(null)
   const watchIdRef = useRef<number | null>(null)
   const lastArrivalRef = useRef<number>(0)
   const lastRouteCheckRef = useRef<{ lat: number; lng: number } | null>(null)
@@ -136,57 +126,71 @@ export default function NavigationMap({
   const [routeError, setRouteError] = useState(false)
   const [gpsDenied, setGpsDenied] = useState(false)
 
-  // Init map
+  // Init Leaflet map
   useEffect(() => {
-    if (!containerRef.current) return
-    if (!mapboxgl.supported({ failIfMajorPerformanceCaveat: false })) {
-      console.error('NavigationMap: WebGL not supported')
-      return
-    }
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-98.5, 39.5],
-      zoom: 4,
-      pitchWithRotate: false,
-      failIfMajorPerformanceCaveat: false,
+    if (!containerRef.current || mapRef.current) return
+
+    // Dynamically import leaflet to avoid SSR issues
+    import('leaflet').then((L) => {
+      if (!containerRef.current || mapRef.current) return
+
+      // Fix default icon paths for Next.js
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (L.Icon.Default.prototype as any)._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      })
+
+      const map = L.map(containerRef.current, {
+        center: [39.5, -98.5],
+        zoom: 4,
+        zoomControl: true,
+        attributionControl: false,
+      })
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map)
+
+      mapRef.current = map
     })
-    mapRef.current = map
+
     return () => {
-      map.remove()
-      mapRef.current = null
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function drawRouteGeometry(
-    map: mapboxgl.Map,
-    geometry: { type: 'LineString'; coordinates: [number, number][] }
-  ) {
-    if (map.getSource('route')) {
-      (map.getSource('route') as mapboxgl.GeoJSONSource).setData(geometry as unknown as GeoJSON.Geometry)
-    } else {
-      map.addSource('route', { type: 'geojson', data: geometry as unknown as GeoJSON.Geometry })
-      map.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-cap': 'round',
-          'line-join': 'round',
-        },
-        paint: {
-          'line-color': '#1B3A5C',
-          'line-width': 5,
-        },
-      })
-    }
-  }
+  // Import leaflet CSS
+  useEffect(() => {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(link)
+    return () => { document.head.removeChild(link) }
+  }, [])
+
+  const drawRoute = useCallback((coords: [number, number][]) => {
+    import('leaflet').then((L) => {
+      const map = mapRef.current
+      if (!map) return
+      if (routeLayerRef.current) {
+        map.removeLayer(routeLayerRef.current)
+      }
+      // coords are [lng, lat] from Mapbox - swap to [lat, lng] for Leaflet
+      const latlngs = coords.map(([lng, lat]) => [lat, lng] as [number, number])
+      routeLayerRef.current = L.polyline(latlngs, { color: '#1B3A5C', weight: 5 }).addTo(map)
+    })
+  }, [])
 
   const loadRoute = useCallback(
     async (fromPos?: { lat: number; lng: number }) => {
       const map = mapRef.current
-      if (!map || !map.loaded()) return
+      if (!map) return
 
       const validStops = stops
         .slice(mode === 'route' ? currentStopIdx : 0)
@@ -206,13 +210,13 @@ export default function NavigationMap({
       const route = await fetchDirections(waypoints)
       if (!route) {
         setRouteError(true)
-        drawRouteGeometry(map, { type: 'LineString', coordinates: waypoints })
+        drawRoute(waypoints)
         return
       }
 
       setRouteError(false)
       routeRef.current = route
-      drawRouteGeometry(map, route.geometry)
+      drawRoute(route.geometry.coordinates)
 
       const firstStep = route.legs[0]?.steps[0]
       if (firstStep) {
@@ -221,51 +225,41 @@ export default function NavigationMap({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stops, currentStopIdx, destination, mode]
+    [stops, currentStopIdx, destination, mode, drawRoute]
   )
 
-  // Draw stop markers whenever stops or currentStopIdx changes
+  // Draw stop markers
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
 
-    const addMarkers = () => {
-      markerRefs.current.forEach((m) => m.remove())
-      markerRefs.current = []
+    import('leaflet').then((L) => {
+      markersRef.current.forEach((m) => m.remove())
+      markersRef.current = []
 
       stops.forEach((stop, idx) => {
         if (stop.lat == null || stop.lng == null) return
 
         const completed = idx < currentStopIdx
         const isCurrent = idx === currentStopIdx
+        const color = isCurrent ? '#F5A825' : completed ? '#9ca3af' : '#1B3A5C'
 
-        const el = document.createElement('div')
-        el.style.cssText = [
-          'width:28px', 'height:28px', 'border-radius:50%',
-          `background:${isCurrent ? '#F5A825' : completed ? '#9ca3af' : '#1B3A5C'}`,
-          'color:#fff', 'display:flex', 'align-items:center', 'justify-content:center',
-          'font-size:11px', 'font-weight:700', 'border:2px solid #fff',
-          'box-shadow:0 1px 4px rgba(0,0,0,0.3)', 'cursor:default',
-        ].join(';')
-        el.textContent = String(stop.sequence_order)
+        const icon = L.divIcon({
+          html: `<div style="width:28px;height:28px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3)">${stop.sequence_order}</div>`,
+          className: '',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        })
 
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([stop.lng, stop.lat])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 18 }).setHTML(
-              `<strong>${stop.name}</strong>${stop.address ? `<br/>${stop.address}` : ''}`
-            )
-          )
+        const marker = L.marker([stop.lat, stop.lng], { icon })
+          .bindPopup(`<strong>${stop.name}</strong>${stop.address ? `<br/>${stop.address}` : ''}`)
           .addTo(map)
-        markerRefs.current.push(marker)
+        markersRef.current.push(marker)
       })
-    }
-
-    if (map.loaded()) addMarkers()
-    else map.once('load', addMarkers)
+    })
   }, [stops, currentStopIdx])
 
-  // GPS tracking and arrival detection
+  // GPS tracking
   useEffect(() => {
     if (!navigator.geolocation) return
 
@@ -275,28 +269,25 @@ export default function NavigationMap({
       onPositionUpdate?.(lat, lng, heading, speed)
 
       const map = mapRef.current
-
       if (map) {
-        if (driverMarkerRef.current) {
-          driverMarkerRef.current.setLngLat([lng, lat])
-        } else {
-          const dot = document.createElement('div')
-          dot.style.cssText = [
-            'width:20px', 'height:20px', 'border-radius:50%',
-            'background:#3b82f6', 'border:3px solid #fff',
-            'box-shadow:0 0 0 4px rgba(59,130,246,0.25)',
-          ].join(';')
-          if (map.loaded()) {
-            driverMarkerRef.current = new mapboxgl.Marker({ element: dot })
-              .setLngLat([lng, lat])
-              .addTo(map)
+        import('leaflet').then((L) => {
+          if (driverMarkerRef.current) {
+            driverMarkerRef.current.setLatLng([lat, lng])
+          } else {
+            const icon = L.divIcon({
+              html: `<div style="width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 4px rgba(59,130,246,0.25)"></div>`,
+              className: '',
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            })
+            driverMarkerRef.current = L.marker([lat, lng], { icon }).addTo(map)
           }
-        }
-
-        map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 15) })
+          const zoom = map.getZoom()
+          map.panTo([lat, lng])
+          if (zoom < 15) map.setZoom(15)
+        })
       }
 
-      // Arrival detection (route mode only)
       if (mode === 'route' && stops.length > 0) {
         const target = stops[currentStopIdx]
         if (target?.lat != null && target?.lng != null) {
@@ -309,7 +300,6 @@ export default function NavigationMap({
         }
       }
 
-      // Off-route detection
       const last = lastRouteCheckRef.current
       if (last && routeRef.current) {
         const moved = haversineMeters(lat, lng, last.lat, last.lng)
@@ -328,7 +318,6 @@ export default function NavigationMap({
         lastRouteCheckRef.current = { lat, lng }
       }
 
-      // Update turn banner step distance
       if (currentStep) {
         const [stepLng, stepLat] = currentStep.maneuver.location
         const distToStep = haversineMeters(lat, lng, stepLat, stepLng)
@@ -357,12 +346,8 @@ export default function NavigationMap({
         setUserPos({ lat, lng })
         const map = mapRef.current
         if (map) {
-          const init = () => {
-            map.jumpTo({ center: [lng, lat], zoom: 15 })
-            loadRoute({ lat, lng })
-          }
-          if (map.loaded()) init()
-          else map.once('load', init)
+          map.setView([lat, lng], 15)
+          loadRoute({ lat, lng })
         }
       },
       () => undefined,
@@ -383,9 +368,7 @@ export default function NavigationMap({
 
   // Re-fetch directions when currentStopIdx changes
   useEffect(() => {
-    if (userPos) {
-      loadRoute(userPos)
-    }
+    if (userPos) loadRoute(userPos)
     setCurrentStep(null)
     setStepDistM(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -397,10 +380,9 @@ export default function NavigationMap({
       loadRoute(userPos)
     }
     if (!destination) {
-      const map = mapRef.current
-      if (map?.getSource('route')) {
-        map.removeLayer('route-line')
-        map.removeSource('route')
+      if (routeLayerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(routeLayerRef.current)
+        routeLayerRef.current = null
       }
       routeRef.current = null
       setCurrentStep(null)
@@ -414,12 +396,10 @@ export default function NavigationMap({
 
   return (
     <div className="relative w-full h-full">
-      {/* Map canvas */}
       <div ref={containerRef} className="absolute inset-0" />
 
-      {/* Turn banner - top center */}
       {currentStep && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-xs w-full mx-3">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-xs w-full mx-3">
           <div className="shrink-0 text-foreground">
             <ManeuverIcon type={currentStep.maneuver.type} modifier={currentStep.maneuver.modifier} />
           </div>
@@ -431,31 +411,26 @@ export default function NavigationMap({
               <p className="text-muted-foreground text-xs mt-0.5">{formatDist(stepDistM)} away</p>
             )}
             {nextStop && (
-              <p className="text-muted-foreground text-xs mt-0.5 line-clamp-1">
-                Next: {nextStop.name}
-              </p>
+              <p className="text-muted-foreground text-xs mt-0.5 line-clamp-1">Next: {nextStop.name}</p>
             )}
           </div>
         </div>
       )}
 
-      {/* Route error notice */}
       {routeError && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-background/90 backdrop-blur-sm rounded-xl shadow px-3 py-1.5 text-xs text-muted-foreground whitespace-nowrap">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-background/90 backdrop-blur-sm rounded-xl shadow px-3 py-1.5 text-xs text-muted-foreground whitespace-nowrap">
           Routing unavailable - showing straight-line path
         </div>
       )}
 
-      {/* GPS denied notice */}
       {gpsDenied && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm rounded-xl shadow px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-[1000] bg-background/95 backdrop-blur-sm rounded-xl shadow px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
           GPS unavailable - navigation paused
         </div>
       )}
 
-      {/* Floating stops panel (route mode only) */}
       {mode === 'route' && validStops.length > 0 && (
-        <div className="absolute top-20 right-3 z-10 w-48 max-h-72 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-y-auto">
+        <div className="absolute top-20 right-3 z-[1000] w-48 max-h-72 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-y-auto">
           <div className="px-3 py-2 border-b border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Stops</p>
           </div>
@@ -499,7 +474,6 @@ export default function NavigationMap({
         </div>
       )}
 
-      {/* Children overlay */}
       {children}
     </div>
   )
