@@ -298,6 +298,12 @@ type Route struct {
 	EstimatedDurationMin *int      `json:"estimated_duration_min"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
+
+	// Enriched fields
+	SchoolID   *string  `json:"school_id,omitempty"`
+	SchoolName *string  `json:"school_name,omitempty"`
+	SchoolLat  *float64 `json:"school_lat,omitempty"`
+	SchoolLng  *float64 `json:"school_lng,omitempty"`
 }
 
 // Stop maps to the stops table.
