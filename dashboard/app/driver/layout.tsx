@@ -6,6 +6,13 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
   const [provisioned, setProvisioned] = useState<boolean | null>(null) // null = loading
 
   useEffect(() => {
+    // Support one-time token injection via ?device_token= (used by kiosk bootstrap)
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('device_token')
+    if (urlToken) {
+      localStorage.setItem('device_token', urlToken)
+      window.history.replaceState({}, '', '/driver')
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setProvisioned(!!localStorage.getItem('device_token'))
   }, [])
