@@ -16,6 +16,8 @@ const schema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   zip: z.string().optional(),
+  lat: z.string().optional(),
+  lng: z.string().optional(),
   student_number: z.string().optional(),
   grade: z.string().optional(),
   status: z.enum(['active', 'inactive']),
@@ -44,6 +46,8 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
       city: student?.city ?? '',
       state: student?.state ?? '',
       zip: student?.zip ?? '',
+      lat: student?.lat != null ? String(student.lat) : '',
+      lng: student?.lng != null ? String(student.lng) : '',
       student_number: student?.student_number ?? '',
       grade: student?.grade ?? '',
       status: (student?.status as 'active' | 'inactive') ?? 'active',
@@ -63,6 +67,8 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
         city: data.city || null,
         state: data.state || null,
         zip: data.zip || null,
+        lat: data.lat ? parseFloat(data.lat) : null,
+        lng: data.lng ? parseFloat(data.lng) : null,
         student_number: data.student_number || null,
         grade: data.grade || null,
         status: data.status,
@@ -147,13 +153,15 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
               Address
             </label>
-            <AddressAutocomplete name="address" />
+            <AddressAutocomplete name="address" fillLatLng />
           </div>
 
-          {/* city/state/zip stay in form state (populated by AddressAutocomplete) but are hidden */}
+          {/* city/state/zip/lat/lng stay in form state (populated by AddressAutocomplete) but are hidden */}
           <input type="hidden" {...register('city')} />
           <input type="hidden" {...register('state')} />
           <input type="hidden" {...register('zip')} />
+          <input type="hidden" {...register('lat')} />
+          <input type="hidden" {...register('lng')} />
 
           <details className="group">
             <summary className="text-sm font-medium text-gray-500 cursor-pointer hover:text-gray-700 mb-3 list-none flex items-center gap-1">
