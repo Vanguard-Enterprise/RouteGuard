@@ -190,3 +190,31 @@ func (r *VehicleRepo) Delete(ctx context.Context, id, orgID string) error {
 	}
 	return nil
 }
+
+// ListActive returns all vehicles with status 'active' for the org.
+func (r *VehicleRepo) ListActive(ctx context.Context, orgID string) ([]domain.Vehicle, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, name, number, capacity, year, make, model,
+		       vin, license_plate, status, device_id, created_at, updated_at
+		FROM vehicles
+		WHERE org_id = $1 AND status = 'active'
+		ORDER BY number, name
+	`, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("vehicles list active: %w", err)
+	}
+	defer rows.Close()
+	var result []domain.Vehicle
+	for rows.Next() {
+		var v domain.Vehicle
+		if err := rows.Scan(
+			&v.ID, &v.OrgID, &v.Name, &v.Number, &v.Capacity, &v.Year,
+			&v.Make, &v.Model, &v.VIN, &v.LicensePlate, &v.Status,
+			&v.DeviceID, &v.CreatedAt, &v.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("vehicles list active scan: %w", err)
+		}
+		result = append(result, v)
+	}
+	return result, rows.Err()
+}

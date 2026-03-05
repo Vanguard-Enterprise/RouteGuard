@@ -237,3 +237,32 @@ func (r *StudentRepo) Delete(ctx context.Context, id, orgID string) error {
 	}
 	return nil
 }
+
+// ListWithCoords returns all active students for the org that have lat/lng set.
+func (r *StudentRepo) ListWithCoords(ctx context.Context, orgID string) ([]domain.Student, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, school_id, first_name, last_name, student_number,
+		       grade, rfid_tag_id, rfid_tag_id_hash, address, city, state, zip, lat, lng,
+		       status, medical_notes, created_at, updated_at
+		FROM students
+		WHERE org_id = $1 AND status = 'active' AND lat IS NOT NULL AND lng IS NOT NULL
+		ORDER BY last_name, first_name
+	`, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("students list with coords: %w", err)
+	}
+	defer rows.Close()
+	var result []domain.Student
+	for rows.Next() {
+		var s domain.Student
+		if err := rows.Scan(
+			&s.ID, &s.OrgID, &s.SchoolID, &s.FirstName, &s.LastName, &s.StudentNumber,
+			&s.Grade, &s.RFIDTagID, &s.RFIDTagIDHash, &s.Address, &s.City, &s.State, &s.Zip,
+			&s.Lat, &s.Lng, &s.Status, &s.MedicalNotes, &s.CreatedAt, &s.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("students list with coords scan: %w", err)
+		}
+		result = append(result, s)
+	}
+	return result, rows.Err()
+}
