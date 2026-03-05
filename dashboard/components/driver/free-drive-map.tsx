@@ -75,6 +75,42 @@ export default function FreeDriveMap() {
   useEffect(() => {
     if (!navigator.geolocation) return
 
+    const placeMarker = (map: mapboxgl.Map, lat: number, lng: number) => {
+      if (locationMarkerRef.current) {
+        locationMarkerRef.current.setLngLat([lng, lat])
+      } else {
+        const dot = document.createElement('div')
+        dot.style.cssText = [
+          'width:18px',
+          'height:18px',
+          'border-radius:50%',
+          'background:#3b82f6',
+          'border:3px solid #fff',
+          'box-shadow:0 0 0 4px rgba(59,130,246,0.25)',
+        ].join(';')
+        locationMarkerRef.current = new mapboxgl.Marker({ element: dot })
+          .setLngLat([lng, lat])
+          .addTo(map)
+      }
+    }
+
+    // Get an immediate fix to center the map on load (low accuracy is fast)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        setUserPos({ lat, lng })
+        const map = mapRef.current
+        if (!map) return
+        placeMarker(map, lat, lng)
+        if (followRef.current) {
+          map.once('load', () => map.jumpTo({ center: [lng, lat], zoom: 15 }))
+          if (map.loaded()) map.jumpTo({ center: [lng, lat], zoom: 15 })
+        }
+      },
+      () => undefined,
+      { enableHighAccuracy: false, timeout: 5000 }
+    )
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords
@@ -83,22 +119,7 @@ export default function FreeDriveMap() {
         const map = mapRef.current
         if (!map) return
 
-        if (locationMarkerRef.current) {
-          locationMarkerRef.current.setLngLat([lng, lat])
-        } else {
-          const dot = document.createElement('div')
-          dot.style.cssText = [
-            'width:18px',
-            'height:18px',
-            'border-radius:50%',
-            'background:#3b82f6',
-            'border:3px solid #fff',
-            'box-shadow:0 0 0 4px rgba(59,130,246,0.25)',
-          ].join(';')
-          locationMarkerRef.current = new mapboxgl.Marker({ element: dot })
-            .setLngLat([lng, lat])
-            .addTo(map)
-        }
+        placeMarker(map, lat, lng)
 
         if (followRef.current) {
           map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 15) })
