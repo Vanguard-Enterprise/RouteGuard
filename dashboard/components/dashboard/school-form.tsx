@@ -185,7 +185,6 @@ export default function SchoolForm({ school, mode }: SchoolFormProps) {
             <div>
               <label htmlFor="lat" className="block text-sm font-medium text-gray-700 mb-1">
                 Latitude
-                <span className="ml-1 text-xs text-gray-400">(auto-filled in route builder)</span>
               </label>
               <input
                 id="lat"
@@ -200,7 +199,6 @@ export default function SchoolForm({ school, mode }: SchoolFormProps) {
             <div>
               <label htmlFor="lng" className="block text-sm font-medium text-gray-700 mb-1">
                 Longitude
-                <span className="ml-1 text-xs text-gray-400">(auto-filled in route builder)</span>
               </label>
               <input
                 id="lng"
