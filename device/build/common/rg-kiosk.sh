@@ -60,5 +60,6 @@ exec chromium \
     --disable-translate \
     --noerrdialogs \
     --disable-features=TranslateUI \
+    --no-sandbox \
     --use-angle=swiftshader \
     --ignore-gpu-blocklist
