@@ -1,5 +1,5 @@
 'use client'
-import { User, MapPin, Bus, Hash, Navigation } from 'lucide-react'
+import { User, MapPin, Bus, Hash, Navigation, Phone } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,15 +13,21 @@ interface RoutePreview {
   date: string
 }
 
+interface KioskContact {
+  name: string
+  phone: string
+}
+
 interface RouteSummaryProps {
   driverName: string
   preview: RoutePreview | null
   loading: boolean
   error: string | null
+  contacts?: KioskContact[]
   onRetry?: () => void
 }
 
-export default function RouteSummary({ driverName, preview, loading, error, onRetry }: RouteSummaryProps) {
+export default function RouteSummary({ driverName, preview, loading, error, contacts = [], onRetry }: RouteSummaryProps) {
   const dateString = preview
     ? new Date(preview.date + 'T00:00:00').toLocaleDateString('en-US', {
         weekday: 'long',
@@ -104,11 +110,32 @@ export default function RouteSummary({ driverName, preview, loading, error, onRe
 
           {!loading && !error && !preview && (
             <div className="flex flex-col gap-3">
-              <p className="text-muted-foreground text-sm">No route assigned for today.</p>
-              {onRetry && (
-                <Button variant="outline" size="sm" onClick={onRetry} className="self-start">
-                  Retry
-                </Button>
+              <p className="text-foreground text-sm font-medium">No routes assigned for today.</p>
+              <p className="text-muted-foreground text-sm">
+                Your work may be done, or a route may be assigned shortly.
+              </p>
+              {contacts.length > 0 && (
+                <div className="flex flex-col gap-2 pt-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
+                    Need help? Contact:
+                  </p>
+                  {contacts.map((c) => (
+                    <a
+                      key={c.phone}
+                      href={`tel:${c.phone}`}
+                      className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+                    >
+                      <Phone className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-muted-foreground">{c.phone}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+              {contacts.length === 0 && (
+                <p className="text-muted-foreground text-sm">
+                  Contact your dispatcher or administrator if you need assistance.
+                </p>
               )}
             </div>
           )}
