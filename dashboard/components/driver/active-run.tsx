@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, X } from 'lucide-react'
+import { ChevronRight, X, LogIn, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -44,6 +44,12 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const [endingRun, setEndingRun] = useState(false)
 
   const lastPingRef = useRef<number>(0)
+  const [scanMode, setScanMode] = useState<'board' | 'exit'>('board')
+  const scanBufferRef = useRef('')
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Deduplication: UHF readers re-read continuously while a tag is in range
+  const lastScannedRef = useRef<Map<string, number>>(new Map())
+  const DEDUP_MS = 3000
 
   useEffect(() => {
     const raw = localStorage.getItem('trip_manifest')
@@ -93,6 +99,77 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   }
 
   const handleDismissFeedback = useCallback(() => setFeedbackType(null), [])
+
+  const submitScan = useCallback(async (rfidTagId: string) => {
+    const now = Date.now()
+    const lastSeen = lastScannedRef.current.get(rfidTagId) ?? 0
+    if (now - lastSeen < DEDUP_MS) return
+    lastScannedRef.current.set(rfidTagId, now)
+
+    const deviceToken = localStorage.getItem('device_token')
+    const currentStop = stops[currentStopIdx]
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/trips/${tripId}/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceToken}` },
+        body: JSON.stringify({
+          rfid_tag_id: rfidTagId,
+          scan_type: scanMode,
+          stop_id: currentStop?.id ?? null,
+        }),
+      })
+      if (!res.ok) return
+      const data = await res.json() as {
+        authorized: boolean
+        student?: { first_name: string; last_name: string; id: string }
+        scan_event: { id: string }
+      }
+      const studentName = data.student
+        ? `${data.student.first_name} ${data.student.last_name}`
+        : undefined
+      const resolvedType = data.authorized ? scanMode : 'unauthorized'
+      setFeedbackType(resolvedType)
+      setFeedbackStudentName(studentName)
+      setScans((prev) => [
+        {
+          id: data.scan_event.id,
+          rfid_tag_id: rfidTagId,
+          student_name: studentName,
+          scan_type: resolvedType,
+          timestamp: Date.now(),
+        },
+        ...prev,
+      ])
+    } catch {
+      // Silent fail - scan will be retried on next swipe
+    }
+  }, [tripId, scanMode, stops, currentStopIdx])
+
+  // Keyboard wedge listener - captures HID RFID scanner output globally
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (showConfirmEnd) return
+      if (e.ctrlKey || e.altKey || e.metaKey) return
+      if (e.key === 'Enter') {
+        const tag = scanBufferRef.current.trim()
+        scanBufferRef.current = ''
+        if (scanTimerRef.current) clearTimeout(scanTimerRef.current)
+        if (tag) submitScan(tag)
+        return
+      }
+      if (e.key.length === 1) {
+        scanBufferRef.current += e.key
+        if (scanTimerRef.current) clearTimeout(scanTimerRef.current)
+        scanTimerRef.current = setTimeout(() => {
+          const tag = scanBufferRef.current.trim()
+          scanBufferRef.current = ''
+          if (tag) submitScan(tag)
+        }, 100)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showConfirmEnd, submitScan])
 
   const simulateScan = () => {
     const types: FeedbackType[] = ['board', 'exit', 'unauthorized']
@@ -145,6 +222,15 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
               Arrived
             </Button>
           )}
+          <Button
+            onClick={() => setScanMode((m) => m === 'board' ? 'exit' : 'board')}
+            variant="secondary"
+            size="icon"
+            className="h-14 w-14 rounded-2xl shadow-lg shrink-0"
+            title={scanMode === 'board' ? 'Scan mode: Board (tap to switch to Exit)' : 'Scan mode: Exit (tap to switch to Board)'}
+          >
+            {scanMode === 'board' ? <LogIn className="size-5 text-green-600" /> : <LogOut className="size-5 text-amber-600" />}
+          </Button>
           <Button
             onClick={() => setShowConfirmEnd(true)}
             variant="secondary"
