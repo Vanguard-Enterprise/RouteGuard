@@ -326,10 +326,10 @@ type StudentStop struct {
 
 // RouteAssignment maps to the route_assignments table.
 type RouteAssignment struct {
-	ID            string     `json:"id"`
-	RouteID       string     `json:"route_id"`
-	VehicleID     string     `json:"vehicle_id"`
-	DriverID      string     `json:"driver_id"`
+	ID            string       `json:"id"`
+	RouteID       string       `json:"route_id"`
+	VehicleID     string       `json:"vehicle_id"`
+	DriverID      *string      `json:"driver_id"`
 	EffectiveDate *pgtype.Date `json:"effective_date"`
 	EndDate       *pgtype.Date `json:"end_date"`
 	DaysOfWeek    string       `json:"days_of_week"`
