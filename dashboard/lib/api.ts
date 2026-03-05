@@ -227,6 +227,8 @@ export interface Trip {
   created_at: string
   route_name?: string
   vehicle_number?: string
+  driver_id?: string | null
+  driver_name?: string | null
 }
 
 export interface AutoPlanStop {
@@ -602,6 +604,11 @@ export const api = {
       request<{ trips: { id: string }[] }>('/dashboard/trips/auto-plan/confirm', {
         method: 'POST',
         body: JSON.stringify(payload),
+      }),
+    updateAssignment: (tripId: string, driverId: string | null) =>
+      request<Trip>(`/dashboard/trips/${tripId}/assignment`, {
+        method: 'PATCH',
+        body: JSON.stringify({ driver_id: driverId }),
       }),
   },
   reports: {
