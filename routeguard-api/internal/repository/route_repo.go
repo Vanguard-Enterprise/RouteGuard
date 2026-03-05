@@ -85,15 +85,16 @@ func (r *RouteRepo) routeBelongsToOrg(ctx context.Context, routeID, orgID string
 	return exists, err
 }
 
-// List returns a paginated list of routes for the given org, ordered by name.
-func (r *RouteRepo) List(ctx context.Context, orgID string, limit, offset int) ([]domain.Route, error) {
+// List returns all routes for the given org with school info joined, ordered by created_at DESC.
+func (r *RouteRepo) List(ctx context.Context, orgID string) ([]domain.Route, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+routeSelectCols+`
-		FROM routes
-		WHERE org_id = $1
-		ORDER BY name
-		LIMIT $2 OFFSET $3
-	`, orgID, limit, offset)
+		SELECT r.id, r.org_id, r.name, r.type, r.status, r.description, r.estimated_duration_min,
+		       r.created_at, r.updated_at, r.school_id, s.name, s.lat, s.lng
+		FROM routes r
+		LEFT JOIN schools s ON s.id = r.school_id
+		WHERE r.org_id = $1
+		ORDER BY r.created_at DESC
+	`, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("route list: %w", err)
 	}
@@ -106,6 +107,7 @@ func (r *RouteRepo) List(ctx context.Context, orgID string, limit, offset int) (
 			&rt.ID, &rt.OrgID, &rt.Name, &rt.Type, &rt.Status,
 			&rt.Description, &rt.EstimatedDurationMin,
 			&rt.CreatedAt, &rt.UpdatedAt,
+			&rt.SchoolID, &rt.SchoolName, &rt.SchoolLat, &rt.SchoolLng,
 		); err != nil {
 			return nil, fmt.Errorf("route list scan: %w", err)
 		}
@@ -114,34 +116,44 @@ func (r *RouteRepo) List(ctx context.Context, orgID string, limit, offset int) (
 	return routes, rows.Err()
 }
 
-// Get returns a route by ID scoped to orgID. Returns pgx.ErrNoRows if not found.
+// Get returns a route by ID scoped to orgID, with school info joined. Returns pgx.ErrNoRows if not found.
 func (r *RouteRepo) Get(ctx context.Context, id, orgID string) (*domain.Route, error) {
-	row := r.pool.QueryRow(ctx, `
-		SELECT `+routeSelectCols+`
-		FROM routes
-		WHERE id = $1 AND org_id = $2
-	`, id, orgID)
-	return scanRoute(row)
+	var rt domain.Route
+	err := r.pool.QueryRow(ctx, `
+		SELECT r.id, r.org_id, r.name, r.type, r.status, r.description, r.estimated_duration_min,
+		       r.created_at, r.updated_at, r.school_id, s.name, s.lat, s.lng
+		FROM routes r
+		LEFT JOIN schools s ON s.id = r.school_id
+		WHERE r.id = $1 AND r.org_id = $2
+	`, id, orgID).Scan(
+		&rt.ID, &rt.OrgID, &rt.Name, &rt.Type, &rt.Status,
+		&rt.Description, &rt.EstimatedDurationMin,
+		&rt.CreatedAt, &rt.UpdatedAt,
+		&rt.SchoolID, &rt.SchoolName, &rt.SchoolLat, &rt.SchoolLng,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &rt, nil
 }
 
-// Create inserts a new route and returns the created row.
-func (r *RouteRepo) Create(ctx context.Context, orgID, name, routeType, status string, description *string, estimatedDurationMin *int) (*domain.Route, error) {
-	row := r.pool.QueryRow(ctx, `
-		INSERT INTO routes (id, org_id, name, type, status, description, estimated_duration_min)
-		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
-		RETURNING `+routeSelectCols,
-		orgID, name, routeType, status, description, estimatedDurationMin,
-	)
-	rt, err := scanRoute(row)
+// Create inserts a new route and returns the created row with school info joined.
+func (r *RouteRepo) Create(ctx context.Context, orgID, name, routeType, status string, description *string, estimatedDurationMin *int, schoolID *string) (*domain.Route, error) {
+	var id string
+	err := r.pool.QueryRow(ctx, `
+		INSERT INTO routes (id, org_id, name, type, status, description, estimated_duration_min, school_id)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+		RETURNING id
+	`, orgID, name, routeType, status, description, estimatedDurationMin, schoolID).Scan(&id)
 	if err != nil {
 		return nil, fmt.Errorf("route create: %w", err)
 	}
-	return rt, nil
+	return r.Get(ctx, id, orgID)
 }
 
 // Update applies a partial update to a route scoped to orgID. Only non-nil fields are updated.
 // If no fields are provided, returns the current route via Get.
-func (r *RouteRepo) Update(ctx context.Context, id, orgID string, name, routeType, status, description *string, estimatedDurationMin *int) (*domain.Route, error) {
+func (r *RouteRepo) Update(ctx context.Context, id, orgID string, name, routeType, status, description *string, estimatedDurationMin *int, schoolID *string) (*domain.Route, error) {
 	setClauses := make([]string, 0)
 	args := make([]any, 0)
 
@@ -165,6 +177,10 @@ func (r *RouteRepo) Update(ctx context.Context, id, orgID string, name, routeTyp
 		args = append(args, *estimatedDurationMin)
 		setClauses = append(setClauses, fmt.Sprintf("estimated_duration_min = $%d", len(args)))
 	}
+	if schoolID != nil {
+		args = append(args, *schoolID)
+		setClauses = append(setClauses, fmt.Sprintf("school_id = $%d", len(args)))
+	}
 
 	if len(setClauses) == 0 {
 		return r.Get(ctx, id, orgID)
@@ -177,18 +193,16 @@ func (r *RouteRepo) Update(ctx context.Context, id, orgID string, name, routeTyp
 
 	query := fmt.Sprintf(`
 		UPDATE routes
-		SET %s, updated_at = NOW()
+		SET %s, updated_at = now()
 		WHERE id = %s AND org_id = %s
-		RETURNING `+routeSelectCols,
-		strings.Join(setClauses, ", "), idParam, orgParam,
-	)
+		RETURNING id
+	`, strings.Join(setClauses, ", "), idParam, orgParam)
 
-	row := r.pool.QueryRow(ctx, query, args...)
-	rt, err := scanRoute(row)
-	if err != nil {
+	var updatedID string
+	if err := r.pool.QueryRow(ctx, query, args...).Scan(&updatedID); err != nil {
 		return nil, fmt.Errorf("route update: %w", err)
 	}
-	return rt, nil
+	return r.Get(ctx, updatedID, orgID)
 }
 
 // Delete hard-deletes a route by ID scoped to orgID. Returns pgx.ErrNoRows if not found.

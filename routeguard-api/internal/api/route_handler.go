@@ -82,7 +82,7 @@ func (h *Handler) ListMyRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
-	routes, err := repo.List(r.Context(), orgID, limit, offset)
+	routes, err := repo.List(r.Context(), orgID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -116,7 +116,7 @@ func (h *Handler) CreateMyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
-	route, err := repo.Create(r.Context(), orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin)
+	route, err := repo.Create(r.Context(), orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, nil)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -164,7 +164,7 @@ func (h *Handler) UpdateMyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
-	route, err := repo.Update(r.Context(), id, orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin)
+	route, err := repo.Update(r.Context(), id, orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, nil)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "route not found")
