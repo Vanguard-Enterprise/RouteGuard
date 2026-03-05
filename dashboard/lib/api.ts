@@ -174,6 +174,7 @@ export interface Vehicle {
   vin: string | null
   license_plate: string | null
   status: string
+  device_id: string | null
   created_at: string
   updated_at: string
 }
@@ -207,7 +208,7 @@ export interface RouteAssignment {
   id: string
   route_id: string
   vehicle_id: string
-  driver_id: string
+  driver_id: string | null
   effective_date: string | null
   end_date: string | null
   days_of_week: string
@@ -224,6 +225,33 @@ export interface Trip {
   completed_at: string | null
   notes: string | null
   created_at: string
+  route_name?: string
+  vehicle_number?: string
+}
+
+export interface AutoPlanStop {
+  order: number
+  lat: number
+  lng: number
+  address?: string
+  student_ids: string[]
+}
+
+export interface AutoPlanBus {
+  vehicle_id: string
+  vehicle_number?: string
+  stops: AutoPlanStop[]
+}
+
+export interface AutoPlanResponse {
+  buses: AutoPlanBus[]
+  unassigned_students: string[]
+}
+
+export interface AutoPlanConfirmRequest {
+  date: string
+  type: string
+  buses: AutoPlanBus[]
 }
 
 export interface DailySummary {
@@ -565,6 +593,16 @@ export const api = {
       request<Trip>('/dashboard/trips', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Trip>) =>
       request<Trip>(`/dashboard/trips/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    autoplan: (date: string, type: string) =>
+      request<AutoPlanResponse>('/dashboard/trips/auto-plan', {
+        method: 'POST',
+        body: JSON.stringify({ date, type }),
+      }),
+    autoPlanConfirm: (payload: AutoPlanConfirmRequest) =>
+      request<{ trips: { id: string }[] }>('/dashboard/trips/auto-plan/confirm', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
   },
   reports: {
     dailySummaries: {

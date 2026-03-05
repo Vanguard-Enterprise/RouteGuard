@@ -1,0 +1,1 @@
+ALTER TABLE vehicles ADD COLUMN device_id UUID REFERENCES devices(id) ON DELETE SET NULL;

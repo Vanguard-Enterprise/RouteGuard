@@ -25,6 +25,7 @@ type Config struct {
 	RustFSBucket            string
 	RustFSPublicURL         string
 	IsProd            bool
+	MapboxSecretToken string
 }
 
 func Load() (*Config, error) {
@@ -60,6 +61,7 @@ func Load() (*Config, error) {
 		RustFSBucket:          envOr("RUSTFS_BUCKET", "avatars"),
 		RustFSPublicURL:       envOr("RUSTFS_PUBLIC_URL", "http://localhost:9000/avatars"),
 		IsProd:            os.Getenv("NODE_ENV") == "production" || os.Getenv("ENV") == "production",
+		MapboxSecretToken: os.Getenv("MAPBOX_SECRET_TOKEN"),
 	}, nil
 }
 

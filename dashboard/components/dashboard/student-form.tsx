@@ -5,19 +5,20 @@ import { useForm, FormProvider } from 'react-hook-form'
 import AddressAutocomplete from '@/components/dashboard/address-autocomplete'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { ChevronDown } from 'lucide-react'
 import { api, School, Student } from '@/lib/api'
 
 const schema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   school_id: z.string().min(1, 'School is required'),
-  student_number: z.string().optional(),
-  grade: z.string().optional(),
-  status: z.enum(['active', 'inactive']),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   zip: z.string().optional(),
+  student_number: z.string().optional(),
+  grade: z.string().optional(),
+  status: z.enum(['active', 'inactive']),
   medical_notes: z.string().optional(),
   rfid_tag_id: z.string().optional(),
 })
@@ -39,13 +40,13 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
       first_name: student?.first_name ?? '',
       last_name: student?.last_name ?? '',
       school_id: student?.school_id ?? '',
-      student_number: student?.student_number ?? '',
-      grade: student?.grade ?? '',
-      status: (student?.status as 'active' | 'inactive') ?? 'active',
       address: student?.address ?? '',
       city: student?.city ?? '',
       state: student?.state ?? '',
       zip: student?.zip ?? '',
+      student_number: student?.student_number ?? '',
+      grade: student?.grade ?? '',
+      status: (student?.status as 'active' | 'inactive') ?? 'active',
       medical_notes: student?.medical_notes ?? '',
       rfid_tag_id: '',
     },
@@ -58,13 +59,13 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
         first_name: data.first_name,
         last_name: data.last_name,
         school_id: data.school_id,
-        student_number: data.student_number || null,
-        grade: data.grade || null,
-        status: data.status,
         address: data.address || null,
         city: data.city || null,
         state: data.state || null,
         zip: data.zip || null,
+        student_number: data.student_number || null,
+        grade: data.grade || null,
+        status: data.status,
         medical_notes: data.medical_notes || null,
       }
       if (data.rfid_tag_id) {
@@ -142,48 +143,6 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="student_number"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Student Number
-              </label>
-              <input
-                id="student_number"
-                {...register('student_number')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                placeholder="12345"
-              />
-            </div>
-            <div>
-              <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-1">
-                Grade
-              </label>
-              <input
-                id="grade"
-                {...register('grade')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                placeholder="3"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              id="status"
-              {...register('status')}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition bg-white"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
           <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
               Address
@@ -191,74 +150,93 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
             <AddressAutocomplete name="address" />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-                City
-              </label>
-              <input
-                id="city"
-                {...register('city')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-              />
-            </div>
-            <div>
-              <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
-                State
-              </label>
-              <input
-                id="state"
-                {...register('state')}
-                maxLength={2}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                placeholder="CA"
-              />
-            </div>
-            <div>
-              <label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-1">
-                ZIP
-              </label>
-              <input
-                id="zip"
-                {...register('zip')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                placeholder="90210"
-              />
-            </div>
-          </div>
+          {/* city/state/zip stay in form state (populated by AddressAutocomplete) but are hidden */}
+          <input type="hidden" {...register('city')} />
+          <input type="hidden" {...register('state')} />
+          <input type="hidden" {...register('zip')} />
 
-          <div>
-            <label
-              htmlFor="medical_notes"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Medical Notes
-            </label>
-            <textarea
-              id="medical_notes"
-              {...register('medical_notes')}
-              rows={3}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition resize-none"
-              placeholder="Any relevant medical information…"
-            />
-          </div>
+          <details className="group">
+            <summary className="text-sm font-medium text-gray-500 cursor-pointer hover:text-gray-700 mb-3 list-none flex items-center gap-1">
+              <ChevronDown size={14} className="group-open:rotate-180 transition-transform" />
+              More details
+            </summary>
+            <div className="space-y-4 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="student_number"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Student Number
+                  </label>
+                  <input
+                    id="student_number"
+                    {...register('student_number')}
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                    placeholder="12345"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-1">
+                    Grade
+                  </label>
+                  <input
+                    id="grade"
+                    {...register('grade')}
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                    placeholder="3"
+                  />
+                </div>
+              </div>
 
-          <div>
-            <label htmlFor="rfid_tag_id" className="block text-sm font-medium text-gray-700 mb-1">
-              RFID Tag
-              {mode === 'edit' && student?.rfid_tag_id && (
-                <span className="ml-2 text-xs text-gray-400">(leave blank to keep current)</span>
-              )}
-            </label>
-            <input
-              id="rfid_tag_id"
-              {...register('rfid_tag_id')}
-              type="password"
-              autoComplete="off"
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-              placeholder={mode === 'edit' && student?.rfid_tag_id ? '••••••••' : 'Scan or enter tag ID'}
-            />
-          </div>
+              <div>
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  id="status"
+                  {...register('status')}
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition bg-white"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="medical_notes"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Medical Notes
+                </label>
+                <textarea
+                  id="medical_notes"
+                  {...register('medical_notes')}
+                  rows={3}
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition resize-none"
+                  placeholder="Any relevant medical information…"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="rfid_tag_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  RFID Tag
+                  {mode === 'edit' && student?.rfid_tag_id && (
+                    <span className="ml-2 text-xs text-gray-400">(leave blank to keep current)</span>
+                  )}
+                </label>
+                <input
+                  id="rfid_tag_id"
+                  {...register('rfid_tag_id')}
+                  type="password"
+                  autoComplete="off"
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                  placeholder={mode === 'edit' && student?.rfid_tag_id ? '••••••••' : 'Scan or enter tag ID'}
+                />
+              </div>
+            </div>
+          </details>
 
           <div className="flex gap-3 pt-2">
             <button
