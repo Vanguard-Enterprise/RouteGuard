@@ -63,8 +63,10 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     if (!raw) return
     try {
       const parsed = JSON.parse(raw) as StopEntry[]
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setManifest(parsed)
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setManifest([])
     }
   }, [])

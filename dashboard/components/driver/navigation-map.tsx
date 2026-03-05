@@ -208,7 +208,6 @@ export default function NavigationMap({
         setStepDistM(firstStep.distance)
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [stops, currentStopIdx, destination, mode, drawRoute]
   )
 
