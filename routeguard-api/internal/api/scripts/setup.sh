@@ -210,22 +210,23 @@ done
 CHECKIN
 chmod 755 /usr/local/bin/rg-checkin
 
-# --- Install rg-kiosk.sh ---
-cat > /usr/local/bin/rg-kiosk.sh << 'KIOSK'
+# --- Install rg-kiosk-x.sh (runs inside X session via startx) ---
+cat > /usr/local/bin/rg-kiosk-x.sh << 'KIOSK'
 #!/bin/bash
-set -e
-
 TOKEN_FILE="/etc/routeguard/token"
-EXT_DIR="/etc/routeguard/extension"
 APP_URL="https://route-guard.com/driver"
-CHROMIUM_DATA="/var/lib/routeguard/chromium"
+CHROMIUM_DATA="/root/snap/chromium/common/routeguard"
 
 export DISPLAY=:0
-if ! pidof Xorg > /dev/null 2>&1; then
-    Xorg :0 vt1 -nolisten tcp &
-    sleep 2
-    openbox &
-fi
+export XDG_RUNTIME_DIR=/tmp/routeguard-runtime
+mkdir -p "$XDG_RUNTIME_DIR"
+mkdir -p /run/user/0
+chmod 700 /run/user/0
+
+xrandr --output eDP-1-1 --auto 2>/dev/null || true
+unclutter -idle 0 -root &
+openbox &
+sleep 1
 
 until /usr/local/bin/rg-checkin; do
     echo "rg-kiosk: checkin failed, retrying in 10s..."
@@ -233,39 +234,10 @@ until /usr/local/bin/rg-checkin; do
 done
 
 TOKEN=$(tr -d '[:space:]' < "$TOKEN_FILE")
-
-mkdir -p "$EXT_DIR"
-cat > "$EXT_DIR/manifest.json" << 'MANIFEST'
-{
-  "name": "RouteGuard Bootstrap",
-  "version": "1.0",
-  "manifest_version": 3,
-  "content_scripts": [{
-    "matches": ["https://route-guard.com/*"],
-    "js": ["bootstrap.js"],
-    "run_at": "document_start",
-    "world": "MAIN"
-  }]
-}
-MANIFEST
-
-cat > "$EXT_DIR/bootstrap.js" << EOF
-(function () {
-  var t = "${TOKEN}";
-  if (t && !localStorage.getItem('device_token')) {
-    localStorage.setItem('device_token', t);
-  }
-})();
-EOF
-
 mkdir -p "$CHROMIUM_DATA"
 
-exec chromium \
+exec chromium-browser \
     --kiosk \
-    --app="$APP_URL" \
-    --load-extension="$EXT_DIR" \
-    --disable-extensions-except="$EXT_DIR" \
-    --user-data-dir="$CHROMIUM_DATA" \
     --no-first-run \
     --disable-infobars \
     --disable-session-crashed-bubble \
@@ -273,28 +245,28 @@ exec chromium \
     --noerrdialogs \
     --no-sandbox \
     --test-type \
-    --disable-features=TranslateUI
+    --disable-gpu \
+    --touch-events=enabled \
+    --disable-features=TranslateUI \
+    --user-data-dir="$CHROMIUM_DATA" \
+    "$APP_URL?device_token=$TOKEN"
 KIOSK
-chmod 755 /usr/local/bin/rg-kiosk.sh
+chmod 755 /usr/local/bin/rg-kiosk-x.sh
 
-# --- Install systemd service ---
-cat > /etc/systemd/system/routeguard-kiosk.service << 'SERVICE'
-[Unit]
-Description=RouteGuard Kiosk
-After=network-online.target
-Wants=network-online.target
-
+# --- Set up autologin on tty1 + startx ---
+# This is more reliable than a systemd service for X on machines with Optimus/hybrid GPU
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << 'AUTOLOGIN'
 [Service]
-User=root
-ExecStart=/usr/local/bin/rg-kiosk.sh
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
+AUTOLOGIN
 
-[Install]
-WantedBy=multi-user.target
-SERVICE
+cat > /root/.bash_profile << 'BASHPROFILE'
+if [ "$(tty)" = "/dev/tty1" ]; then
+    exec startx /usr/local/bin/rg-kiosk-x.sh -- :0 vt1 -nolisten tcp -ac
+fi
+BASHPROFILE
 
 # --- Install WiFi profile ---
 mkdir -p /etc/NetworkManager/system-connections
@@ -320,9 +292,9 @@ method=auto
 NMCONN
 chmod 600 /etc/NetworkManager/system-connections/routeguard.nmconnection
 
-# --- Enable services ---
+# --- Enable autologin ---
 systemctl daemon-reload
-systemctl enable routeguard-kiosk.service
+systemctl enable getty@tty1.service
 
 echo ""
 echo "==> RouteGuard setup complete."
