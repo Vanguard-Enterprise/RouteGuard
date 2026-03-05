@@ -245,7 +245,7 @@ exec chromium-browser \
     --noerrdialogs \
     --no-sandbox \
     --test-type \
-    --disable-gpu \
+    --use-gl=swiftshader \
     --touch-events=enabled \
     --disable-features=TranslateUI \
     --user-data-dir="$CHROMIUM_DATA" \

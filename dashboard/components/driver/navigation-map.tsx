@@ -139,12 +139,17 @@ export default function NavigationMap({
   // Init map
   useEffect(() => {
     if (!containerRef.current) return
+    if (!mapboxgl.supported({ failIfMajorPerformanceCaveat: false })) {
+      console.error('NavigationMap: WebGL not supported')
+      return
+    }
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [-98.5, 39.5],
       zoom: 4,
       pitchWithRotate: false,
+      failIfMajorPerformanceCaveat: false,
     })
     mapRef.current = map
     return () => {
