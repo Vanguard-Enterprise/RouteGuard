@@ -44,13 +44,13 @@ export default function TripDetailMap({ trip: initialTrip, stops = [], orgId }: 
   const { locations, scans } = useTripStream(orgId)
   const busLocation = locations[trip.id]
 
-  const boardCounts: Record<string, number> = {}
-  const exitCounts: Record<string, number> = {}
+  const boardedNames: Record<string, string[]> = {}
+  const exitedNames: Record<string, string[]> = {}
   scans.forEach((s) => {
     if (s.scan_type === 'board') {
-      boardCounts[s.stop_id] = (boardCounts[s.stop_id] ?? 0) + 1
+      boardedNames[s.stop_id] = [...(boardedNames[s.stop_id] ?? []), s.student_name]
     } else {
-      exitCounts[s.stop_id] = (exitCounts[s.stop_id] ?? 0) + 1
+      exitedNames[s.stop_id] = [...(exitedNames[s.stop_id] ?? []), s.student_name]
     }
   })
 
@@ -121,16 +121,15 @@ export default function TripDetailMap({ trip: initialTrip, stops = [], orgId }: 
           <thead>
             <tr className="border-b border-gray-100">
               <th className="text-left px-5 py-2 text-xs font-medium text-gray-500 w-8">#</th>
-              <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Stop Name</th>
-              <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Scheduled Time</th>
-              <th className="text-right px-5 py-2 text-xs font-medium text-gray-500">Board Count</th>
-              <th className="text-right px-5 py-2 text-xs font-medium text-gray-500">Exit Count</th>
+              <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Stop</th>
+              <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Boarded</th>
+              <th className="text-left px-5 py-2 text-xs font-medium text-gray-500">Exited</th>
             </tr>
           </thead>
           <tbody>
             {stops.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={4} className="px-5 py-8 text-center text-gray-400 text-sm">
                   No stops data available for this trip.
                 </td>
               </tr>
@@ -139,9 +138,16 @@ export default function TripDetailMap({ trip: initialTrip, stops = [], orgId }: 
                 <tr key={stop.id} className="border-b border-gray-50 last:border-0">
                   <td className="px-5 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
                   <td className="px-5 py-2.5 font-medium text-gray-800">{stop.name}</td>
-                  <td className="px-5 py-2.5 text-gray-600">{stop.scheduled_time ?? '—'}</td>
-                  <td className="px-5 py-2.5 text-right text-gray-600">{boardCounts[stop.id] ?? 0}</td>
-                  <td className="px-5 py-2.5 text-right text-gray-600">{exitCounts[stop.id] ?? 0}</td>
+                  <td className="px-5 py-2.5 text-gray-600 text-xs">
+                    {(boardedNames[stop.id] ?? []).length === 0
+                      ? <span className="text-gray-300">—</span>
+                      : boardedNames[stop.id].join(', ')}
+                  </td>
+                  <td className="px-5 py-2.5 text-gray-600 text-xs">
+                    {(exitedNames[stop.id] ?? []).length === 0
+                      ? <span className="text-gray-300">—</span>
+                      : exitedNames[stop.id].join(', ')}
+                  </td>
                 </tr>
               ))
             )}
