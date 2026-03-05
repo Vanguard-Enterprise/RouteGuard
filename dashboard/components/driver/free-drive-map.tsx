@@ -171,7 +171,7 @@ export default function FreeDriveMap() {
 
   if (mapError) {
     return (
-      <div className="relative w-screen h-screen overflow-hidden flex flex-col">
+      <div className="fixed inset-0 overflow-hidden flex flex-col">
         <div className="flex items-center gap-2 px-3 py-3 border-b border-border">
           <Button
             size="icon"
@@ -191,7 +191,7 @@ export default function FreeDriveMap() {
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden">
+    <div className="fixed inset-0 overflow-hidden">
       {/* Map canvas */}
       <div ref={containerRef} className="absolute inset-0" />
 
