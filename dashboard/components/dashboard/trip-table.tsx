@@ -247,7 +247,8 @@ export default function TripTable({ trips: initial }: TripTableProps) {
         (t) =>
           t.date.includes(search) ||
           t.status.toLowerCase().includes(search.toLowerCase()) ||
-          t.route_assignment_id.toLowerCase().includes(search.toLowerCase()),
+          (t.route_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+          (t.vehicle_number ?? '').toLowerCase().includes(search.toLowerCase()),
       )
     : trips
 
@@ -267,10 +268,21 @@ export default function TripTable({ trips: initial }: TripTableProps) {
       ),
     },
     {
-      key: 'route_assignment_id',
-      header: 'Assignment',
+      key: 'route_name',
+      header: 'Route',
       render: (row) => (
-        <span className="font-mono text-xs text-gray-600">{row.route_assignment_id.slice(0, 8)}…</span>
+        <span className="text-sm text-gray-700">
+          {row.route_name ?? row.route_assignment_id.slice(0, 8) + '…'}
+        </span>
+      ),
+    },
+    {
+      key: 'vehicle_number',
+      header: 'Bus',
+      render: (row) => (
+        <span className="text-sm text-gray-600">
+          {row.vehicle_number ? `Bus ${row.vehicle_number}` : '—'}
+        </span>
       ),
     },
     {
