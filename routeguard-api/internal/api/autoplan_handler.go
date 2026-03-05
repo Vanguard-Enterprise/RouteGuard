@@ -12,8 +12,9 @@ import (
 )
 
 type autoPlanRequest struct {
-	Date string `json:"date"` // YYYY-MM-DD
-	Type string `json:"type"` // morning | afternoon | midday
+	Date     string  `json:"date"`      // YYYY-MM-DD
+	Type     string  `json:"type"`      // morning | afternoon | midday
+	SchoolID *string `json:"school_id"` // optional: filter and use as fixed waypoint
 }
 
 type autoPlanStop struct {
@@ -33,6 +34,9 @@ type autoPlanBus struct {
 type autoPlanResponse struct {
 	Buses              []autoPlanBus `json:"buses"`
 	UnassignedStudents []string      `json:"unassigned_students"`
+	SchoolLat          *float64      `json:"school_lat,omitempty"`
+	SchoolLng          *float64      `json:"school_lng,omitempty"`
+	SchoolName         *string       `json:"school_name,omitempty"`
 }
 
 // AutoPlanTrips handles POST /dashboard/trips/auto-plan
@@ -75,6 +79,22 @@ func (h *Handler) AutoPlanTrips(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch school coordinates if provided
+	var schoolLat, schoolLng *float64
+	var schoolName *string
+	if req.SchoolID != nil && *req.SchoolID != "" {
+		var slat, slng float64
+		var sname string
+		err := h.pool.QueryRow(r.Context(), `
+			SELECT name, lat, lng FROM schools WHERE id = $1 AND org_id = $2
+		`, *req.SchoolID, orgID).Scan(&sname, &slat, &slng)
+		if err == nil {
+			schoolLat = &slat
+			schoolLng = &slng
+			schoolName = &sname
+		}
+	}
+
 	// Build autoplan inputs
 	pts := make([]autoplan.StudentPoint, 0, len(students))
 	addrByID := make(map[string]*string)
@@ -105,8 +125,39 @@ func (h *Handler) AutoPlanTrips(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mapboxToken := h.cfg.MapboxSecretToken
+	hasSchool := schoolLat != nil && schoolLng != nil
+	schoolPoint := autoplan.StudentPoint{ID: "_school"}
+	if hasSchool {
+		schoolPoint.Lat = *schoolLat
+		schoolPoint.Lng = *schoolLng
+	}
+
 	for _, g := range groups {
-		ordered, _ := autoplan.OptimizeStops(r.Context(), mapboxToken, g.Points)
+		ptsToOptimize := g.Points
+
+		if hasSchool {
+			if req.Type == "afternoon" || req.Type == "midday" {
+				// school is the origin: prepend
+				ptsToOptimize = append([]autoplan.StudentPoint{schoolPoint}, g.Points...)
+			} else {
+				// school is the destination: append
+				ptsToOptimize = append(g.Points, schoolPoint)
+			}
+		}
+
+		ordered, _ := autoplan.OptimizeStops(r.Context(), mapboxToken, ptsToOptimize)
+
+		// Strip the school point from the result before building stops
+		if hasSchool {
+			filtered := make([]autoplan.StudentPoint, 0, len(ordered))
+			for _, p := range ordered {
+				if p.ID != "_school" {
+					filtered = append(filtered, p)
+				}
+			}
+			ordered = filtered
+		}
+
 		stops := make([]autoPlanStop, 0, len(ordered))
 		for i, pt := range ordered {
 			stop := autoPlanStop{
@@ -128,6 +179,10 @@ func (h *Handler) AutoPlanTrips(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	resp.SchoolLat = schoolLat
+	resp.SchoolLng = schoolLng
+	resp.SchoolName = schoolName
+
 	JSON(w, http.StatusOK, resp)
 }
 
@@ -145,9 +200,10 @@ type confirmBus struct {
 }
 
 type autoPlanConfirmRequest struct {
-	Date  string       `json:"date"` // YYYY-MM-DD
-	Type  string       `json:"type"` // morning | afternoon | midday
-	Buses []confirmBus `json:"buses"`
+	Date     string       `json:"date"`      // YYYY-MM-DD
+	Type     string       `json:"type"`      // morning | afternoon | midday
+	Buses    []confirmBus `json:"buses"`
+	SchoolID *string      `json:"school_id"` // optional: persisted on each created route
 }
 
 // AutoPlanConfirm handles POST /dashboard/trips/auto-plan/confirm
@@ -204,10 +260,10 @@ func (h *Handler) AutoPlanConfirm(w http.ResponseWriter, r *http.Request) {
 		// 2. Create route
 		var routeID string
 		err = tx.QueryRow(ctx, `
-			INSERT INTO routes (id, org_id, name, type, status, created_at, updated_at)
-			VALUES (gen_random_uuid(), $1, $2, $3, 'active', now(), now())
+			INSERT INTO routes (id, org_id, name, type, status, school_id, created_at, updated_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, 'active', $4, now(), now())
 			RETURNING id
-		`, orgID, routeName, req.Type).Scan(&routeID)
+		`, orgID, routeName, req.Type, req.SchoolID).Scan(&routeID)
 		if err != nil {
 			Error(w, http.StatusInternalServerError, "failed to create route")
 			return
