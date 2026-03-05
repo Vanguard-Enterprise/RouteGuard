@@ -189,6 +189,10 @@ export interface Route {
   estimated_duration_min: number | null
   created_at: string
   updated_at: string
+  school_id?: string | null
+  school_name?: string | null
+  school_lat?: number | null
+  school_lng?: number | null
 }
 
 export interface Stop {
@@ -248,12 +252,16 @@ export interface AutoPlanBus {
 export interface AutoPlanResponse {
   buses: AutoPlanBus[]
   unassigned_students: string[]
+  school_lat?: number | null
+  school_lng?: number | null
+  school_name?: string | null
 }
 
 export interface AutoPlanConfirmRequest {
   date: string
   type: string
   buses: AutoPlanBus[]
+  school_id?: string | null
 }
 
 export interface DailySummary {
@@ -595,10 +603,10 @@ export const api = {
       request<Trip>('/dashboard/trips', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Trip>) =>
       request<Trip>(`/dashboard/trips/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    autoplan: (date: string, type: string) =>
+    autoplan: (date: string, type: string, schoolId?: string | null) =>
       request<AutoPlanResponse>('/dashboard/trips/auto-plan', {
         method: 'POST',
-        body: JSON.stringify({ date, type }),
+        body: JSON.stringify({ date, type, school_id: schoolId ?? null }),
       }),
     autoPlanConfirm: (payload: AutoPlanConfirmRequest) =>
       request<{ trips: { id: string }[] }>('/dashboard/trips/auto-plan/confirm', {
