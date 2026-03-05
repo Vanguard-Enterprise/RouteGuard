@@ -1,16 +1,18 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api, Route } from '@/lib/api'
+import { api, Route, School } from '@/lib/api'
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   type: z.enum(['morning', 'afternoon', 'midday', 'special']),
   description: z.string().optional(),
   estimated_duration_min: z.string().optional(),
+  school_id: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -23,6 +25,10 @@ interface RouteFormProps {
 
 export default function RouteForm({ route, mode, onSaved }: RouteFormProps) {
   const router = useRouter()
+  const [schools, setSchools] = useState<School[]>([])
+  useEffect(() => {
+    api.schools.list().then(setSchools).catch(() => {})
+  }, [])
 
   const {
     register,
@@ -36,6 +42,7 @@ export default function RouteForm({ route, mode, onSaved }: RouteFormProps) {
       description: route?.description ?? '',
       estimated_duration_min:
         route?.estimated_duration_min != null ? String(route.estimated_duration_min) : '',
+      school_id: route?.school_id ?? '',
     },
   })
 
@@ -48,6 +55,7 @@ export default function RouteForm({ route, mode, onSaved }: RouteFormProps) {
         estimated_duration_min: data.estimated_duration_min
           ? parseInt(data.estimated_duration_min, 10)
           : null,
+        school_id: data.school_id || null,
       }
       let saved: Route
       if (mode === 'create') {
@@ -103,6 +111,24 @@ export default function RouteForm({ route, mode, onSaved }: RouteFormProps) {
               <option value="afternoon">Afternoon</option>
               <option value="midday">Midday</option>
               <option value="special">Special</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="school_id" className="block text-sm font-medium text-gray-700 mb-1">
+              School (start/end point)
+            </label>
+            <select
+              id="school_id"
+              {...register('school_id')}
+              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition bg-white"
+            >
+              <option value="">None</option>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </div>
 
