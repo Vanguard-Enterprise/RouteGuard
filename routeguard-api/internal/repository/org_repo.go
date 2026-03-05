@@ -220,6 +220,10 @@ func (r *OrgRepo) SeedSystemRoles(ctx context.Context, orgID string) error {
 			name:        "driver",
 			permissions: []string{"trips:read"},
 		},
+		{
+			name:        "dispatcher",
+			permissions: []string{"trips:read", "routes:read"},
+		},
 	}
 
 	for _, role := range roles {

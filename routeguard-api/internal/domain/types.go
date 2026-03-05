@@ -30,6 +30,12 @@ func (o *Organization) ParsedSettings() OrgSettings {
 	return s
 }
 
+// KioskContact is a dispatcher contact shown on the kiosk when a driver has no assignment.
+type KioskContact struct {
+	Name  string `json:"name"`
+	Phone string `json:"phone"`
+}
+
 // Organization maps to the organizations table.
 type Organization struct {
 	ID        string          `json:"id"`
@@ -49,6 +55,7 @@ type User struct {
 	OrgID       *string    `json:"org_id"`
 	Email       string     `json:"email"`
 	Name        string     `json:"name"`
+	Phone       *string    `json:"phone"`
 	AvatarURL   *string    `json:"avatar_url"`
 	LastLoginAt *time.Time `json:"last_login_at"`
 	DeletedAt   *time.Time `json:"deleted_at"`
