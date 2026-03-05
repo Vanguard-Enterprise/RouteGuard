@@ -32,7 +32,7 @@ func NewSettingsUserRepo(pool *pgxpool.Pool) *SettingsUserRepo {
 func scanSettingsUser(row pgx.Row) (*domain.User, error) {
 	var u domain.User
 	if err := row.Scan(
-		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt,
+		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.Phone, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func scanSettingsUser(row pgx.Row) (*domain.User, error) {
 // ListByOrg returns a paginated list of users belonging to the given org, ordered by name.
 func (r *SettingsUserRepo) ListByOrg(ctx context.Context, orgID string, limit, offset int) ([]domain.User, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, org_id, email, name, avatar_url, last_login_at, created_at
+		SELECT id, org_id, email, name, phone, avatar_url, last_login_at, created_at
 		FROM users
 		WHERE org_id = $1
 		ORDER BY name
@@ -57,7 +57,7 @@ func (r *SettingsUserRepo) ListByOrg(ctx context.Context, orgID string, limit, o
 	for rows.Next() {
 		var u domain.User
 		if err := rows.Scan(
-			&u.ID, &u.OrgID, &u.Email, &u.Name, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt,
+			&u.ID, &u.OrgID, &u.Email, &u.Name, &u.Phone, &u.AvatarURL, &u.LastLoginAt, &u.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("settings user list: %w", err)
 		}
@@ -69,7 +69,7 @@ func (r *SettingsUserRepo) ListByOrg(ctx context.Context, orgID string, limit, o
 // GetByOrg returns a single user by ID scoped to orgID. Returns pgx.ErrNoRows if not found.
 func (r *SettingsUserRepo) GetByOrg(ctx context.Context, id, orgID string) (*domain.User, error) {
 	row := r.pool.QueryRow(ctx, `
-		SELECT id, org_id, email, name, avatar_url, last_login_at, created_at
+		SELECT id, org_id, email, name, phone, avatar_url, last_login_at, created_at
 		FROM users
 		WHERE id = $1 AND org_id = $2
 	`, id, orgID)
@@ -136,6 +136,53 @@ func (r *SettingsUserRepo) UnassignRole(ctx context.Context, userID, roleID, org
 	`, userID, roleID, orgID)
 	if err != nil {
 		return fmt.Errorf("settings unassign role: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+// ListDispatchersByOrg returns name+phone for all users in orgID with the
+// dispatcher system role who have a phone number set, ordered by name.
+func (r *SettingsUserRepo) ListDispatchersByOrg(ctx context.Context, orgID string) ([]domain.KioskContact, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT u.name, u.phone
+		FROM users u
+		JOIN user_roles ur ON ur.user_id = u.id
+		JOIN org_roles orr ON orr.id = ur.role_id
+		WHERE orr.org_id = $1
+		  AND orr.name = 'dispatcher'
+		  AND orr.is_system = true
+		  AND u.phone IS NOT NULL
+		  AND u.deleted_at IS NULL
+		ORDER BY u.name
+	`, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("list dispatchers: %w", err)
+	}
+	defer rows.Close()
+
+	contacts := make([]domain.KioskContact, 0)
+	for rows.Next() {
+		var c domain.KioskContact
+		if err := rows.Scan(&c.Name, &c.Phone); err != nil {
+			return nil, fmt.Errorf("list dispatchers scan: %w", err)
+		}
+		contacts = append(contacts, c)
+	}
+	return contacts, rows.Err()
+}
+
+// UpdatePhone sets the phone number for a user scoped to orgID.
+// Pass nil to clear the phone. Returns pgx.ErrNoRows if user not found in org.
+func (r *SettingsUserRepo) UpdatePhone(ctx context.Context, orgID, userID string, phone *string) error {
+	tag, err := r.pool.Exec(ctx,
+		"UPDATE users SET phone = $1 WHERE id = $2 AND org_id = $3",
+		phone, userID, orgID,
+	)
+	if err != nil {
+		return fmt.Errorf("update user phone: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return pgx.ErrNoRows
