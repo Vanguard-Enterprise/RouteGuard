@@ -1,18 +1,15 @@
 'use client'
 import { useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function DeviceBootstrap() {
-  const router = useRouter()
-  const params = useSearchParams()
-
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     if (token) {
       localStorage.setItem('device_token', token)
     }
-    router.replace('/driver')
-  }, [params, router])
+    window.location.replace('/driver')
+  }, [])
 
   return null
 }
