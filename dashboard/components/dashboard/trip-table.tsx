@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, ChevronDown, Search } from 'lucide-react'
+import { Plus, ChevronDown, Search, Wand2 } from 'lucide-react'
 import { DataTable, ColumnDef } from '@/components/dashboard/data-table'
 import { api, Trip, Route, RouteAssignment } from '@/lib/api'
+import AutoPlanWizard from '@/components/dashboard/auto-plan-wizard'
 
 interface TripTableProps {
   trips: Trip[]
@@ -240,6 +241,7 @@ export default function TripTable({ trips: initial }: TripTableProps) {
   const router = useRouter()
   const [trips, setTrips] = useState(initial)
   const [showNewForm, setShowNewForm] = useState(false)
+  const [showAutoPlan, setShowAutoPlan] = useState(false)
   const [search, setSearch] = useState('')
 
   const filtered = search
@@ -310,15 +312,36 @@ export default function TripTable({ trips: initial }: TripTableProps) {
         <h2 className="text-xl font-semibold" style={{ color: 'var(--color-brand-navy)' }}>
           Trips
         </h2>
-        <button
-          onClick={() => setShowNewForm((v) => !v)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-brand-navy)' }}
-        >
-          <Plus size={15} />
-          New Trip
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAutoPlan((v) => !v)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-brand-navy)' }}
+          >
+            <Wand2 size={15} />
+            Plan Trips
+          </button>
+          <button
+            onClick={() => setShowNewForm((v) => !v)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Plus size={15} />
+            Manual
+          </button>
+        </div>
       </div>
+
+      {showAutoPlan && (
+        <div className="mb-4">
+          <AutoPlanWizard
+            onClose={() => setShowAutoPlan(false)}
+            onConfirmed={() => {
+              setShowAutoPlan(false)
+              router.refresh()
+            }}
+          />
+        </div>
+      )}
 
       {showNewForm && (
         <NewTripForm
