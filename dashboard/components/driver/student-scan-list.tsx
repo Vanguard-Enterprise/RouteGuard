@@ -25,20 +25,20 @@ function timeAgo(ts: number): string {
 const SCAN_CONFIG = {
   board: {
     Icon: UserCheck,
-    iconClass: 'text-green-400',
-    badgeClass: 'bg-green-900/50 text-green-200 border-green-700',
+    iconClass: 'text-green-600',
+    badgeClass: 'bg-green-100 text-green-700 border-green-300',
     label: 'Boarded',
   },
   exit: {
     Icon: UserMinus,
-    iconClass: 'text-amber-400',
-    badgeClass: 'bg-amber-900/50 text-amber-200 border-amber-700',
+    iconClass: 'text-amber-600',
+    badgeClass: 'bg-amber-100 text-amber-700 border-amber-300',
     label: 'Exited',
   },
   unauthorized: {
     Icon: AlertCircle,
     iconClass: 'text-destructive',
-    badgeClass: 'bg-destructive/20 text-destructive border-destructive/50',
+    badgeClass: 'bg-destructive/10 text-destructive border-destructive/30',
     label: 'Unknown',
   },
 }

@@ -84,7 +84,7 @@ export default function RunCompletePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8 px-6">
-      <CheckCircle2 className="size-24 text-green-400" strokeWidth={1.5} />
+      <CheckCircle2 className="size-24 text-green-600" strokeWidth={1.5} />
 
       <div className="text-center">
         <h1 className="text-foreground text-4xl font-bold">Run Complete!</h1>

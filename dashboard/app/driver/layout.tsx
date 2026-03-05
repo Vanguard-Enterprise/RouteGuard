@@ -14,8 +14,8 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
 
   if (!provisioned) {
     return (
-      <div className="dark min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground text-lg">
+      <div className="min-h-screen bg-[#F1F4F8] flex items-center justify-center">
+        <p className="text-slate-500 text-lg">
           Contact your administrator to provision this device.
         </p>
       </div>
@@ -23,7 +23,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="dark min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F1F4F8]">
       <SWRegister />
       {children}
     </div>
