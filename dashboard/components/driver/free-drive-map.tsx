@@ -194,8 +194,10 @@ export default function FreeDriveMap() {
 
   return (
     <div className="fixed inset-0 overflow-hidden">
-      {/* Map canvas */}
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* Map canvas - wrapper keeps absolute sizing; inner div is what Mapbox receives */}
+      <div className="absolute inset-0">
+        <div ref={containerRef} className="w-full h-full" />
+      </div>
 
       {/* Top bar: back + search */}
       <div className="absolute top-0 left-0 right-0 z-10 p-3 flex items-start gap-2">
