@@ -2,6 +2,7 @@ import { api, APIError } from '@/lib/api'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, ArrowLeft } from 'lucide-react'
+import SchoolAddressMap from '@/components/dashboard/school-address-map'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -72,6 +73,10 @@ export default async function SchoolDetailPage({ params }: PageProps) {
           </div>
         ))}
       </div>
+
+      {school.lat != null && school.lng != null && (
+        <SchoolAddressMap lat={school.lat} lng={school.lng} />
+      )}
     </div>
   )
 }

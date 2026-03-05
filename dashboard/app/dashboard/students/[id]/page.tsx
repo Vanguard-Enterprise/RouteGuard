@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, ArrowLeft } from 'lucide-react'
 import StudentGuardians from '@/components/dashboard/student-guardians'
+import StudentAddressMap from '@/components/dashboard/student-address-map'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -85,6 +86,13 @@ export default async function StudentDetailPage({ params }: PageProps) {
           </div>
         ))}
       </div>
+
+      <StudentAddressMap
+        address={student.address}
+        city={student.city}
+        state={student.state}
+        zip={student.zip}
+      />
 
       <StudentGuardians studentId={student.id} initialGuardians={guardians} />
     </div>
