@@ -21,11 +21,6 @@ func NewRouteRepo(pool *pgxpool.Pool) *RouteRepo {
 	return &RouteRepo{pool: pool}
 }
 
-const routeSelectCols = `
-	id, org_id, name, type, status, description, estimated_duration_min,
-	created_at, updated_at
-`
-
 const stopSelectCols = `
 	id, route_id, name, address, lat, lng, sequence_order, scheduled_time,
 	created_at, updated_at
@@ -35,19 +30,6 @@ const routeAssignmentSelectCols = `
 	id, route_id, vehicle_id, driver_id, effective_date, end_date, days_of_week,
 	created_at
 `
-
-func scanRoute(row pgx.Row) (*domain.Route, error) {
-	var rt domain.Route
-	err := row.Scan(
-		&rt.ID, &rt.OrgID, &rt.Name, &rt.Type, &rt.Status,
-		&rt.Description, &rt.EstimatedDurationMin,
-		&rt.CreatedAt, &rt.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &rt, nil
-}
 
 func scanStop(row pgx.Row) (*domain.Stop, error) {
 	var s domain.Stop

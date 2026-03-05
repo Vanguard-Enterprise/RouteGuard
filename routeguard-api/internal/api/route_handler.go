@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -68,18 +67,6 @@ func (h *Handler) ListMyRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	orgID := session.OrgID
-
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-	if limit <= 0 {
-		limit = 50
-	}
-	if limit > 500 {
-		limit = 500
-	}
-	if offset < 0 {
-		offset = 0
-	}
 
 	repo := repository.NewRouteRepo(h.pool)
 	routes, err := repo.List(r.Context(), orgID)
