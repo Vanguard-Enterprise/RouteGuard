@@ -58,10 +58,16 @@ export interface User {
   org_id: string | null
   email: string
   name: string
+  phone: string | null
   avatar_url: string | null
   last_login_at: string | null
   permissions: string[]
   created_at: string
+}
+
+export interface KioskContact {
+  name: string
+  phone: string
 }
 
 export interface OrgUser {
@@ -573,6 +579,11 @@ export const api = {
   settings: {
     users: {
       list: () => request<User[]>('/dashboard/settings/users'),
+      updatePhone: (userId: string, phone: string | null) =>
+        request<void>(`/dashboard/settings/users/${userId}/phone`, {
+          method: 'PATCH',
+          body: JSON.stringify({ phone }),
+        }),
       roles: {
         list: (userId: string) => request<OrgRole[]>(`/dashboard/settings/users/${userId}/roles`),
         assign: (userId: string, roleId: string) =>
