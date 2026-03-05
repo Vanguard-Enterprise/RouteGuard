@@ -46,6 +46,14 @@ cat > "$EXT_DIR/bootstrap.js" << EOF
 })();
 EOF
 
+# Grant geolocation permission for the app automatically
+mkdir -p /etc/chromium/policies/managed
+cat > /etc/chromium/policies/managed/routeguard.json << 'POLICY'
+{
+  "GeolocationAllowedForUrls": ["https://route-guard.com", "https://route-guard.com/*"]
+}
+POLICY
+
 mkdir -p "$CHROMIUM_DATA"
 
 exec chromium \
