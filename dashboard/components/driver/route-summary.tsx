@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { KioskContact } from '@/lib/api'
 
 interface RoutePreview {
   route_name: string
@@ -11,11 +12,6 @@ interface RoutePreview {
   stop_count: number
   vehicle_name: string
   date: string
-}
-
-interface KioskContact {
-  name: string
-  phone: string
 }
 
 interface RouteSummaryProps {

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import RouteSummary from '@/components/driver/route-summary'
 import { Button } from '@/components/ui/button'
 import { LogoIcon } from '@/components/logo'
+import type { KioskContact } from '@/lib/api'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
@@ -31,11 +32,6 @@ interface ManifestStudent {
 interface TripManifest {
   trip: { id: string }
   stops: Array<{ stop: { id: string; name: string; sequence_order: number }; students: ManifestStudent[] }>
-}
-
-interface KioskContact {
-  name: string
-  phone: string
 }
 
 export default function PreTripPage() {
@@ -111,6 +107,7 @@ export default function PreTripPage() {
     if (pollingRef.current) return
     pollingRef.current = setInterval(() => {
       fetchAssignment(session.session_token)
+      fetchContacts(session.session_token)
     }, 15000)
     return () => {
       if (pollingRef.current) {
@@ -118,7 +115,7 @@ export default function PreTripPage() {
         pollingRef.current = null
       }
     }
-  }, [session, preview, fetchAssignment])
+  }, [session, preview, fetchAssignment, fetchContacts])
 
   const handleLogout = () => {
     if (pollingRef.current) clearInterval(pollingRef.current)
