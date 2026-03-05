@@ -2,10 +2,13 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/rs/zerolog/log"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/autoplan"
 	"github.com/routeguard/api/internal/repository"
@@ -92,6 +95,8 @@ func (h *Handler) AutoPlanTrips(w http.ResponseWriter, r *http.Request) {
 			schoolLat = &slat
 			schoolLng = &slng
 			schoolName = &sname
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			log.Warn().Err(err).Msg("failed to fetch school for auto-plan")
 		}
 	}
 
@@ -141,7 +146,9 @@ func (h *Handler) AutoPlanTrips(w http.ResponseWriter, r *http.Request) {
 				ptsToOptimize = append([]autoplan.StudentPoint{schoolPoint}, g.Points...)
 			} else {
 				// school is the destination: append
-				ptsToOptimize = append(g.Points, schoolPoint)
+				tmp := make([]autoplan.StudentPoint, len(g.Points), len(g.Points)+1)
+				copy(tmp, g.Points)
+				ptsToOptimize = append(tmp, schoolPoint)
 			}
 		}
 
