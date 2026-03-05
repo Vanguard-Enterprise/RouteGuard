@@ -3,7 +3,7 @@ set -e
 
 TOKEN_FILE="/etc/routeguard/token"
 EXT_DIR="/etc/routeguard/extension"
-APP_URL="https://app.route-guard.com/driver"
+APP_URL="https://route-guard.com/driver"
 CHROMIUM_DATA="/var/lib/routeguard/chromium"
 
 # Start X display on VT1
@@ -29,7 +29,7 @@ cat > "$EXT_DIR/manifest.json" << 'MANIFEST'
   "version": "1.0",
   "manifest_version": 3,
   "content_scripts": [{
-    "matches": ["https://app.route-guard.com/*"],
+    "matches": ["https://route-guard.com/*"],
     "js": ["bootstrap.js"],
     "run_at": "document_start",
     "world": "MAIN"
