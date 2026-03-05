@@ -70,10 +70,13 @@ export default function RouteSummary({ driverName, preview, loading, error, cont
 
           {!loading && error && (
             <div className="flex flex-col gap-3">
-              <p className="text-destructive text-sm">{error}</p>
+              <p className="text-foreground text-sm font-medium">No routes assigned for today.</p>
+              <p className="text-muted-foreground text-sm">
+                Your work may be done, or a route may be assigned shortly.
+              </p>
               {onRetry && (
                 <Button variant="outline" size="sm" onClick={onRetry} className="self-start">
-                  Retry
+                  Refresh
                 </Button>
               )}
             </div>
@@ -110,6 +113,11 @@ export default function RouteSummary({ driverName, preview, loading, error, cont
               <p className="text-muted-foreground text-sm">
                 Your work may be done, or a route may be assigned shortly.
               </p>
+              {onRetry && (
+                <Button variant="outline" size="sm" onClick={onRetry} className="self-start">
+                  Refresh
+                </Button>
+              )}
               {contacts.length > 0 && (
                 <div className="flex flex-col gap-2 pt-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">

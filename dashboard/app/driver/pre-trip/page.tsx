@@ -195,7 +195,7 @@ export default function PreTripPage() {
 
         <Button
           onClick={handleStartRun}
-          disabled={starting || previewLoading || (!preview && !previewError)}
+          disabled={starting || previewLoading || !preview}
           size="lg"
           className="w-full max-w-sm h-14 text-base bg-[#2A7D4F] hover:bg-[#235f3c] text-white"
         >
@@ -207,6 +207,15 @@ export default function PreTripPage() {
           ) : (
             'Start Run'
           )}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground w-full max-w-sm"
+          onClick={() => router.push('/driver/map')}
+        >
+          Skip to Map
         </Button>
       </div>
     </div>
