@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Plus, ChevronDown, Search } from 'lucide-react'
 import { DataTable, ColumnDef } from '@/components/dashboard/data-table'
-import { api, Trip } from '@/lib/api'
+import { api, Trip, Route, RouteAssignment } from '@/lib/api'
 
 interface TripTableProps {
   trips: Trip[]
@@ -32,6 +32,14 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+interface AssignmentOption {
+  id: string
+  routeName: string
+  effectiveDate: string | null
+  endDate: string | null
+  daysOfWeek: string
+}
+
 interface NewTripFormProps {
   onCreated: (trip: Trip) => void
   onClose: () => void
@@ -39,16 +47,79 @@ interface NewTripFormProps {
 
 function NewTripForm({ onCreated, onClose }: NewTripFormProps) {
   const [routeAssignmentId, setRouteAssignmentId] = useState('')
+  const [selectedLabel, setSelectedLabel] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [options, setOptions] = useState<AssignmentOption[]>([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false)
+  const comboRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    async function loadAssignments() {
+      try {
+        const routes: Route[] = await api.routes.list()
+        const allAssignments = await Promise.all(
+          routes.map((r) =>
+            api.routes.assignments.list(r.id).then((assignments: RouteAssignment[]) =>
+              assignments.map((a) => ({
+                id: a.id,
+                routeName: r.name,
+                effectiveDate: a.effective_date,
+                endDate: a.end_date,
+                daysOfWeek: a.days_of_week,
+              })),
+            ),
+          ),
+        )
+        setOptions(allAssignments.flat())
+      } catch {
+        // leave empty — user can still enter manually via fallback
+      } finally {
+        setLoadingOptions(false)
+      }
+    }
+    loadAssignments()
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (comboRef.current && !comboRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const filtered = search
+    ? options.filter(
+        (o) =>
+          o.routeName.toLowerCase().includes(search.toLowerCase()) ||
+          o.daysOfWeek.toLowerCase().includes(search.toLowerCase()) ||
+          (o.effectiveDate ?? '').includes(search),
+      )
+    : options
+
+  function selectOption(opt: AssignmentOption) {
+    setRouteAssignmentId(opt.id)
+    const dateRange = opt.effectiveDate
+      ? `${opt.effectiveDate}${opt.endDate ? ` - ${opt.endDate}` : ''}`
+      : 'No dates'
+    setSelectedLabel(`${opt.routeName} (${opt.daysOfWeek}, ${dateRange})`)
+    setSearch('')
+    setOpen(false)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     if (!routeAssignmentId.trim()) {
-      setError('Route assignment ID is required.')
+      setError('Route assignment is required.')
       return
     }
     setSaving(true)
@@ -73,14 +144,55 @@ function NewTripForm({ onCreated, onClose }: NewTripFormProps) {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Route Assignment ID <span className="text-red-500">*</span>
+            Route Assignment <span className="text-red-500">*</span>
           </label>
-          <input
-            value={routeAssignmentId}
-            onChange={(e) => setRouteAssignmentId(e.target.value)}
-            className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-            placeholder="UUID of route assignment"
-          />
+          <div ref={comboRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              disabled={loadingOptions}
+              className="w-full flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm text-left outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition bg-white disabled:opacity-60"
+            >
+              <span className={selectedLabel ? 'text-gray-800' : 'text-gray-400'}>
+                {loadingOptions ? 'Loading routes…' : selectedLabel || 'Select a route assignment'}
+              </span>
+              <ChevronDown size={14} className="text-gray-400 shrink-0 ml-2" />
+            </button>
+            {open && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                  <Search size={13} className="text-gray-400 shrink-0" />
+                  <input
+                    autoFocus
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search routes…"
+                    className="flex-1 text-sm outline-none bg-transparent"
+                  />
+                </div>
+                <ul className="max-h-48 overflow-y-auto py-1">
+                  {filtered.length === 0 ? (
+                    <li className="px-3 py-2 text-xs text-gray-400">No assignments found.</li>
+                  ) : (
+                    filtered.map((opt) => (
+                      <li
+                        key={opt.id}
+                        onClick={() => selectOption(opt)}
+                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 ${routeAssignmentId === opt.id ? 'bg-blue-50' : ''}`}
+                      >
+                        <p className="text-sm font-medium text-gray-800">{opt.routeName}</p>
+                        <p className="text-xs text-gray-500">
+                          {opt.daysOfWeek}
+                          {opt.effectiveDate && ` · from ${opt.effectiveDate}`}
+                          {opt.endDate && ` to ${opt.endDate}`}
+                        </p>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
