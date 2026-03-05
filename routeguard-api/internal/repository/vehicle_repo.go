@@ -22,7 +22,7 @@ func NewVehicleRepo(pool *pgxpool.Pool) *VehicleRepo {
 
 const vehicleSelectCols = `
     id, org_id, name, number, capacity, year, make, model, vin, license_plate,
-    status, created_at, updated_at
+    status, device_id, created_at, updated_at
 `
 
 func scanVehicle(row pgx.Row) (*domain.Vehicle, error) {
@@ -30,7 +30,7 @@ func scanVehicle(row pgx.Row) (*domain.Vehicle, error) {
 	if err := row.Scan(
 		&v.ID, &v.OrgID, &v.Name, &v.Number, &v.Capacity, &v.Year,
 		&v.Make, &v.Model, &v.VIN, &v.LicensePlate, &v.Status,
-		&v.CreatedAt, &v.UpdatedAt,
+		&v.DeviceID, &v.CreatedAt, &v.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (r *VehicleRepo) List(ctx context.Context, orgID string, limit, offset int)
 		if err := rows.Scan(
 			&v.ID, &v.OrgID, &v.Name, &v.Number, &v.Capacity, &v.Year,
 			&v.Make, &v.Model, &v.VIN, &v.LicensePlate, &v.Status,
-			&v.CreatedAt, &v.UpdatedAt,
+			&v.DeviceID, &v.CreatedAt, &v.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("vehicle list scan: %w", err)
 		}

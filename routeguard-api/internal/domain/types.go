@@ -259,6 +259,7 @@ type Vehicle struct {
 	VIN          *string   `json:"vin"`
 	LicensePlate *string   `json:"license_plate"`
 	Status       string    `json:"status"`
+	DeviceID     *string   `json:"device_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -341,15 +342,17 @@ type RouteAssignment struct {
 
 // Trip maps to the trips table.
 type Trip struct {
-	ID                string     `json:"id"`
-	RouteAssignmentID string     `json:"route_assignment_id"`
-	OrgID             string     `json:"org_id"`
+	ID                string      `json:"id"`
+	RouteAssignmentID string      `json:"route_assignment_id"`
+	OrgID             string      `json:"org_id"`
 	Date              pgtype.Date `json:"date"`
 	Status            string      `json:"status"`
 	StartedAt         *time.Time  `json:"started_at"`
-	CompletedAt       *time.Time `json:"completed_at"`
-	Notes             *string    `json:"notes"`
-	CreatedAt         time.Time  `json:"created_at"`
+	CompletedAt       *time.Time  `json:"completed_at"`
+	Notes             *string     `json:"notes"`
+	CreatedAt         time.Time   `json:"created_at"`
+	RouteName         *string     `json:"route_name,omitempty"`
+	VehicleNumber     *string     `json:"vehicle_number,omitempty"`
 }
 
 // TripLocation maps to the trip_locations table.
