@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Search, X } from 'lucide-react'
+import { ArrowLeft, Search, X, Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import NavigationMap from '@/components/driver/navigation-map'
 
@@ -18,6 +18,7 @@ export default function FreeDriveMap() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<GeocodingFeature[]>([])
+  const [pending, setPending] = useState<{ lat: number; lng: number; name: string } | null>(null)
   const [destination, setDestination] = useState<{ lat: number; lng: number; name: string } | null>(null)
 
   const runSearch = useCallback(async (query: string) => {
@@ -39,14 +40,21 @@ export default function FreeDriveMap() {
 
   const handleSelectResult = (feature: GeocodingFeature) => {
     const [lng, lat] = feature.center
-    setDestination({ lat, lng, name: feature.place_name })
+    setPending({ lat, lng, name: feature.place_name })
     setSearchResults([])
     setSearchQuery(feature.place_name)
   }
 
-  const clearSearch = () => {
+  const startNavigation = () => {
+    if (!pending) return
+    setDestination(pending)
+    setPending(null)
+  }
+
+  const clearDestination = () => {
     setSearchQuery('')
     setSearchResults([])
+    setPending(null)
     setDestination(null)
   }
 
@@ -54,16 +62,16 @@ export default function FreeDriveMap() {
     <div className="fixed inset-0">
       <NavigationMap mode="free-drive" destination={destination}>
         {/* Top bar */}
-        <div className="absolute top-0 left-0 right-0 z-10 p-3 flex items-start gap-2">
+        <div className="absolute top-0 left-0 right-0 z-[1000] p-3 flex items-start gap-2">
           <Button
             size="icon" variant="secondary"
-            className="shrink-0 h-11 w-11 rounded-full shadow-lg bg-background/95 backdrop-blur-sm"
-            onClick={() => router.back()}
+            className="shrink-0 h-12 w-12 rounded-full shadow-lg bg-background/95 backdrop-blur-sm"
+            onClick={() => router.push('/driver')}
           >
             <ArrowLeft className="size-5" />
           </Button>
           <div className="flex-1 relative">
-            <div className="flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg px-4 h-11">
+            <div className="flex items-center gap-2 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg px-4 h-12">
               <Search className="size-4 text-muted-foreground shrink-0" />
               <input
                 className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
@@ -72,18 +80,18 @@ export default function FreeDriveMap() {
                 onChange={(e) => handleSearchChange(e.target.value)}
               />
               {searchQuery && (
-                <button onClick={clearSearch} className="shrink-0 text-muted-foreground hover:text-foreground">
+                <button onClick={clearDestination} className="shrink-0 p-1 text-muted-foreground">
                   <X className="size-4" />
                 </button>
               )}
             </div>
             {searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-background/95 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-background rounded-2xl shadow-lg overflow-hidden">
                 {searchResults.map((r) => (
                   <button
                     key={r.id}
                     onClick={() => handleSelectResult(r)}
-                    className="w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-b border-border last:border-0"
+                    className="w-full text-left px-4 py-4 text-sm hover:bg-muted transition-colors border-b border-border last:border-0"
                   >
                     <span className="line-clamp-1">{r.place_name}</span>
                   </button>
@@ -92,6 +100,43 @@ export default function FreeDriveMap() {
             )}
           </div>
         </div>
+
+        {/* Start navigation panel */}
+        {pending && !destination && (
+          <div className="absolute bottom-0 left-0 right-0 z-[1000] p-4 bg-background shadow-2xl rounded-t-3xl">
+            <p className="text-xs text-muted-foreground mb-1">Navigate to</p>
+            <p className="font-semibold text-foreground text-base mb-4 line-clamp-2">{pending.name}</p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 h-14 text-base rounded-2xl"
+                onClick={clearDestination}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 h-14 text-base rounded-2xl bg-[#1B3A5C] text-white gap-2"
+                onClick={startNavigation}
+              >
+                <Navigation className="size-5" />
+                Start
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Active navigation - stop button */}
+        {destination && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000]">
+            <Button
+              variant="destructive"
+              className="h-12 px-6 rounded-full shadow-lg text-sm font-semibold"
+              onClick={clearDestination}
+            >
+              Stop Navigation
+            </Button>
+          </div>
+        )}
       </NavigationMap>
     </div>
   )
