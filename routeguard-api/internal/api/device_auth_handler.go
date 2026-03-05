@@ -59,6 +59,28 @@ func generateTripToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// DeviceConfig handles GET /api/v1/device/config.
+// Requires device auth middleware. Returns org-level kiosk configuration.
+func (h *Handler) DeviceConfig(w http.ResponseWriter, r *http.Request) {
+	device := deviceauth.DeviceFromContext(r.Context())
+	if device == nil || device.OrgID == nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	orgRepo := repository.NewOrgRepo(h.pool)
+	org, err := orgRepo.Get(r.Context(), *device.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	settings := org.ParsedSettings()
+	JSON(w, http.StatusOK, map[string]int{
+		"pin_length": settings.PinLength,
+	})
+}
+
 // DeviceHeartbeat handles POST /api/v1/devices/heartbeat.
 // Requires device auth middleware. Updates the device's last-seen timestamp in Redis.
 func (h *Handler) DeviceHeartbeat(w http.ResponseWriter, r *http.Request) {

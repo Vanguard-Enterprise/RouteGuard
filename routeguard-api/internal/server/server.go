@@ -76,6 +76,7 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.RateLimit(s.cache, 12)).Get("/api/v1/devices/checkin/status", h.DeviceCheckinStatus)
 
 	// Device-authenticated routes
+	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Get("/api/v1/device/config", h.DeviceConfig)
 	r.With(middleware.DeviceAuthenticate(s.pool, s.cache)).Post("/api/v1/devices/heartbeat", h.DeviceHeartbeat)
 
 	// Driver auth — PIN and RFID (device auth required; auth comes from the device hardware)
@@ -244,6 +245,10 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("org:manage")).Get("/settings/api-keys", h.ListMyAPIKeys)
 		r.With(middleware.RequirePermission("org:manage")).Post("/settings/api-keys", h.CreateMyAPIKey)
 		r.With(middleware.RequirePermission("org:manage")).Delete("/settings/api-keys/{id}", h.DeleteMyAPIKey)
+
+		// Org settings (kiosk config, etc.)
+		r.With(middleware.RequirePermission("org:manage")).Get("/settings/org", h.GetMyOrgSettings)
+		r.With(middleware.RequirePermission("org:manage")).Patch("/settings/org", h.PatchMyOrgSettings)
 	})
 
 	return r

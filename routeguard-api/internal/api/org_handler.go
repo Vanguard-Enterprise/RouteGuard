@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/repository"
 )
 
@@ -150,4 +151,75 @@ func (h *Handler) DeleteOrg(w http.ResponseWriter, r *http.Request) {
 	}
 	NoContent(w)
 	h.LogAudit(r, "org.deleted", "organization", id, map[string]any{"org_id": id})
+}
+
+// GetMyOrgSettings handles GET /dashboard/settings/org.
+// Returns the current organization's parsed settings (kiosk config, etc.).
+func (h *Handler) GetMyOrgSettings(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+	if session == nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	repo := repository.NewOrgRepo(h.pool)
+	org, err := repo.Get(r.Context(), session.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	JSON(w, http.StatusOK, org.ParsedSettings())
+}
+
+// patchOrgSettingsRequest is the request body for PATCH /dashboard/settings/org.
+type patchOrgSettingsRequest struct {
+	PinLength *int `json:"pin_length"`
+}
+
+// PatchMyOrgSettings handles PATCH /dashboard/settings/org.
+// Updates the current organization's settings.
+func (h *Handler) PatchMyOrgSettings(w http.ResponseWriter, r *http.Request) {
+	session := auth.SessionFromContext(r.Context())
+	if session == nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req patchOrgSettingsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	repo := repository.NewOrgRepo(h.pool)
+	org, err := repo.Get(r.Context(), session.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	current := org.ParsedSettings()
+	if req.PinLength != nil {
+		if *req.PinLength < 4 || *req.PinLength > 8 {
+			Error(w, http.StatusBadRequest, "pin_length must be between 4 and 8")
+			return
+		}
+		current.PinLength = *req.PinLength
+	}
+
+	raw, err := json.Marshal(current)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	updated, err := repo.Update(r.Context(), session.OrgID, nil, nil, nil, json.RawMessage(raw), nil)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	JSON(w, http.StatusOK, updated.ParsedSettings())
+	h.LogAudit(r, "org.settings.updated", "organization", session.OrgID, map[string]any{"org_id": session.OrgID})
 }

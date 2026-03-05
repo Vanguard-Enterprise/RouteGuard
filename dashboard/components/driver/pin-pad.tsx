@@ -7,11 +7,10 @@ interface PinPadProps {
   onSubmit: (pin: string) => void
   loading?: boolean
   error?: boolean
+  maxDigits?: number
 }
 
-const MAX_DIGITS = 6
-
-export default function PinPad({ onSubmit, loading = false, error = false }: PinPadProps) {
+export default function PinPad({ onSubmit, loading = false, error = false, maxDigits = 4 }: PinPadProps) {
   const [digits, setDigits] = useState('')
   const [shake, setShake] = useState(false)
 
@@ -33,7 +32,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
 
   const handleDigit = (d: string) => {
     if (loading) return
-    setDigits((prev) => (prev.length < MAX_DIGITS ? prev + d : prev))
+    setDigits((prev) => (prev.length < maxDigits ? prev + d : prev))
   }
 
   const handleBackspace = () => {
@@ -52,7 +51,7 @@ export default function PinPad({ onSubmit, loading = false, error = false }: Pin
     <div className="flex flex-col items-center gap-6">
       {/* PIN dot display */}
       <div className={`flex gap-3 ${shake ? 'animate-pin-shake' : ''}`}>
-        {Array.from({ length: MAX_DIGITS }).map((_, i) => (
+        {Array.from({ length: maxDigits }).map((_, i) => (
           <div
             key={i}
             className={`w-4 h-4 rounded-full border-2 transition-colors duration-150 ${

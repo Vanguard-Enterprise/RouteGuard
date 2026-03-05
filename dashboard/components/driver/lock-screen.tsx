@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import PinPad from './pin-pad'
 import { Logo } from '@/components/logo'
@@ -16,11 +16,38 @@ function getGreeting(): string {
   return 'Good evening'
 }
 
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
 export default function LockScreen() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [pinError, setPinError] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState(() => formatTime(new Date()))
+  const [pinLength, setPinLength] = useState(4)
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(formatTime(new Date())), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const deviceToken = localStorage.getItem('device_token')
+    if (!deviceToken) return
+    fetch(`${API_BASE}/api/v1/device/config`, {
+      headers: { Authorization: `Bearer ${deviceToken}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return
+        const data = await res.json() as { pin_length?: number }
+        if (typeof data.pin_length === 'number' && data.pin_length >= 4 && data.pin_length <= 8) {
+          setPinLength(data.pin_length)
+        }
+      })
+      .catch(() => undefined)
+  }, [])
 
   const handlePinSubmit = async (pin: string) => {
     const deviceToken = localStorage.getItem('device_token')
@@ -71,6 +98,7 @@ export default function LockScreen() {
       <div className="flex flex-col items-center gap-2">
         <Logo className="h-10 w-auto max-w-full" />
         <p className="text-muted-foreground text-lg">{getGreeting()}</p>
+        <p className="text-foreground text-3xl font-light tabular-nums">{currentTime}</p>
       </div>
 
       <Card className="w-full max-w-xs">
@@ -78,7 +106,7 @@ export default function LockScreen() {
           <p className="text-muted-foreground text-xs uppercase tracking-widest">
             Enter your PIN
           </p>
-          <PinPad onSubmit={handlePinSubmit} loading={loading} error={pinError} />
+          <PinPad onSubmit={handlePinSubmit} loading={loading} error={pinError} maxDigits={pinLength} />
           {errorMessage && (
             <p className="text-destructive text-sm text-center">{errorMessage}</p>
           )}

@@ -12,6 +12,24 @@ import (
 // Tenant & Auth
 // ============================================================
 
+// OrgSettings holds typed org-level configuration stored in the settings JSON column.
+type OrgSettings struct {
+	PinLength int `json:"pin_length"`
+}
+
+// ParsedSettings unmarshals the organization's settings JSON into OrgSettings.
+// Returns safe defaults if the column is null or contains unknown fields.
+func (o *Organization) ParsedSettings() OrgSettings {
+	s := OrgSettings{PinLength: 4}
+	if o.Settings != nil {
+		_ = json.Unmarshal(o.Settings, &s)
+	}
+	if s.PinLength < 4 || s.PinLength > 8 {
+		s.PinLength = 4
+	}
+	return s
+}
+
 // Organization maps to the organizations table.
 type Organization struct {
 	ID        string          `json:"id"`

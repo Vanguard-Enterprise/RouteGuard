@@ -85,6 +85,10 @@ export interface Organization {
   updated_at: string
 }
 
+export interface OrgSettings {
+  pin_length: number
+}
+
 export interface School {
   id: string
   org_id: string
@@ -605,6 +609,11 @@ export const api = {
         const qs = params ? '?' + new URLSearchParams(params).toString() : ''
         return request<AuditLog[]>(`/dashboard/audit-logs${qs}`)
       },
+    },
+    org: {
+      getSettings: () => request<OrgSettings>('/dashboard/settings/org'),
+      updateSettings: (data: Partial<OrgSettings>) =>
+        request<OrgSettings>('/dashboard/settings/org', { method: 'PATCH', body: JSON.stringify(data) }),
     },
   },
 }

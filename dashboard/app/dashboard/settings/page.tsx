@@ -50,9 +50,10 @@ export default async function SettingsPage() {
   const user = await getUser()
   if (!user) return null
 
-  const org = user.org_id
-    ? await api.admin.organizations.get(user.org_id).catch(() => null)
-    : null
+  const [org, orgSettings] = await Promise.all([
+    user.org_id ? api.admin.organizations.get(user.org_id).catch(() => null) : null,
+    api.settings.org.getSettings().catch(() => null),
+  ])
 
   return (
     <div className="space-y-8">
@@ -72,7 +73,7 @@ export default async function SettingsPage() {
             Organization
           </h2>
         </div>
-        <OrgSettingsForm user={user} orgName={org?.name ?? null} />
+        <OrgSettingsForm user={user} orgName={org?.name ?? null} pinLength={orgSettings?.pin_length ?? 4} />
       </div>
 
       <div>
