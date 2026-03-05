@@ -127,7 +127,7 @@ export default function PreTripPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <LogoIcon className="h-8 w-8" />
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
+        <Button variant="outline" size="sm" onClick={handleLogout}>
           Log Out
         </Button>
       </div>
