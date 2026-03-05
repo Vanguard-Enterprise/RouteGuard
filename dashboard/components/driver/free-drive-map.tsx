@@ -38,6 +38,7 @@ export default function FreeDriveMap() {
     if (!containerRef.current) return
 
     if (!mapboxgl.supported()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMapError('This device does not support WebGL, which is required for the map.')
       return
     }
@@ -51,6 +52,7 @@ export default function FreeDriveMap() {
         zoom: 4,
       })
     } catch (err) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMapError(err instanceof Error ? err.message : 'Failed to initialize map.')
       return
     }
