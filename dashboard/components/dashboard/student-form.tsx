@@ -1,7 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, FormProvider } from 'react-hook-form'
+import AddressAutocomplete from '@/components/dashboard/address-autocomplete'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api, School, Student } from '@/lib/api'
@@ -32,11 +33,7 @@ interface StudentFormProps {
 export default function StudentForm({ student, schools, mode }: StudentFormProps) {
   const router = useRouter()
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
+  const methods = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       first_name: student?.first_name ?? '',
@@ -53,6 +50,7 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
       rfid_tag_id: '',
     },
   })
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = methods
 
   async function onSubmit(data: FormValues) {
     try {
@@ -86,6 +84,7 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
   }
 
   return (
+    <FormProvider {...methods}>
     <div className="max-w-lg">
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
         <h2 className="text-lg font-semibold mb-5" style={{ color: 'var(--color-brand-navy)' }}>
@@ -189,12 +188,7 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
               Address
             </label>
-            <input
-              id="address"
-              {...register('address')}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-              placeholder="123 Main St"
-            />
+            <AddressAutocomplete name="address" />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -286,5 +280,6 @@ export default function StudentForm({ student, schools, mode }: StudentFormProps
         </form>
       </div>
     </div>
+    </FormProvider>
   )
 }
