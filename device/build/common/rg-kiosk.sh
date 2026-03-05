@@ -48,7 +48,7 @@ EOF
 
 mkdir -p "$CHROMIUM_DATA"
 
-exec chromium-browser \
+exec chromium \
     --kiosk \
     --app="$APP_URL" \
     --load-extension="$EXT_DIR" \
@@ -59,4 +59,6 @@ exec chromium-browser \
     --disable-session-crashed-bubble \
     --disable-translate \
     --noerrdialogs \
-    --disable-features=TranslateUI
+    --disable-features=TranslateUI \
+    --use-angle=swiftshader \
+    --ignore-gpu-blocklist

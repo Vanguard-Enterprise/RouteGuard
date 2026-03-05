@@ -31,16 +31,30 @@ export default function FreeDriveMap() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<GeocodingFeature[]>([])
   const [locationDenied, setLocationDenied] = useState(false)
+  const [mapError, setMapError] = useState<string | null>(null)
 
   // Init map
   useEffect(() => {
     if (!containerRef.current) return
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-98.5, 39.5],
-      zoom: 4,
-    })
+
+    if (!mapboxgl.supported()) {
+      setMapError('This device does not support WebGL, which is required for the map.')
+      return
+    }
+
+    let map: mapboxgl.Map
+    try {
+      map = new mapboxgl.Map({
+        container: containerRef.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [-98.5, 39.5],
+        zoom: 4,
+      })
+    } catch (err) {
+      setMapError(err instanceof Error ? err.message : 'Failed to initialize map.')
+      return
+    }
+
     map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right')
     mapRef.current = map
 
@@ -153,6 +167,27 @@ export default function FreeDriveMap() {
     followRef.current = true
     setFollowing(true)
     mapRef.current.easeTo({ center: [userPos.lng, userPos.lat], zoom: 15 })
+  }
+
+  if (mapError) {
+    return (
+      <div className="relative w-screen h-screen overflow-hidden flex flex-col">
+        <div className="flex items-center gap-2 px-3 py-3 border-b border-border">
+          <Button
+            size="icon"
+            variant="secondary"
+            className="shrink-0 h-11 w-11 rounded-full"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="size-5" />
+          </Button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <p className="text-foreground font-medium">Map unavailable</p>
+          <p className="text-muted-foreground text-sm">{mapError}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
