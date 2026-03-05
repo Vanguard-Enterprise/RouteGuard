@@ -184,3 +184,20 @@ func (r *TripRepo) Update(ctx context.Context, id, orgID string, status, notes *
 	}
 	return t, nil
 }
+
+// SetAssignmentDriver updates driver_id on the route_assignment linked to this trip.
+// Scoped to orgID for safety. Returns the enriched trip after update.
+func (r *TripRepo) SetAssignmentDriver(ctx context.Context, tripID, orgID string, driverID *string) (*domain.Trip, error) {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE route_assignments ra
+		SET driver_id = $1
+		FROM trips t
+		WHERE t.route_assignment_id = ra.id
+		  AND t.id = $2
+		  AND t.org_id = $3
+	`, driverID, tripID, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("set assignment driver: %w", err)
+	}
+	return r.Get(ctx, tripID, orgID)
+}
