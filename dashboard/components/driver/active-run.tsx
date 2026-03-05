@@ -19,10 +19,13 @@ import StudentScanList, { type ScanEvent } from './student-scan-list'
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 const GPS_INTERVAL_MS = 5000
 
-interface Stop {
+export interface ActiveRunStop {
   id: string
   name: string
-  order: number
+  sequence_order: number
+  lat: number | null
+  lng: number | null
+  address: string | null
 }
 
 interface ActiveRunProps {
@@ -35,7 +38,7 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
   const [feedbackType, setFeedbackType] = useState<FeedbackType>(null)
   const [feedbackStudentName, setFeedbackStudentName] = useState<string | undefined>()
   const [scans, setScans] = useState<ScanEvent[]>([])
-  const [stops, setStops] = useState<Stop[]>([])
+  const [stops, setStops] = useState<ActiveRunStop[]>([])
   const [showConfirmEnd, setShowConfirmEnd] = useState(false)
   const [endingRun, setEndingRun] = useState(false)
 
@@ -46,8 +49,8 @@ export default function ActiveRun({ tripId }: ActiveRunProps) {
     const raw = localStorage.getItem('trip_manifest')
     if (raw) {
       try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setStops(JSON.parse(raw) as Stop[])
+        const parsed = JSON.parse(raw) as Array<{ stop: ActiveRunStop; students: unknown[] }>
+        setStops(parsed.map((item) => item.stop))
       } catch {
         setStops([])
       }

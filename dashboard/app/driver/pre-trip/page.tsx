@@ -29,9 +29,18 @@ interface ManifestStudent {
   name: string
 }
 
+interface ManifestStop {
+  id: string
+  name: string
+  sequence_order: number
+  lat: number | null
+  lng: number | null
+  address: string | null
+}
+
 interface TripManifest {
   trip: { id: string }
-  stops: Array<{ stop: { id: string; name: string; sequence_order: number }; students: ManifestStudent[] }>
+  stops: Array<{ stop: ManifestStop; students: ManifestStudent[] }>
 }
 
 export default function PreTripPage() {
