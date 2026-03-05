@@ -27,15 +27,17 @@ echo "==> Installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -y --no-install-recommends \
-    chromium \
+    chromium-browser chromium \
     xorg openbox x11-xserver-utils unclutter \
     network-manager \
-    firmware-linux-free firmware-realtek firmware-iwlwifi \
     curl python3 \
     iptables iptables-persistent \
     openssh-server \
     systemd-sysv \
     locales
+# Debian-only firmware packages (Ubuntu bundles these already)
+apt-get install -y --no-install-recommends \
+    firmware-linux-free firmware-realtek firmware-iwlwifi 2>/dev/null || true
 
 # --- System config ---
 echo "==> Configuring system"
