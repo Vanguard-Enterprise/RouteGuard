@@ -21,6 +21,7 @@ type createRouteRequest struct {
 	Status               string  `json:"status"`
 	Description          *string `json:"description"`
 	EstimatedDurationMin *int    `json:"estimated_duration_min"`
+	SchoolID             *string `json:"school_id"`
 }
 
 type updateRouteRequest struct {
@@ -29,6 +30,7 @@ type updateRouteRequest struct {
 	Status               *string `json:"status"`
 	Description          *string `json:"description"`
 	EstimatedDurationMin *int    `json:"estimated_duration_min"`
+	SchoolID             *string `json:"school_id"`
 }
 
 type createStopRequest struct {
@@ -103,7 +105,7 @@ func (h *Handler) CreateMyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
-	route, err := repo.Create(r.Context(), orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, nil)
+	route, err := repo.Create(r.Context(), orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, req.SchoolID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -151,7 +153,7 @@ func (h *Handler) UpdateMyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	repo := repository.NewRouteRepo(h.pool)
-	route, err := repo.Update(r.Context(), id, orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, nil)
+	route, err := repo.Update(r.Context(), id, orgID, req.Name, req.Type, req.Status, req.Description, req.EstimatedDurationMin, req.SchoolID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			Error(w, http.StatusNotFound, "route not found")
