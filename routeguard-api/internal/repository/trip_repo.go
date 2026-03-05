@@ -42,11 +42,11 @@ func scanTrip(row pgx.Row) (*domain.Trip, error) {
 // Order: date DESC, created_at DESC.
 func (r *TripRepo) List(ctx context.Context, orgID string, limit, offset int, status, date *string) ([]domain.Trip, error) {
 	args := []any{orgID}
-	conditions := []string{"org_id = $1"}
+	conditions := []string{"t.org_id = $1"}
 
 	if status != nil {
 		args = append(args, *status)
-		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("t.status = $%d", len(args)))
 	}
 
 	if date != nil {
@@ -56,7 +56,7 @@ func (r *TripRepo) List(ctx context.Context, orgID string, limit, offset int, st
 		}
 		d := pgtype.Date{Time: t, Valid: true}
 		args = append(args, d)
-		conditions = append(conditions, fmt.Sprintf("date = $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("t.date = $%d", len(args)))
 	}
 
 	args = append(args, limit)
@@ -65,10 +65,16 @@ func (r *TripRepo) List(ctx context.Context, orgID string, limit, offset int, st
 	offsetParam := fmt.Sprintf("$%d", len(args))
 
 	query := fmt.Sprintf(`
-		SELECT `+tripSelectCols+`
-		FROM trips
+		SELECT
+			t.id, t.route_assignment_id, t.org_id, t.date, t.status,
+			t.started_at, t.completed_at, t.notes, t.created_at,
+			r.name AS route_name, v.number AS vehicle_number
+		FROM trips t
+		LEFT JOIN route_assignments ra ON ra.id = t.route_assignment_id
+		LEFT JOIN routes r ON r.id = ra.route_id
+		LEFT JOIN vehicles v ON v.id = ra.vehicle_id
 		WHERE %s
-		ORDER BY date DESC, created_at DESC
+		ORDER BY t.date DESC, t.created_at DESC
 		LIMIT %s OFFSET %s
 	`, strings.Join(conditions, " AND "), limitParam, offsetParam)
 
@@ -84,6 +90,7 @@ func (r *TripRepo) List(ctx context.Context, orgID string, limit, offset int, st
 		if err := rows.Scan(
 			&t.ID, &t.RouteAssignmentID, &t.OrgID, &t.Date, &t.Status,
 			&t.StartedAt, &t.CompletedAt, &t.Notes, &t.CreatedAt,
+			&t.RouteName, &t.VehicleNumber,
 		); err != nil {
 			return nil, fmt.Errorf("trip list: %w", err)
 		}
