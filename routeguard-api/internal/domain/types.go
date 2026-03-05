@@ -361,6 +361,7 @@ type Trip struct {
 	VehicleNumber     *string     `json:"vehicle_number,omitempty"`
 	DriverID          *string     `json:"driver_id,omitempty"`
 	DriverName        *string     `json:"driver_name,omitempty"`
+	SchoolName        *string     `json:"school_name,omitempty"`
 }
 
 // TripLocation maps to the trip_locations table.

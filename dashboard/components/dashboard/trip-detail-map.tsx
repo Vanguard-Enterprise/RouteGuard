@@ -77,6 +77,12 @@ export default function TripDetailMap({ trip: initialTrip, stops = [], orgId }: 
             <dt className="text-xs text-gray-500">Bus</dt>
             <dd className="text-sm text-gray-900 mt-0.5">{trip.vehicle_number ? `Bus ${trip.vehicle_number}` : '—'}</dd>
           </div>
+          {trip.school_name && (
+            <div className="flex flex-col">
+              <dt className="text-xs text-gray-500">School</dt>
+              <dd className="text-sm text-gray-900 mt-0.5">{trip.school_name}</dd>
+            </div>
+          )}
           <div className="flex flex-col">
             <dt className="text-xs text-gray-500">Started At</dt>
             <dd className="text-sm text-gray-900 mt-0.5">{trip.started_at ? new Date(trip.started_at).toLocaleString() : '—'}</dd>

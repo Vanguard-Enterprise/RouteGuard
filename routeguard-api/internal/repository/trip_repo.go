@@ -107,18 +107,21 @@ func (r *TripRepo) Get(ctx context.Context, id, orgID string) (*domain.Trip, err
 			t.id, t.route_assignment_id, t.org_id, t.date, t.status,
 			t.started_at, t.completed_at, t.notes, t.created_at,
 			r.name AS route_name, v.number AS vehicle_number,
-			ra.driver_id, u.name AS driver_name
+			ra.driver_id, u.name AS driver_name,
+			s.name AS school_name
 		FROM trips t
 		LEFT JOIN route_assignments ra ON ra.id = t.route_assignment_id
 		LEFT JOIN routes r ON r.id = ra.route_id
 		LEFT JOIN vehicles v ON v.id = ra.vehicle_id
 		LEFT JOIN users u ON u.id = ra.driver_id
+		LEFT JOIN schools s ON s.id = r.school_id
 		WHERE t.id = $1 AND t.org_id = $2
 	`, id, orgID).Scan(
 		&t.ID, &t.RouteAssignmentID, &t.OrgID, &t.Date, &t.Status,
 		&t.StartedAt, &t.CompletedAt, &t.Notes, &t.CreatedAt,
 		&t.RouteName, &t.VehicleNumber,
 		&t.DriverID, &t.DriverName,
+		&t.SchoolName,
 	)
 	if err != nil {
 		return nil, err

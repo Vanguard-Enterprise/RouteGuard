@@ -233,6 +233,7 @@ export interface Trip {
   vehicle_number?: string
   driver_id?: string | null
   driver_name?: string | null
+  school_name?: string | null
 }
 
 export interface AutoPlanStop {
