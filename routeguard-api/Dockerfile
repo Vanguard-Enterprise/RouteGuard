@@ -8,6 +8,5 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM gcr.io/distroless/static-debian12
 COPY --from=builder /api /api
-COPY --from=builder /app/migrations /migrations
 EXPOSE 8080
 ENTRYPOINT ["/api"]
