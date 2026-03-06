@@ -3,11 +3,24 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { api, type AuthMethodsResponse, type SSOOption } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 
 type Step = 'email' | 'auth' | 'org-select'
 
@@ -18,7 +31,10 @@ interface OrgOption {
   is_platform: boolean
 }
 
-export function LoginForm() {
+export function LoginForm({
+  className,
+  ...props
+}: React.ComponentProps<'div'>) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
@@ -83,7 +99,6 @@ export function LoginForm() {
   }
 
   function handleSSOClick(_sso: SSOOption) {
-    // SSO handlers are not yet implemented - placeholder for OIDC/SAML init
     toast.error('SSO login is not yet available.')
   }
 
@@ -94,113 +109,130 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
-        <CardDescription>
-          {step === 'email' && 'Enter your email to continue.'}
-          {step === 'auth' && email}
-          {step === 'org-select' && 'Select an organization.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {step === 'email' && (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoFocus
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Checking...' : 'Continue'}
-            </Button>
-          </form>
-        )}
-
-        {step === 'auth' && (
-          <div className="space-y-4">
-            {authMethods?.has_password && (
-              <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+    <div className={cn('flex flex-col gap-6', className)} {...props}>
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="text-xl">
+            {step === 'email' && 'Welcome back'}
+            {step === 'auth' && 'Sign in'}
+            {step === 'org-select' && 'Choose organization'}
+          </CardTitle>
+          <CardDescription>
+            {step === 'email' && 'Enter your email to continue'}
+            {step === 'auth' && email}
+            {step === 'org-select' && 'Select which organization to sign into'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {step === 'email' && (
+            <form onSubmit={handleEmailSubmit}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="email">Email</FieldLabel>
                   <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
                     autoFocus
                     required
                   />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Signing in...' : 'Sign in'}
-                </Button>
-              </form>
-            )}
+                </Field>
+                <Field>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Checking...' : 'Continue'}
+                  </Button>
+                </Field>
+              </FieldGroup>
+            </form>
+          )}
 
-            {authMethods?.sso_options && authMethods.sso_options.length > 0 && (
-              <>
-                {authMethods.has_password && (
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-card px-2 text-muted-foreground">or</span>
-                    </div>
-                  </div>
-                )}
-                <div className="space-y-2">
+          {step === 'auth' && (
+            <FieldGroup>
+              {authMethods?.sso_options && authMethods.sso_options.length > 0 && (
+                <Field>
                   {authMethods.sso_options.map(sso => (
                     <Button
                       key={sso.connection_id}
                       variant="outline"
-                      className="w-full"
+                      type="button"
                       onClick={() => handleSSOClick(sso)}
                       disabled={loading}
                     >
                       Sign in with {sso.display_name}
                     </Button>
                   ))}
-                </div>
-              </>
-            )}
+                </Field>
+              )}
 
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={handleBack}
-              disabled={loading}
-            >
-              Back
-            </Button>
-          </div>
-        )}
+              {authMethods?.has_password && authMethods?.sso_options && authMethods.sso_options.length > 0 && (
+                <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                  Or continue with
+                </FieldSeparator>
+              )}
 
-        {step === 'org-select' && (
-          <div className="space-y-2">
-            {orgs.map(org => (
-              <Button
-                key={org.id}
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => handleOrgSelect(org.id)}
-                disabled={loading}
-              >
-                {org.name}
-              </Button>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              {authMethods?.has_password && (
+                <form onSubmit={handlePasswordSubmit}>
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="password">Password</FieldLabel>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        autoFocus
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <Button type="submit" disabled={loading}>
+                        {loading ? 'Signing in...' : 'Sign in'}
+                      </Button>
+                    </Field>
+                  </FieldGroup>
+                </form>
+              )}
+
+              <Field>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={handleBack}
+                  disabled={loading}
+                >
+                  Use a different email
+                </Button>
+              </Field>
+            </FieldGroup>
+          )}
+
+          {step === 'org-select' && (
+            <FieldGroup>
+              <Field>
+                {orgs.map(org => (
+                  <Button
+                    key={org.id}
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => handleOrgSelect(org.id)}
+                    disabled={loading}
+                  >
+                    {org.name}
+                  </Button>
+                ))}
+              </Field>
+            </FieldGroup>
+          )}
+        </CardContent>
+      </Card>
+      <FieldDescription className="px-6 text-center">
+        By continuing, you agree to our{' '}
+        <a href="/terms">Terms of Service</a> and{' '}
+        <a href="/privacy">Privacy Policy</a>.
+      </FieldDescription>
+    </div>
   )
 }
