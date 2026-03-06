@@ -8,12 +8,16 @@ import {
 } from "@tabler/icons-react"
 import type { MeResponse } from "@/lib/api"
 import { NavMain, type NavItem } from "@/components/dashboard/nav-main"
+import { NavUser } from "@/components/dashboard/nav-user"
 import { OrgSwitcher } from "@/components/dashboard/org-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
 
@@ -43,12 +47,24 @@ export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader>
-        <OrgSwitcher currentOrg={me.active_org} userName={me.user.name} />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" className="pointer-events-none">
+              <div className="flex aspect-square size-8 items-center justify-center">
+                <img src="/logo.png" alt="RouteGuard" className="size-6" />
+              </div>
+              <span className="truncate text-lg font-semibold">RouteGuard</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <OrgSwitcher currentOrg={me.active_org} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
       </SidebarContent>
-      <SidebarFooter />
+      <SidebarFooter>
+        <NavUser user={me.user} />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

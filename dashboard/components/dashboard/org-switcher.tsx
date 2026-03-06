@@ -18,12 +18,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-interface OrgSwitcherProps {
-  currentOrg: OrgOption
-  userName: string
-}
-
-export function OrgSwitcher({ currentOrg, userName }: OrgSwitcherProps) {
+export function OrgSwitcher({ currentOrg }: { currentOrg: OrgOption }) {
   const router = useRouter()
   const { isMobile } = useSidebar()
   const [orgs, setOrgs] = useState<OrgOption[]>([])
@@ -46,22 +41,9 @@ export function OrgSwitcher({ currentOrg, userName }: OrgSwitcherProps) {
     }
   }
 
+  // Only render when user has multiple orgs
   if (orgs.length <= 1) {
-    return (
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg" className="pointer-events-none">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <IconBuilding className="size-4" />
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{currentOrg.name}</span>
-              <span className="truncate text-xs">{userName}</span>
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    )
+    return null
   }
 
   return (
@@ -79,7 +61,6 @@ export function OrgSwitcher({ currentOrg, userName }: OrgSwitcherProps) {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{currentOrg.name}</span>
-                <span className="truncate text-xs">{userName}</span>
               </div>
               <IconSelector className="ml-auto" />
             </SidebarMenuButton>
