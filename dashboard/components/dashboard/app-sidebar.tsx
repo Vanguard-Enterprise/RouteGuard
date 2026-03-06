@@ -51,11 +51,12 @@ export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
+              size="lg"
+              className="data-[slot=sidebar-menu-button]:p-2!"
             >
               <a href="/dashboard">
-                <img src="/logo.png" alt="RouteGuard" className="size-5" />
-                <span className="text-base font-semibold">RouteGuard</span>
+                <img src="/logo.png" alt="RouteGuard" className="size-7" />
+                <span className="text-lg font-semibold">RouteGuard</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
