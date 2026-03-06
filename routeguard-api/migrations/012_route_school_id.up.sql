@@ -1,1 +1,0 @@
-ALTER TABLE routes ADD COLUMN school_id UUID REFERENCES schools(id) ON DELETE SET NULL;

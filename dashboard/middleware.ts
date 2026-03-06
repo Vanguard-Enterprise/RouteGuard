@@ -1,45 +1,23 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function middleware() {
   const response = NextResponse.next()
 
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-  const isDev = process.env.NODE_ENV === 'development'
 
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://api.mapbox.com",
-    "worker-src blob:",
-    "img-src 'self' data: blob: https://*.mapbox.com https://*.mapbox.cn https://*.openstreetmap.org https://unpkg.com https://storage.route-guard.com https://storage.efferd.com",
-    isDev
-      ? "connect-src 'self' http://localhost:* ws://localhost:* https://*.mapbox.com https://*.openstreetmap.org"
-      : "connect-src 'self' https://api.route-guard.com wss://api.route-guard.com https://*.mapbox.com https://*.openstreetmap.org",
-    "style-src 'self' 'unsafe-inline' https://api.mapbox.com https://unpkg.com",
+    "script-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
   ].join('; ')
 
   response.headers.set('Content-Security-Policy', csp)
-
-  // Soft auth redirect for protected routes without a session cookie
-  const session = request.cookies.get('rg_session')
-  const { pathname } = request.nextUrl
-  if ((pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) && !session) {
-    return NextResponse.redirect(new URL('/staff/login', request.url))
-  }
-
-  const userType = request.cookies.get('rg_user_type')?.value
-  if (userType) {
-    if (pathname.startsWith('/admin') && userType !== 'staff') {
-      return NextResponse.redirect(new URL('/forbidden?from=admin', request.url))
-    }
-    if (pathname.startsWith('/dashboard') && userType !== 'org') {
-      return NextResponse.redirect(new URL('/forbidden?from=dashboard', request.url))
-    }
-  }
 
   return response
 }

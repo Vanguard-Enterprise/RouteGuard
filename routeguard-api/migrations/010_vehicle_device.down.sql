@@ -1,1 +1,0 @@
-ALTER TABLE vehicles DROP COLUMN IF EXISTS device_id;
