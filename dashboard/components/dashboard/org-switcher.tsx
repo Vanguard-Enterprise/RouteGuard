@@ -1,16 +1,22 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
-import { api, type OrgOption } from '@/lib/api'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { IconSelector, IconBuilding } from "@tabler/icons-react"
+import { api, type OrgOption } from "@/lib/api"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu"
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar"
 
 interface OrgSwitcherProps {
   currentOrg: OrgOption
@@ -19,6 +25,7 @@ interface OrgSwitcherProps {
 
 export function OrgSwitcher({ currentOrg, userName }: OrgSwitcherProps) {
   const router = useRouter()
+  const { isMobile } = useSidebar()
   const [orgs, setOrgs] = useState<OrgOption[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -33,40 +40,69 @@ export function OrgSwitcher({ currentOrg, userName }: OrgSwitcherProps) {
       await api.auth.switchOrg(orgId)
       router.refresh()
     } catch {
-      toast.error('Failed to switch organization.')
+      toast.error("Failed to switch organization.")
     } finally {
       setLoading(false)
     }
   }
 
-  // Don't show switcher if user only has one org
   if (orgs.length <= 1) {
     return (
-      <span className="text-sm text-muted-foreground">{currentOrg.name}</span>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" className="pointer-events-none">
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <IconBuilding className="size-4" />
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">{currentOrg.name}</span>
+              <span className="truncate text-xs">{userName}</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
     )
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={loading} className="gap-1">
-          {currentOrg.name}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="opacity-50">
-            <path d="M3 5L6 8L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {orgs.map(org => (
-          <DropdownMenuItem
-            key={org.id}
-            onClick={() => handleSwitch(org.id)}
-            className={org.id === currentOrg.id ? 'font-semibold' : ''}
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              disabled={loading}
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <IconBuilding className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{currentOrg.name}</span>
+                <span className="truncate text-xs">{userName}</span>
+              </div>
+              <IconSelector className="ml-auto" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            align="start"
+            side={isMobile ? "bottom" : "right"}
+            sideOffset={4}
           >
-            {org.name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            {orgs.map((org) => (
+              <DropdownMenuItem
+                key={org.id}
+                onClick={() => handleSwitch(org.id)}
+                className={org.id === currentOrg.id ? "font-semibold" : ""}
+              >
+                <IconBuilding className="mr-2 size-4" />
+                {org.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }
