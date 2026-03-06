@@ -1,6 +1,8 @@
-import { redirect } from 'next/navigation'
-import { getServerUser } from '@/lib/server-api'
-import { OrgSwitcher } from '@/components/dashboard/org-switcher'
+import { redirect } from "next/navigation"
+import { getServerUser } from "@/lib/server-api"
+import { AppSidebar } from "@/components/dashboard/app-sidebar"
+import { SiteHeader } from "@/components/dashboard/site-header"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export default async function DashboardLayout({
   children,
@@ -8,39 +10,24 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const me = await getServerUser()
-  if (!me) redirect('/login')
+  if (!me) redirect("/login")
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <span className="text-lg font-semibold">RouteGuard</span>
-            <OrgSwitcher
-              currentOrg={me.active_org}
-              userName={me.user.name}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{me.user.email}</span>
-            <LogoutButton />
-          </div>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar me={me} />
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex flex-1 flex-col">
+          {children}
         </div>
-      </header>
-      <main>{children}</main>
-    </div>
-  )
-}
-
-function LogoutButton() {
-  return (
-    <form action="/api/auth/logout" method="POST">
-      <button
-        type="submit"
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        Sign out
-      </button>
-    </form>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
