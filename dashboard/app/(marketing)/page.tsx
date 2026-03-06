@@ -1,5 +1,5 @@
 import { HeroSection } from '@/components/hero'
-import { LogosSection } from '@/components/logos-section'
+
 import { FeatureSection } from '@/components/feature-section'
 import { CallToAction } from '@/components/cta'
 import { Integrations } from '@/components/integrations'

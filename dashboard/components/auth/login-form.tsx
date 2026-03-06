@@ -98,6 +98,7 @@ export function LoginForm({
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function handleSSOClick(_sso: SSOOption) {
     toast.error('SSO login is not yet available.')
   }

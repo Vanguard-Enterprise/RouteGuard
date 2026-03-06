@@ -103,6 +103,7 @@ export function HeroSection() {
 						)}
 					>
 						<div className="relative inset-shadow-2xs inset-shadow-white/10 mx-auto max-w-5xl overflow-hidden rounded-lg border border-white/10 bg-background p-2 shadow-xl ring-1 ring-white/10">
+							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img
 								alt="RouteGuard admin dashboard"
 								className="z-2 aspect-video rounded-lg border dark:hidden"
@@ -110,6 +111,7 @@ export function HeroSection() {
 								src="https://storage.efferd.com/screen/dashboard-light.webp"
 								width="1920"
 							/>
+							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img
 								alt="RouteGuard admin dashboard"
 								className="hidden aspect-video rounded-lg bg-background dark:block"

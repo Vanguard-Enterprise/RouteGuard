@@ -52,6 +52,7 @@ function IntegrationCard({ row, col, logo }: TileData) {
 			}}
 		>
 			{logo && (
+				// eslint-disable-next-line @next/next/no-img-element
 				<img
 					alt={logo.alt}
 					className={cn(

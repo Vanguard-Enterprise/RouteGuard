@@ -22,7 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useIsMobile } from "@/hooks/use-mobile"
 
 // Generate 90 days of placeholder ridership data
 const chartData = Array.from({ length: 90 }, (_, i) => {
@@ -41,7 +40,6 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function ChartAreaInteractive() {
-  const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = useState("30d")
 
   const filtered = useMemo(() => {

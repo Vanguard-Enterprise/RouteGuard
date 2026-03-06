@@ -55,7 +55,8 @@ export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar
               className="data-[slot=sidebar-menu-button]:p-2!"
             >
               <a href="/dashboard">
-                <img src="/logo.png" alt="RouteGuard" className="size-7" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="RouteGuard" className="size-7 shrink-0" />
                 <span className="text-lg font-semibold">RouteGuard</span>
               </a>
             </SidebarMenuButton>
