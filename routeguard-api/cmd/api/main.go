@@ -25,6 +25,14 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
 
+	// Run database migrations
+	migrationsPath := envOr("MIGRATIONS_PATH", "./migrations")
+	log.Info().Str("path", migrationsPath).Msg("running database migrations")
+	if err := db.RunMigrations(cfg.DatabaseURL, migrationsPath); err != nil {
+		log.Fatal().Err(err).Msg("failed to run migrations")
+	}
+	log.Info().Msg("migrations complete")
+
 	ctx := context.Background()
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -69,4 +77,11 @@ func main() {
 		log.Error().Err(err).Msg("shutdown error")
 	}
 	log.Info().Msg("server stopped")
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }
