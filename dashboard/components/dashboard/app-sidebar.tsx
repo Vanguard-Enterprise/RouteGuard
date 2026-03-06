@@ -49,11 +49,14 @@ export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="pointer-events-none">
-              <div className="flex aspect-square size-8 items-center justify-center">
-                <img src="/logo.png" alt="RouteGuard" className="size-6" />
-              </div>
-              <span className="truncate text-lg font-semibold">RouteGuard</span>
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:p-1.5!"
+            >
+              <a href="/dashboard">
+                <img src="/logo.png" alt="RouteGuard" className="size-5" />
+                <span className="text-base font-semibold">RouteGuard</span>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
