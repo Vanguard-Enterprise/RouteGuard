@@ -14,6 +14,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 import {
   LayoutDashboardIcon,
@@ -99,7 +100,7 @@ export function AppSidebar({
     : districtNavItems
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -128,6 +129,7 @@ export function AppSidebar({
       <SidebarFooter>
         <NavUser user={me.user} />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }
