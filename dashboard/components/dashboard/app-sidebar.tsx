@@ -1,13 +1,9 @@
 "use client"
 
-import {
-  IconDashboard,
-  IconBuildings,
-  IconUsers,
-  IconSettings,
-} from "@tabler/icons-react"
+import * as React from "react"
 import type { MeResponse } from "@/lib/api"
-import { NavMain, type NavItem } from "@/components/dashboard/nav-main"
+import { NavMain } from "@/components/dashboard/nav-main"
+import { NavSecondary } from "@/components/dashboard/nav-secondary"
 import { NavUser } from "@/components/dashboard/nav-user"
 import { OrgSwitcher } from "@/components/dashboard/org-switcher"
 import {
@@ -16,57 +12,122 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from "@/components/ui/sidebar"
+import {
+  LayoutDashboardIcon,
+  BusIcon,
+  UsersIcon,
+  MapPinIcon,
+  ChartBarIcon,
+  Settings2Icon,
+  CircleHelpIcon,
+  SearchIcon,
+} from "lucide-react"
 
-const platformNav: NavItem[] = [
-  { title: "Dashboard", url: "/dashboard", icon: IconDashboard },
-  { title: "Organizations", url: "/dashboard/organizations", icon: IconBuildings },
-  { title: "Users", url: "/dashboard/users", icon: IconUsers },
+const platformNavItems = [
   {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: IconSettings,
-    items: [
-      { title: "Platform", url: "/dashboard/settings/platform" },
-      { title: "Billing", url: "/dashboard/settings/billing" },
-      { title: "SSO", url: "/dashboard/settings/sso" },
-    ],
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: <LayoutDashboardIcon />,
+  },
+  {
+    title: "Routes",
+    url: "/dashboard/routes",
+    icon: <BusIcon />,
+  },
+  {
+    title: "Students",
+    url: "/dashboard/students",
+    icon: <UsersIcon />,
+  },
+  {
+    title: "Stops",
+    url: "/dashboard/stops",
+    icon: <MapPinIcon />,
+  },
+  {
+    title: "Analytics",
+    url: "/dashboard/analytics",
+    icon: <ChartBarIcon />,
   },
 ]
 
-const districtNav: NavItem[] = [
-  { title: "Dashboard", url: "/dashboard", icon: IconDashboard },
+const districtNavItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: <LayoutDashboardIcon />,
+  },
+  {
+    title: "Routes",
+    url: "/dashboard/routes",
+    icon: <BusIcon />,
+  },
+  {
+    title: "Students",
+    url: "/dashboard/students",
+    icon: <UsersIcon />,
+  },
 ]
 
-export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar> & { me: MeResponse }) {
-  const navItems = me.active_org.is_platform ? platformNav : districtNav
+const secondaryNavItems = [
+  {
+    title: "Settings",
+    url: "/dashboard/settings",
+    icon: <Settings2Icon />,
+  },
+  {
+    title: "Get Help",
+    url: "/dashboard/help",
+    icon: <CircleHelpIcon />,
+  },
+  {
+    title: "Search",
+    url: "#",
+    icon: <SearchIcon />,
+  },
+]
+
+export function AppSidebar({
+  me,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { me: MeResponse }) {
+  const navItems = me.active_org.is_platform
+    ? platformNavItems
+    : districtNavItems
 
   return (
-    <Sidebar variant="inset" collapsible="icon" {...props}>
+    <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <a
-              href="/dashboard"
-              className="flex h-12 items-center justify-center gap-2 overflow-hidden rounded-md px-2 group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="RouteGuard" className="size-7 shrink-0" />
-              <span className="text-lg font-semibold truncate group-data-[collapsible=icon]:hidden">RouteGuard</span>
-            </a>
+              <a href="/dashboard">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo.png"
+                  alt="RouteGuard"
+                  className="size-5!"
+                />
+                <span className="text-base font-semibold">RouteGuard</span>
+              </a>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
         <OrgSwitcher currentOrg={me.active_org} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
+        <NavSecondary items={secondaryNavItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={me.user} />
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }
