@@ -52,11 +52,11 @@ export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar
             <SidebarMenuButton
               asChild
               size="lg"
-              className="data-[slot=sidebar-menu-button]:p-2!"
+              className="data-[slot=sidebar-menu-button]:p-2! group-data-[collapsible=icon]:p-1!"
             >
               <a href="/dashboard">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="RouteGuard" className="size-7 shrink-0" />
+                <img src="/logo.png" alt="RouteGuard" className="size-6 shrink-0" />
                 <span className="text-lg font-semibold">RouteGuard</span>
               </a>
             </SidebarMenuButton>
