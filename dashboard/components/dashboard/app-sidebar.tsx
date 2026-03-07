@@ -16,7 +16,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
@@ -49,17 +48,14 @@ export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              size="lg"
-              className="data-[slot=sidebar-menu-button]:p-2! group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:p-1.5!"
+            <a
+              href="/dashboard"
+              className="flex h-12 items-center gap-2 overflow-hidden rounded-md px-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
-              <a href="/dashboard">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="RouteGuard" className="size-7 shrink-0" />
-                <span className="text-lg font-semibold">RouteGuard</span>
-              </a>
-            </SidebarMenuButton>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="RouteGuard" className="size-7 shrink-0" />
+              <span className="text-lg font-semibold truncate group-data-[collapsible=icon]:hidden">RouteGuard</span>
+            </a>
           </SidebarMenuItem>
         </SidebarMenu>
         <OrgSwitcher currentOrg={me.active_org} />
