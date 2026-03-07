@@ -3,6 +3,7 @@ import { getServerUser } from "@/lib/server-api"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export default async function DashboardLayout({
   children,
@@ -13,6 +14,7 @@ export default async function DashboardLayout({
   if (!me) redirect("/login")
 
   return (
+    <TooltipProvider>
     <SidebarProvider
       style={
         {
@@ -29,5 +31,6 @@ export default async function DashboardLayout({
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </TooltipProvider>
   )
 }
