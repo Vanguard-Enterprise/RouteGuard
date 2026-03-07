@@ -50,7 +50,7 @@ export function AppSidebar({ me, ...props }: React.ComponentProps<typeof Sidebar
           <SidebarMenuItem>
             <a
               href="/dashboard"
-              className="flex h-12 items-center gap-2 overflow-hidden rounded-md px-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="flex h-12 items-center justify-center gap-2 overflow-hidden rounded-md px-2 group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="RouteGuard" className="size-7 shrink-0" />
