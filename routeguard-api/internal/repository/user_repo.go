@@ -42,6 +42,16 @@ func (r *UserRepo) GetByID(ctx context.Context, id string) (*domain.User, error)
 	return &u, nil
 }
 
+// IsUserEnabled returns true if the user exists and is not disabled.
+func (r *UserRepo) IsUserEnabled(ctx context.Context, id string) (bool, error) {
+	var enabled bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND disabled_at IS NULL)`,
+		id,
+	).Scan(&enabled)
+	return enabled, err
+}
+
 func (r *UserRepo) GetByEmailHash(ctx context.Context, emailHash string) (*domain.User, error) {
 	var u domain.User
 	err := r.pool.QueryRow(ctx,

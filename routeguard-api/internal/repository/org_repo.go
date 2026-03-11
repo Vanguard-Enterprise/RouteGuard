@@ -96,6 +96,16 @@ func (r *OrgRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// IsOrgAccessible returns true if the org exists and is neither suspended nor deleted.
+func (r *OrgRepo) IsOrgAccessible(ctx context.Context, id string) (bool, error) {
+	var accessible bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM organizations WHERE id = $1 AND suspended_at IS NULL AND deleted_at IS NULL)`,
+		id,
+	).Scan(&accessible)
+	return accessible, err
+}
+
 // SeedSystemRoles creates the default Owner and Member roles for a new org.
 func (r *OrgRepo) SeedSystemRoles(ctx context.Context, orgID string) error {
 	_, err := r.pool.Exec(ctx,

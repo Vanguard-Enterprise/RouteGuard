@@ -53,10 +53,10 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/login", h.Login)
 
 	// Authenticated auth
-	r.With(middleware.Authenticate(s.cache)).Post("/auth/logout", h.Logout)
-	r.With(middleware.Authenticate(s.cache)).Get("/auth/me", h.Me)
-	r.With(middleware.Authenticate(s.cache)).Post("/auth/switch-org", h.SwitchOrg)
-	r.With(middleware.Authenticate(s.cache)).Get("/auth/orgs", h.ListMyOrgs)
+	r.With(middleware.Authenticate(s.cache, s.pool)).Post("/auth/logout", h.Logout)
+	r.With(middleware.Authenticate(s.cache, s.pool)).Get("/auth/me", h.Me)
+	r.With(middleware.Authenticate(s.cache, s.pool)).Post("/auth/switch-org", h.SwitchOrg)
+	r.With(middleware.Authenticate(s.cache, s.pool)).Get("/auth/orgs", h.ListMyOrgs)
 
 	return r
 }
