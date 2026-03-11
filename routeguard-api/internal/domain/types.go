@@ -1,27 +1,34 @@
 package domain
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type User struct {
-	ID           string    `json:"id"`
-	EmailEnc     string    `json:"-"`
-	EmailHash    string    `json:"-"`
-	Email        string    `json:"email"`
-	NameEnc      string    `json:"-"`
-	Name         string    `json:"name"`
-	PasswordHash *string   `json:"-"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           string     `json:"id"`
+	EmailEnc     string     `json:"-"`
+	EmailHash    string     `json:"-"`
+	Email        string     `json:"email"`
+	NameEnc      string     `json:"-"`
+	Name         string     `json:"name"`
+	PasswordHash *string    `json:"-"`
+	DisabledAt   *time.Time `json:"disabled_at"`
+	LastLoginAt  *time.Time `json:"last_login_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type Organization struct {
-	ID         string    `json:"id"`
-	NameEnc    string    `json:"-"`
-	Name       string    `json:"name"`
-	Slug       string    `json:"slug"`
-	IsPlatform bool      `json:"is_platform"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID          string     `json:"id"`
+	NameEnc     string     `json:"-"`
+	Name        string     `json:"name"`
+	Slug        string     `json:"slug"`
+	IsPlatform  bool       `json:"is_platform"`
+	SuspendedAt *time.Time `json:"suspended_at"`
+	DeletedAt   *time.Time `json:"deleted_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type OrgMembership struct {
@@ -78,6 +85,7 @@ type UserIdentity struct {
 type SessionPayload struct {
 	UserID      string   `json:"user_id"`
 	OrgID       string   `json:"org_id"`
+	HomeOrgID   string   `json:"home_org_id"`
 	Permissions []string `json:"permissions"`
 	CreatedAt   int64    `json:"created_at"`
 }
@@ -109,5 +117,72 @@ type OrgSummary struct {
 type MeResponse struct {
 	User        User       `json:"user"`
 	ActiveOrg   OrgSummary `json:"active_org"`
+	HomeOrgID   string     `json:"home_org_id"`
 	Permissions []string   `json:"permissions"`
+}
+
+type AuditEvent struct {
+	ID         string          `json:"id"`
+	ActorID    string          `json:"actor_id"`
+	ActorEmail string          `json:"actor_email"`
+	OrgID      *string         `json:"org_id"`
+	EventType  string          `json:"event_type"`
+	TargetType string          `json:"target_type"`
+	TargetID   *string         `json:"target_id"`
+	Metadata   json.RawMessage `json:"metadata"`
+	IPAddress  *string         `json:"ip_address"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
+type OrgBilling struct {
+	ID                  string     `json:"id"`
+	OrgID               string     `json:"org_id"`
+	BillingStatus       string     `json:"billing_status"`
+	PilotEndsAt         *time.Time `json:"pilot_ends_at"`
+	ContractNotes       string     `json:"contract_notes"`
+	BillingContactEmail string     `json:"billing_contact_email"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+}
+
+type SoftwareRelease struct {
+	ID           string    `json:"id"`
+	Version      string    `json:"version"`
+	ReleaseDate  string    `json:"release_date"`
+	ReleaseNotes string    `json:"release_notes"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type PlatformStats struct {
+	TotalOrgs      int `json:"total_orgs"`
+	SuspendedOrgs  int `json:"suspended_orgs"`
+	TotalUsers     int `json:"total_users"`
+	ActiveSessions int `json:"active_sessions"`
+	ActiveTrips    int `json:"active_trips"`
+}
+
+type PageResponse[T any] struct {
+	Items      []T `json:"items"`
+	Total      int `json:"total"`
+	Page       int `json:"page"`
+	PerPage    int `json:"per_page"`
+	TotalPages int `json:"total_pages"`
+}
+
+type CursorResponse[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor"`
+	HasMore    bool   `json:"has_more"`
+}
+
+type UserDetail struct {
+	User
+	Memberships []UserOrgMembership `json:"memberships"`
+}
+
+type UserOrgMembership struct {
+	OrgID   string    `json:"org_id"`
+	OrgName string    `json:"org_name"`
+	OrgSlug string    `json:"org_slug"`
+	Roles   []OrgRole `json:"roles"`
 }
