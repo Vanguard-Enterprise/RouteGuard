@@ -119,6 +119,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Track last login time (best effort)
+	_, _ = h.pool.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, user.ID)
+
 	// Get user's orgs
 	orgs, err := h.members.ListOrgsByUser(r.Context(), user.ID)
 	if err != nil {
@@ -144,6 +147,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	payload := &domain.SessionPayload{
 		UserID:      user.ID,
 		OrgID:       selectedOrg.ID,
+		HomeOrgID:   selectedOrg.ID,
 		Permissions: perms,
 	}
 
@@ -247,6 +251,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 			Slug:       org.Slug,
 			IsPlatform: org.IsPlatform,
 		},
+		HomeOrgID:   session.HomeOrgID,
 		Permissions: session.Permissions,
 	})
 }
