@@ -81,7 +81,7 @@ npm run lint   # ESLint
 | `app/login/[slug]/` | Org-specific login (SSO/password) |
 | `app/staff/login/` | Staff-only login |
 | `app/dashboard/` | Org admin/school admin panel |
-| `app/admin/` | Super admin panel |
+| `app/dashboard/admin/` | Platform admin panel (orgs, users, audit, billing) |
 | `app/driver/` | Driver PWA |
 | `app/api/auth/` | Auth proxy routes (login, logout) |
 
