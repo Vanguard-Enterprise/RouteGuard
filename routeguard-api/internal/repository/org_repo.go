@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/domain"
@@ -104,6 +105,93 @@ func (r *OrgRepo) IsOrgAccessible(ctx context.Context, id string) (bool, error) 
 		id,
 	).Scan(&accessible)
 	return accessible, err
+}
+
+func (r *OrgRepo) ListPaginated(ctx context.Context, search string, page, perPage int) ([]domain.Organization, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage <= 0 || perPage > 100 {
+		perPage = 25
+	}
+	offset := (page - 1) * perPage
+
+	countQuery := `SELECT COUNT(*) FROM organizations WHERE deleted_at IS NULL`
+	args := []any{}
+	argIdx := 1
+	if search != "" {
+		countQuery += ` AND slug ILIKE $` + strconv.Itoa(argIdx)
+		args = append(args, "%"+search+"%")
+		argIdx++
+	}
+
+	var total int
+	err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	dataQuery := `SELECT id, name_enc, slug, is_platform, suspended_at, deleted_at, created_at, updated_at
+	              FROM organizations WHERE deleted_at IS NULL`
+	dataArgs := []any{}
+	dataIdx := 1
+	if search != "" {
+		dataQuery += ` AND slug ILIKE $` + strconv.Itoa(dataIdx)
+		dataArgs = append(dataArgs, "%"+search+"%")
+		dataIdx++
+	}
+	dataQuery += ` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(dataIdx) + ` OFFSET $` + strconv.Itoa(dataIdx+1)
+	dataArgs = append(dataArgs, perPage, offset)
+
+	rows, err := r.pool.Query(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var items []domain.Organization
+	for rows.Next() {
+		var o domain.Organization
+		if err := rows.Scan(&o.ID, &o.NameEnc, &o.Slug, &o.IsPlatform, &o.SuspendedAt, &o.DeletedAt, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, o)
+	}
+
+	return items, total, nil
+}
+
+func (r *OrgRepo) Suspend(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE organizations SET suspended_at = now(), updated_at = now() WHERE id = $1 AND suspended_at IS NULL AND deleted_at IS NULL`,
+		id,
+	)
+	return err
+}
+
+func (r *OrgRepo) Reactivate(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE organizations SET suspended_at = NULL, updated_at = now() WHERE id = $1 AND suspended_at IS NOT NULL`,
+		id,
+	)
+	return err
+}
+
+func (r *OrgRepo) SoftDelete(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE organizations SET deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL AND is_platform = false`,
+		id,
+	)
+	return err
+}
+
+func (r *OrgRepo) MemberCount(ctx context.Context, orgID string) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM org_memberships WHERE org_id = $1`,
+		orgID,
+	).Scan(&count)
+	return count, err
 }
 
 // SeedSystemRoles creates the default Owner and Member roles for a new org.
