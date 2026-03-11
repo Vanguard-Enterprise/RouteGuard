@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { getServerUser } from "@/lib/server-api"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { SiteHeader } from "@/components/dashboard/site-header"
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
     >
       <AppSidebar me={me} variant="inset" />
       <SidebarInset>
+        <ImpersonationBanner me={me} />
         <SiteHeader />
         <div className="flex flex-1 flex-col">
           {children}
