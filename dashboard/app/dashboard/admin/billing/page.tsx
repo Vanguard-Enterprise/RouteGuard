@@ -6,16 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
+const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000
+
+function isExpiringSoon(date: string | null) {
+  if (!date) return false
+  const diff = new Date(date).getTime() - Date.now()
+  return diff > 0 && diff < FOURTEEN_DAYS_MS
+}
+
 export default function BillingPage() {
   const { data: billingList } = useSWR("platform-billing", () =>
     api.platform.billing.listAll()
   )
-
-  const isExpiringSoon = (date: string | null) => {
-    if (!date) return false
-    const diff = new Date(date).getTime() - Date.now()
-    return diff > 0 && diff < 14 * 24 * 60 * 60 * 1000
-  }
 
   const statusColor = (status: string) => {
     switch (status) {
