@@ -20,6 +20,10 @@ import {
   LayoutDashboardIcon,
   BusIcon,
   UsersIcon,
+  BuildingIcon,
+  ShieldCheckIcon,
+  CreditCardIcon,
+  ArrowDownToLineIcon,
   Settings2Icon,
   CircleHelpIcon,
   SearchIcon,
@@ -30,6 +34,31 @@ const platformNavItems = [
     title: "Dashboard",
     url: "/dashboard",
     icon: <LayoutDashboardIcon />,
+  },
+  {
+    title: "Organizations",
+    url: "/dashboard/admin/orgs",
+    icon: <BuildingIcon />,
+  },
+  {
+    title: "Users",
+    url: "/dashboard/admin/users",
+    icon: <UsersIcon />,
+  },
+  {
+    title: "Audit Log",
+    url: "/dashboard/admin/audit",
+    icon: <ShieldCheckIcon />,
+  },
+  {
+    title: "Billing",
+    url: "/dashboard/admin/billing",
+    icon: <CreditCardIcon />,
+  },
+  {
+    title: "Updates",
+    url: "/dashboard/admin/updates",
+    icon: <ArrowDownToLineIcon />,
   },
 ]
 
@@ -73,7 +102,10 @@ export function AppSidebar({
   me,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { me: MeResponse }) {
-  const navItems = me.active_org.is_platform
+  const isImpersonating = me.home_org_id !== me.active_org.id
+  const isPlatform = me.active_org.is_platform
+
+  const navItems = isPlatform && !isImpersonating
     ? platformNavItems
     : districtNavItems
 
