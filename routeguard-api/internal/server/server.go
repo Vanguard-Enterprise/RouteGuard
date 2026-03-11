@@ -58,6 +58,44 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.Authenticate(s.cache, s.pool)).Post("/auth/switch-org", h.SwitchOrg)
 	r.With(middleware.Authenticate(s.cache, s.pool)).Get("/auth/orgs", h.ListMyOrgs)
 
+	// Platform admin routes
+	r.Route("/platform", func(r chi.Router) {
+		r.Use(middleware.Authenticate(s.cache, s.pool))
+		r.Use(middleware.RequirePlatform(PlatformOrgID))
+
+		// Orgs
+		r.Get("/orgs", h.PlatformListOrgs)
+		r.Post("/orgs", h.PlatformCreateOrg)
+		r.Get("/orgs/{id}", h.PlatformGetOrg)
+		r.Put("/orgs/{id}", h.PlatformUpdateOrg)
+		r.Delete("/orgs/{id}", h.PlatformDeleteOrg)
+		r.Post("/orgs/{id}/suspend", h.PlatformSuspendOrg)
+		r.Post("/orgs/{id}/reactivate", h.PlatformReactivateOrg)
+		r.Get("/orgs/{id}/members", h.PlatformListOrgMembers)
+		r.Post("/orgs/{id}/members", h.PlatformAddOrgMember)
+		r.Delete("/orgs/{id}/members/{userId}", h.PlatformRemoveOrgMember)
+		r.Put("/orgs/{id}/members/{userId}/roles", h.PlatformUpdateMemberRoles)
+		r.Get("/orgs/{id}/billing", h.PlatformGetBilling)
+		r.Put("/orgs/{id}/billing", h.PlatformUpdateBilling)
+
+		// Users
+		r.Get("/users", h.PlatformListUsers)
+		r.Get("/users/{id}", h.PlatformGetUser)
+		r.Post("/users/{id}/disable", h.PlatformDisableUser)
+		r.Post("/users/{id}/enable", h.PlatformEnableUser)
+		r.Post("/users/{id}/reset-password", h.PlatformResetPassword)
+		r.Delete("/users/{id}/sessions", h.PlatformRevokeSessions)
+
+		// Audit
+		r.Get("/audit", h.PlatformListAudit)
+
+		// Billing (list all)
+		r.Get("/billing", h.PlatformListAllBilling)
+
+		// Stats
+		r.Get("/stats", h.PlatformStats)
+	})
+
 	return r
 }
 
@@ -72,7 +110,7 @@ func corsMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 			if origin == cfg.BaseURL || origin == "http://localhost:3000" {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			}
 			if r.Method == http.MethodOptions {
