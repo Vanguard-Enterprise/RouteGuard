@@ -4,11 +4,30 @@ import React from "react";
 import { Portal, PortalBackdrop } from "@/components/ui/portal";
 import { Button } from "@/components/ui/button";
 import { navLinks } from "@/components/header";
-import { XIcon, MenuIcon } from "lucide-react";
+import { XIcon, MenuIcon, LayoutDashboardIcon, CircleUserRoundIcon, BellIcon, LogOutIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { AuthUser } from "@/lib/api";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-export function MobileNav({ scrolled }: { scrolled?: boolean }) {
+function getInitials(name: string) {
+	return name
+		.split(" ")
+		.map((n) => n[0])
+		.join("")
+		.toUpperCase()
+		.slice(0, 2);
+}
+
+export function MobileNav({ scrolled, user }: { scrolled?: boolean; user?: AuthUser | null }) {
 	const [open, setOpen] = React.useState(false);
+	const router = useRouter();
+
+	async function handleLogout() {
+		await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+		setOpen(false);
+		router.push("/");
+	}
 
 	return (
 		<div className="md:hidden">
@@ -50,11 +69,47 @@ export function MobileNav({ scrolled }: { scrolled?: boolean }) {
 							))}
 						</div>
 						<div className="mt-12 flex flex-col gap-2">
-							<Button asChild className="w-full">
-								<Link href="/contact" onClick={() => setOpen(false)}>
-									Request a Demo
-								</Link>
-							</Button>
+							{user ? (
+								<>
+									<div className="flex items-center gap-2 px-3 py-2">
+										<Avatar className="h-8 w-8 rounded-lg">
+											<AvatarFallback className="rounded-lg">
+												{getInitials(user.name)}
+											</AvatarFallback>
+										</Avatar>
+										<div className="grid flex-1 text-left text-sm leading-tight">
+											<span className="truncate font-medium">{user.name}</span>
+											<span className="truncate text-xs text-muted-foreground">
+												{user.email}
+											</span>
+										</div>
+									</div>
+									<Button asChild variant="ghost" className="justify-start" onClick={() => setOpen(false)}>
+										<Link href="/dashboard">
+											<LayoutDashboardIcon className="mr-2 size-4" />
+											Dashboard
+										</Link>
+									</Button>
+									<Button variant="ghost" className="justify-start" onClick={() => setOpen(false)}>
+										<CircleUserRoundIcon className="mr-2 size-4" />
+										Account
+									</Button>
+									<Button variant="ghost" className="justify-start" onClick={() => setOpen(false)}>
+										<BellIcon className="mr-2 size-4" />
+										Notifications
+									</Button>
+									<Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={handleLogout}>
+										<LogOutIcon className="mr-2 size-4" />
+										Sign out
+									</Button>
+								</>
+							) : (
+								<Button asChild className="w-full">
+									<Link href="/login" onClick={() => setOpen(false)}>
+										Login
+									</Link>
+								</Button>
+							)}
 						</div>
 					</div>
 				</Portal>

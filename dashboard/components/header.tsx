@@ -5,6 +5,28 @@ import { useScroll } from "@/hooks/use-scroll";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { AuthUser } from "@/lib/api";
+import {
+	Avatar,
+	AvatarFallback,
+} from "@/components/ui/avatar";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+	CircleUserRoundIcon,
+	BellIcon,
+	LogOutIcon,
+	LayoutDashboardIcon,
+	ChevronDownIcon,
+} from "lucide-react";
 
 export const navLinks = [
 	{ label: "Features", href: "/#features" },
@@ -12,7 +34,85 @@ export const navLinks = [
 	{ label: "Contact", href: "/contact" },
 ];
 
-export function Header() {
+function getInitials(name: string) {
+	return name
+		.split(" ")
+		.map((n) => n[0])
+		.join("")
+		.toUpperCase()
+		.slice(0, 2);
+}
+
+function HeaderUserMenu({ user, scrolled }: { user: AuthUser; scrolled: boolean }) {
+	const router = useRouter();
+
+	async function handleLogout() {
+		await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+		router.push("/");
+	}
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					size="sm"
+					variant="ghost"
+					className={cn(
+						"gap-2",
+						!scrolled && "text-white/80 hover:bg-white/10 hover:text-white"
+					)}
+				>
+					<Avatar className="h-6 w-6 rounded-full">
+						<AvatarFallback className="rounded-full text-xs">
+							{getInitials(user.name)}
+						</AvatarFallback>
+					</Avatar>
+					<span className="max-w-24 truncate text-sm">{user.name.split(" ")[0]}</span>
+					<ChevronDownIcon className="size-3.5" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent className="min-w-56 rounded-lg" align="end" sideOffset={8}>
+				<DropdownMenuLabel className="p-0 font-normal">
+					<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+						<Avatar className="h-8 w-8 rounded-lg">
+							<AvatarFallback className="rounded-lg">
+								{getInitials(user.name)}
+							</AvatarFallback>
+						</Avatar>
+						<div className="grid flex-1 text-left text-sm leading-tight">
+							<span className="truncate font-medium">{user.name}</span>
+							<span className="truncate text-xs text-muted-foreground">
+								{user.email}
+							</span>
+						</div>
+					</div>
+				</DropdownMenuLabel>
+				<DropdownMenuSeparator />
+				<DropdownMenuGroup>
+					<DropdownMenuItem onClick={() => router.push("/dashboard")}>
+						<LayoutDashboardIcon />
+						Dashboard
+					</DropdownMenuItem>
+					<DropdownMenuItem>
+						<CircleUserRoundIcon />
+						Account
+					</DropdownMenuItem>
+					<DropdownMenuItem>
+						<BellIcon />
+						Notifications
+					</DropdownMenuItem>
+				</DropdownMenuGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onClick={handleLogout}>
+					<LogOutIcon />
+					Sign out
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+export function Header({ user }: { user?: AuthUser | null }) {
 	const scrolled = useScroll(10);
 
 	return (
@@ -59,9 +159,11 @@ export function Header() {
 							</Button>
 						))}
 					</div>
-					{scrolled ? (
+					{user ? (
+						<HeaderUserMenu user={user} scrolled={scrolled} />
+					) : scrolled ? (
 						<Button asChild size="sm">
-							<Link href="/contact">Request a Demo</Link>
+							<Link href="/login">Login</Link>
 						</Button>
 					) : (
 						<Button
@@ -70,11 +172,11 @@ export function Header() {
 							className="text-[#1B3A5C] hover:opacity-90"
 							style={{ backgroundColor: "var(--color-brand-amber)" }}
 						>
-							<Link href="/contact">Request a Demo</Link>
+							<Link href="/login">Login</Link>
 						</Button>
 					)}
 				</div>
-				<MobileNav scrolled={scrolled} />
+				<MobileNav scrolled={scrolled} user={user} />
 			</nav>
 		</header>
 	);
