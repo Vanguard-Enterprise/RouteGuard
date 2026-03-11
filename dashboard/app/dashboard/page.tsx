@@ -1,19 +1,20 @@
-import { SectionCards } from "@/components/dashboard/section-cards"
-import { ChartAreaInteractive } from "@/components/dashboard/chart-area-interactive"
-import { DataTable } from "@/components/dashboard/data-table"
+import { getServerUser } from "@/lib/server-api"
+import { redirect } from "next/navigation"
+import { PlatformDashboard } from "@/components/dashboard/platform-dashboard"
+import { DistrictDashboard } from "@/components/dashboard/district-dashboard"
 
-import data from "./data.json"
+export default async function DashboardPage() {
+  const me = await getServerUser()
+  if (!me) redirect("/login")
 
-export default function DashboardPage() {
-  return (
-    <div className="@container/main flex flex-1 flex-col gap-2">
-      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-        <SectionCards />
-        <div className="px-4 lg:px-6">
-          <ChartAreaInteractive />
-        </div>
-        <DataTable data={data} />
+  if (me.active_org.is_platform) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-6">Platform Overview</h1>
+        <PlatformDashboard />
       </div>
-    </div>
-  )
+    )
+  }
+
+  return <DistrictDashboard />
 }
