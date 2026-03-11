@@ -55,7 +55,7 @@ func (r *MembershipRepo) GetByUserAndOrg(ctx context.Context, userID, orgID stri
 // ListOrgsByUser returns all orgs for a user. The caller must decrypt NameEnc.
 func (r *MembershipRepo) ListOrgsByUser(ctx context.Context, userID string) ([]domain.Organization, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT o.id, o.name_enc, o.slug, o.is_platform, o.created_at, o.updated_at
+		`SELECT o.id, o.name_enc, o.slug, o.is_platform, o.suspended_at, o.deleted_at, o.created_at, o.updated_at
 		 FROM organizations o
 		 JOIN org_memberships m ON m.org_id = o.id
 		 WHERE m.user_id = $1
@@ -69,7 +69,7 @@ func (r *MembershipRepo) ListOrgsByUser(ctx context.Context, userID string) ([]d
 	var orgs []domain.Organization
 	for rows.Next() {
 		var o domain.Organization
-		if err := rows.Scan(&o.ID, &o.NameEnc, &o.Slug, &o.IsPlatform, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.NameEnc, &o.Slug, &o.IsPlatform, &o.SuspendedAt, &o.DeletedAt, &o.CreatedAt, &o.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan org: %w", err)
 		}
 		orgs = append(orgs, o)
