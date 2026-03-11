@@ -20,8 +20,6 @@ import {
   LayoutDashboardIcon,
   BusIcon,
   UsersIcon,
-  MapPinIcon,
-  ChartBarIcon,
   Settings2Icon,
   CircleHelpIcon,
   SearchIcon,
@@ -32,26 +30,6 @@ const platformNavItems = [
     title: "Dashboard",
     url: "/dashboard",
     icon: <LayoutDashboardIcon />,
-  },
-  {
-    title: "Routes",
-    url: "/dashboard/routes",
-    icon: <BusIcon />,
-  },
-  {
-    title: "Students",
-    url: "/dashboard/students",
-    icon: <UsersIcon />,
-  },
-  {
-    title: "Stops",
-    url: "/dashboard/stops",
-    icon: <MapPinIcon />,
-  },
-  {
-    title: "Analytics",
-    url: "/dashboard/analytics",
-    icon: <ChartBarIcon />,
   },
 ]
 
