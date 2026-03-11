@@ -108,3 +108,15 @@ func (c *Cache) SMembers(ctx context.Context, key string) ([]string, error) {
 func (c *Cache) SRem(ctx context.Context, key, member string) error {
 	return c.client.SRem(ctx, key, member).Err()
 }
+
+func (c *Cache) SetString(ctx context.Context, key, value string, ttl time.Duration) error {
+	return c.client.Set(ctx, key, value, ttl).Err()
+}
+
+func (c *Cache) GetString(ctx context.Context, key string) (string, error) {
+	return c.client.Get(ctx, key).Result()
+}
+
+func (c *Cache) Keys(ctx context.Context, pattern string) ([]string, error) {
+	return c.client.Keys(ctx, pattern).Result()
+}
