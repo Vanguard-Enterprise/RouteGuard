@@ -79,6 +79,7 @@ func (s *Server) buildRouter() chi.Router {
 		r.Put("/orgs/{id}/billing", h.PlatformUpdateBilling)
 
 		// Users
+		r.Post("/users", h.PlatformCreateUser)
 		r.Get("/users", h.PlatformListUsers)
 		r.Get("/users/{id}", h.PlatformGetUser)
 		r.Post("/users/{id}/disable", h.PlatformDisableUser)

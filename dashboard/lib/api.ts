@@ -268,6 +268,8 @@ export const api = {
     users: {
       list: (params?: { email?: string; page?: number; per_page?: number }) =>
         platformRequest<PageResponse<PlatformUser>>(`/platform/users${qs(params)}`),
+      create: (data: { email: string; name: string; org_id?: string }) =>
+        platformRequest<PlatformUser>('/platform/users', { method: 'POST', body: JSON.stringify(data) }),
       get: (id: string) => platformRequest<PlatformUserDetail>(`/platform/users/${id}`),
       disable: (id: string) => platformRequest<void>(`/platform/users/${id}/disable`, { method: 'POST' }),
       enable: (id: string) => platformRequest<void>(`/platform/users/${id}/enable`, { method: 'POST' }),

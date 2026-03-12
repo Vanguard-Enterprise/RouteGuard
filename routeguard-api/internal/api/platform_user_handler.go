@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -8,7 +9,66 @@ import (
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/domain"
+	"github.com/routeguard/api/internal/middleware"
 )
+
+func (h *Handler) PlatformCreateUser(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Email  string  `json:"email"`
+		Name   string  `json:"name"`
+		OrgID  *string `json:"org_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if body.Email == "" || body.Name == "" {
+		Error(w, http.StatusBadRequest, "email and name are required")
+		return
+	}
+
+	ctx := r.Context()
+	emailEnc, err := crypto.Encrypt(h.cfg.DataEncryptionKey, body.Email)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "encryption failed")
+		return
+	}
+	nameEnc, err := crypto.Encrypt(h.cfg.DataEncryptionKey, body.Name)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "encryption failed")
+		return
+	}
+	emailHash := crypto.HMAC(h.cfg.HMACKey, body.Email)
+
+	user, err := h.users.Create(ctx, emailEnc, emailHash, nameEnc, nil)
+	if err != nil {
+		if isUniqueViolation(err) {
+			Error(w, http.StatusConflict, "a user with this email already exists")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to create user")
+		return
+	}
+
+	if body.OrgID != nil && *body.OrgID != "" {
+		_, _ = h.members.Create(ctx, user.ID, *body.OrgID)
+	}
+
+	session := middleware.SessionFromContext(ctx)
+	meta, _ := json.Marshal(map[string]string{"email": body.Email, "name": body.Name})
+	h.audit.Create(ctx, domain.AuditEvent{
+		ActorID:    session.UserID,
+		ActorEmail: h.actorEmail(ctx, session.UserID),
+		EventType:  "user.created",
+		TargetType: "user",
+		TargetID:   &user.ID,
+		Metadata:   meta,
+	})
+
+	user.Email = body.Email
+	user.Name = body.Name
+	JSON(w, http.StatusCreated, user)
+}
 
 func (h *Handler) PlatformListUsers(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")

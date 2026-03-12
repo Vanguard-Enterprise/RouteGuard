@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { api } from "@/lib/api"
-import type { Organization } from "@/lib/api"
+import type { Organization, PlatformUser, PageResponse } from "@/lib/api"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -49,6 +49,14 @@ export default function OrgDetailPage() {
   const [editSlug, setEditSlug] = useState("")
   const [editMode, setEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  const [addEmail, setAddEmail] = useState("")
+  const [searchResults, setSearchResults] = useState<PlatformUser[]>([])
+  const [searching, setSearching] = useState(false)
+  const [addMode, setAddMode] = useState(false)
+  const [newUserName, setNewUserName] = useState("")
+  const [newUserEmail, setNewUserEmail] = useState("")
+  const [creatingUser, setCreatingUser] = useState(false)
 
   function startEdit(org: Organization) {
     setEditName(org.name)
@@ -109,6 +117,54 @@ export default function OrgDetailPage() {
       router.push("/dashboard/admin/orgs")
     } catch {
       toast.error("Failed to delete organization")
+    }
+  }
+
+  const handleSearchUser = useCallback(async () => {
+    if (!addEmail.trim()) return
+    setSearching(true)
+    try {
+      const result: PageResponse<PlatformUser> = await api.platform.users.list({ email: addEmail.trim(), per_page: 5 })
+      setSearchResults(result.items ?? [])
+    } catch {
+      toast.error("Failed to search users")
+    } finally {
+      setSearching(false)
+    }
+  }, [addEmail])
+
+  async function handleAddExistingMember(userId: string) {
+    if (!org) return
+    try {
+      await api.platform.orgs.addMember(org.id, userId)
+      toast.success("Member added")
+      setAddMode(false)
+      setAddEmail("")
+      setSearchResults([])
+      mutateMembers()
+    } catch {
+      toast.error("Failed to add member")
+    }
+  }
+
+  async function handleCreateAndAdd() {
+    if (!org || !newUserEmail.trim() || !newUserName.trim()) return
+    setCreatingUser(true)
+    try {
+      await api.platform.users.create({
+        email: newUserEmail.trim(),
+        name: newUserName.trim(),
+        org_id: org.id,
+      })
+      toast.success("User created and added to organization")
+      setNewUserEmail("")
+      setNewUserName("")
+      setAddMode(false)
+      mutateMembers()
+    } catch {
+      toast.error("Failed to create user")
+    } finally {
+      setCreatingUser(false)
     }
   }
 
@@ -243,10 +299,86 @@ export default function OrgDetailPage() {
         </TabsContent>
 
         {/* Members Tab */}
-        <TabsContent value="members" className="mt-4">
+        <TabsContent value="members" className="mt-4 space-y-4">
+          {addMode ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Member</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Search existing user by email</p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="user@example.com"
+                      value={addEmail}
+                      onChange={(e) => setAddEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSearchUser()}
+                      className="max-w-sm"
+                    />
+                    <Button onClick={handleSearchUser} disabled={searching} variant="outline" size="sm">
+                      {searching ? "Searching..." : "Search"}
+                    </Button>
+                  </div>
+                  {searchResults.length > 0 && (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableBody>
+                          {searchResults.map((u) => (
+                            <TableRow key={u.id}>
+                              <TableCell className="font-medium">{u.name}</TableCell>
+                              <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" onClick={() => handleAddExistingMember(u.id)}>
+                                  Add
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                  {searchResults.length === 0 && addEmail && !searching && (
+                    <p className="text-sm text-muted-foreground">No users found.</p>
+                  )}
+                </div>
+                <div className="border-t pt-4 space-y-2">
+                  <p className="text-sm font-medium">Or create a new user</p>
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <Input
+                      placeholder="Name"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      className="max-w-[200px]"
+                    />
+                    <Input
+                      placeholder="Email"
+                      value={newUserEmail}
+                      onChange={(e) => setNewUserEmail(e.target.value)}
+                      className="max-w-sm"
+                    />
+                    <Button onClick={handleCreateAndAdd} disabled={creatingUser || !newUserName || !newUserEmail} size="sm">
+                      {creatingUser ? "Creating..." : "Create & Add"}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Button variant="outline" size="sm" onClick={() => { setAddMode(false); setSearchResults([]); setAddEmail("") }}>
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Members</CardTitle>
+              {!addMode && (
+                <Button size="sm" onClick={() => setAddMode(true)}>
+                  Add Member
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
