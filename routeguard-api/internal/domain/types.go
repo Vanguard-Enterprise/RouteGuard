@@ -145,6 +145,23 @@ type OrgBilling struct {
 	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
+type Integration struct {
+	ID           string     `json:"id"`
+	OrgID        string     `json:"org_id"`
+	Type         string     `json:"type"`
+	DisplayName  string     `json:"display_name"`
+	BaseURL      string     `json:"base_url"`
+	APIKeyEnc    string     `json:"-"`
+	APISecretEnc string     `json:"-"`
+	HasAPIKey    bool       `json:"has_api_key"`
+	HasAPISecret bool       `json:"has_api_secret"`
+	Enabled      bool       `json:"enabled"`
+	SyncSchedule *string    `json:"sync_schedule"`
+	LastSyncedAt *time.Time `json:"last_synced_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
 type SoftwareRelease struct {
 	ID           string    `json:"id"`
 	Version      string    `json:"version"`
