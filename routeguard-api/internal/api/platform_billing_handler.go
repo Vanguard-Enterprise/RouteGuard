@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/domain"
 )
 
 func (h *Handler) PlatformGetBilling(w http.ResponseWriter, r *http.Request) {
@@ -52,5 +54,23 @@ func (h *Handler) PlatformListAllBilling(w http.ResponseWriter, r *http.Request)
 		Error(w, http.StatusInternalServerError, "failed to list billing")
 		return
 	}
-	JSON(w, http.StatusOK, items)
+
+	ctx := r.Context()
+	type billingWithOrg struct {
+		domain.OrgBilling
+		OrgName string `json:"org_name"`
+		OrgSlug string `json:"org_slug"`
+	}
+	result := make([]billingWithOrg, 0, len(items))
+	for _, b := range items {
+		entry := billingWithOrg{OrgBilling: b}
+		org, err := h.orgs.GetByID(ctx, b.OrgID)
+		if err == nil {
+			name, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, org.NameEnc)
+			entry.OrgName = name
+			entry.OrgSlug = org.Slug
+		}
+		result = append(result, entry)
+	}
+	JSON(w, http.StatusOK, result)
 }

@@ -39,7 +39,7 @@ export default function BillingPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Org ID</TableHead>
+                <TableHead>Organization</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Pilot Ends</TableHead>
                 <TableHead>Contact</TableHead>
@@ -49,7 +49,12 @@ export default function BillingPage() {
             <TableBody>
               {billingList?.map((b) => (
                 <TableRow key={b.id} className={isExpiringSoon(b.pilot_ends_at) ? "bg-amber-50 dark:bg-amber-950/20" : ""}>
-                  <TableCell className="font-mono text-xs">{b.org_id.slice(0, 8)}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{b.org_name || b.org_id.slice(0, 8)}</p>
+                      {b.org_slug && <p className="text-xs text-muted-foreground">{b.org_slug}</p>}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={statusColor(b.billing_status) as "default" | "secondary" | "destructive" | "outline"}>{b.billing_status}</Badge>
                   </TableCell>

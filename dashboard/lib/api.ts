@@ -166,6 +166,8 @@ export interface OrgBilling {
   billing_contact_email: string
   created_at: string
   updated_at: string
+  org_name?: string
+  org_slug?: string
 }
 
 export interface AuditEvent {
