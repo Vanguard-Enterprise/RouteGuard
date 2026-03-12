@@ -97,6 +97,34 @@ func (s *Server) buildRouter() chi.Router {
 		r.Get("/stats", h.PlatformStats)
 	})
 
+	// Org-level routes (session-scoped)
+	r.Route("/org", func(r chi.Router) {
+		r.Use(middleware.Authenticate(s.cache, s.pool))
+
+		r.Get("/settings", h.OrgGetSettings)
+		r.With(middleware.RequirePermission("org:manage")).Put("/settings", h.OrgUpdateSettings)
+
+		r.With(middleware.RequirePermission("members:read")).Get("/members", h.OrgListMembers)
+		r.With(middleware.RequirePermission("members:write")).Post("/members", h.OrgCreateMember)
+		r.With(middleware.RequirePermission("members:write")).Post("/members/invite", h.OrgInviteMember)
+		r.With(middleware.RequirePermission("members:write")).Delete("/members/{userId}", h.OrgRemoveMember)
+		r.With(middleware.RequirePermission("roles:write")).Put("/members/{userId}/roles", h.OrgUpdateMemberRoles)
+		r.With(middleware.RequirePermission("roles:read")).Get("/roles", h.OrgListRoles)
+
+		r.With(middleware.RequirePermission("sso:read")).Get("/sso", h.OrgListSSO)
+		r.With(middleware.RequirePermission("sso:write")).Post("/sso", h.OrgCreateSSO)
+		r.With(middleware.RequirePermission("sso:write")).Put("/sso/{id}", h.OrgUpdateSSO)
+		r.With(middleware.RequirePermission("sso:write")).Delete("/sso/{id}", h.OrgDeleteSSO)
+
+		r.Get("/billing", h.OrgGetBilling)
+		r.With(middleware.RequirePermission("org:manage")).Put("/billing/contact", h.OrgUpdateBillingContact)
+
+		r.Get("/integrations", h.OrgListIntegrations)
+		r.With(middleware.RequirePermission("org:manage")).Post("/integrations", h.OrgCreateIntegration)
+		r.With(middleware.RequirePermission("org:manage")).Put("/integrations/{id}", h.OrgUpdateIntegration)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/integrations/{id}", h.OrgDeleteIntegration)
+	})
+
 	return r
 }
 
