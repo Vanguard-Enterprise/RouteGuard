@@ -230,12 +230,24 @@ export const api = {
       }),
     logout: () => authRequest<void>('/api/auth/logout', { method: 'POST' }),
     me: () => request<MeResponse>('/auth/me'),
-    switchOrg: (orgId: string) =>
-      request<{ org: OrgOption; permissions: string[] }>('/auth/switch-org', {
+    switchOrg: (orgId: string) => {
+      if (typeof window !== 'undefined') {
+        return clientRequest<{ org: OrgOption; permissions: string[] }>('/api/auth/switch-org', {
+          method: 'POST',
+          body: JSON.stringify({ org_id: orgId }),
+        })
+      }
+      return request<{ org: OrgOption; permissions: string[] }>('/auth/switch-org', {
         method: 'POST',
         body: JSON.stringify({ org_id: orgId }),
-      }),
-    orgs: () => request<OrgOption[]>('/auth/orgs'),
+      })
+    },
+    orgs: () => {
+      if (typeof window !== 'undefined') {
+        return clientRequest<OrgOption[]>('/api/auth/orgs')
+      }
+      return request<OrgOption[]>('/auth/orgs')
+    },
   },
   platform: {
     stats: () => platformRequest<PlatformStats>('/platform/stats'),
