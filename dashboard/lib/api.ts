@@ -44,6 +44,32 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
+async function platformRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  if (typeof window !== 'undefined') {
+    // Client-side: proxy through Next.js to forward the cookie
+    return clientRequest<T>(`/api${path}`, init)
+  }
+  // Server-side: direct call with cookie forwarding
+  return request<T>(path, init)
+}
+
+async function clientRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...init?.headers,
+    },
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }))
+    throw new APIError(res.status, body.error ?? res.statusText)
+  }
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
 function qs(params?: Record<string, unknown>): string {
   if (!params) return ''
   const filtered: Record<string, string> = {}
@@ -212,48 +238,48 @@ export const api = {
     orgs: () => request<OrgOption[]>('/auth/orgs'),
   },
   platform: {
-    stats: () => request<PlatformStats>('/platform/stats'),
+    stats: () => platformRequest<PlatformStats>('/platform/stats'),
     orgs: {
       list: (params?: { search?: string; page?: number; per_page?: number }) =>
-        request<PageResponse<Organization>>(`/platform/orgs${qs(params)}`),
-      get: (id: string) => request<Organization>(`/platform/orgs/${id}`),
+        platformRequest<PageResponse<Organization>>(`/platform/orgs${qs(params)}`),
+      get: (id: string) => platformRequest<Organization>(`/platform/orgs/${id}`),
       create: (data: { name: string; slug: string }) =>
-        request<Organization>('/platform/orgs', { method: 'POST', body: JSON.stringify(data) }),
+        platformRequest<Organization>('/platform/orgs', { method: 'POST', body: JSON.stringify(data) }),
       update: (id: string, data: { name: string; slug: string }) =>
-        request<Organization>(`/platform/orgs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+        platformRequest<Organization>(`/platform/orgs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
       delete: (id: string) =>
-        request<void>(`/platform/orgs/${id}`, { method: 'DELETE' }),
+        platformRequest<void>(`/platform/orgs/${id}`, { method: 'DELETE' }),
       suspend: (id: string) =>
-        request<void>(`/platform/orgs/${id}/suspend`, { method: 'POST' }),
+        platformRequest<void>(`/platform/orgs/${id}/suspend`, { method: 'POST' }),
       reactivate: (id: string) =>
-        request<void>(`/platform/orgs/${id}/reactivate`, { method: 'POST' }),
+        platformRequest<void>(`/platform/orgs/${id}/reactivate`, { method: 'POST' }),
       members: (id: string) =>
-        request<unknown[]>(`/platform/orgs/${id}/members`),
+        platformRequest<unknown[]>(`/platform/orgs/${id}/members`),
       addMember: (id: string, userId: string) =>
-        request<unknown>(`/platform/orgs/${id}/members`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+        platformRequest<unknown>(`/platform/orgs/${id}/members`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
       removeMember: (id: string, userId: string) =>
-        request<void>(`/platform/orgs/${id}/members/${userId}`, { method: 'DELETE' }),
+        platformRequest<void>(`/platform/orgs/${id}/members/${userId}`, { method: 'DELETE' }),
       updateMemberRoles: (id: string, userId: string, roleIds: string[]) =>
-        request<void>(`/platform/orgs/${id}/members/${userId}/roles`, { method: 'PUT', body: JSON.stringify({ role_ids: roleIds }) }),
-      getBilling: (id: string) => request<OrgBilling>(`/platform/orgs/${id}/billing`),
+        platformRequest<void>(`/platform/orgs/${id}/members/${userId}/roles`, { method: 'PUT', body: JSON.stringify({ role_ids: roleIds }) }),
+      getBilling: (id: string) => platformRequest<OrgBilling>(`/platform/orgs/${id}/billing`),
       updateBilling: (id: string, data: Partial<OrgBilling>) =>
-        request<OrgBilling>(`/platform/orgs/${id}/billing`, { method: 'PUT', body: JSON.stringify(data) }),
+        platformRequest<OrgBilling>(`/platform/orgs/${id}/billing`, { method: 'PUT', body: JSON.stringify(data) }),
     },
     users: {
       list: (params?: { email?: string; page?: number; per_page?: number }) =>
-        request<PageResponse<PlatformUser>>(`/platform/users${qs(params)}`),
-      get: (id: string) => request<PlatformUserDetail>(`/platform/users/${id}`),
-      disable: (id: string) => request<void>(`/platform/users/${id}/disable`, { method: 'POST' }),
-      enable: (id: string) => request<void>(`/platform/users/${id}/enable`, { method: 'POST' }),
-      resetPassword: (id: string) => request<void>(`/platform/users/${id}/reset-password`, { method: 'POST' }),
-      revokeSessions: (id: string) => request<void>(`/platform/users/${id}/sessions`, { method: 'DELETE' }),
+        platformRequest<PageResponse<PlatformUser>>(`/platform/users${qs(params)}`),
+      get: (id: string) => platformRequest<PlatformUserDetail>(`/platform/users/${id}`),
+      disable: (id: string) => platformRequest<void>(`/platform/users/${id}/disable`, { method: 'POST' }),
+      enable: (id: string) => platformRequest<void>(`/platform/users/${id}/enable`, { method: 'POST' }),
+      resetPassword: (id: string) => platformRequest<void>(`/platform/users/${id}/reset-password`, { method: 'POST' }),
+      revokeSessions: (id: string) => platformRequest<void>(`/platform/users/${id}/sessions`, { method: 'DELETE' }),
     },
     audit: {
       list: (params?: { cursor?: string; limit?: number; event_type?: string; actor_id?: string; start_date?: string; end_date?: string }) =>
-        request<CursorResponse<AuditEvent>>(`/platform/audit${qs(params)}`),
+        platformRequest<CursorResponse<AuditEvent>>(`/platform/audit${qs(params)}`),
     },
     billing: {
-      listAll: () => request<OrgBilling[]>('/platform/billing'),
+      listAll: () => platformRequest<OrgBilling[]>('/platform/billing'),
     },
   },
 }
