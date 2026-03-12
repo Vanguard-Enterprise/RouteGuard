@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, Fragment } from "react"
 import { api } from "@/lib/api"
 import type { AuditEvent, CursorResponse } from "@/lib/api"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
@@ -34,36 +34,38 @@ export default function AuditLogPage() {
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const [searched, setSearched] = useState(false)
 
-  const buildParams = (nextCursor?: string) => {
+  const buildParams = useCallback((nextCursor?: string) => {
     const params: Record<string, string> = { limit: "50" }
     if (eventType && eventType !== "all") params.event_type = eventType
     if (startDate) params.start_date = startDate
     if (endDate) params.end_date = endDate
     if (nextCursor) params.cursor = nextCursor
     return params
-  }
+  }, [eventType, startDate, endDate])
 
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     setLoading(true)
-    setSearched(true)
     try {
       const result: CursorResponse<AuditEvent> = await api.platform.audit.list(buildParams())
-      setItems(result.items)
+      setItems(result.items ?? [])
       setCursor(result.next_cursor)
       setHasMore(result.has_more)
     } finally {
       setLoading(false)
     }
-  }
+  }, [buildParams])
+
+  useEffect(() => {
+    handleSearch()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLoadMore = async () => {
     if (!cursor) return
     setLoading(true)
     try {
       const result: CursorResponse<AuditEvent> = await api.platform.audit.list(buildParams(cursor))
-      setItems((prev) => [...prev, ...result.items])
+      setItems((prev) => [...prev, ...(result.items ?? [])])
       setCursor(result.next_cursor)
       setHasMore(result.has_more)
     } finally {
@@ -153,8 +155,8 @@ export default function AuditLogPage() {
             </TableHeader>
             <TableBody>
               {items.map((event) => (
-                <>
-                  <TableRow key={event.id}>
+                <Fragment key={event.id}>
+                  <TableRow>
                     <TableCell className="text-xs whitespace-nowrap">
                       {new Date(event.created_at).toLocaleString()}
                     </TableCell>
@@ -180,7 +182,7 @@ export default function AuditLogPage() {
                     </TableCell>
                   </TableRow>
                   {expandedRows.has(event.id) && event.metadata && (
-                    <TableRow key={`${event.id}-meta`}>
+                    <TableRow>
                       <TableCell colSpan={5} className="bg-muted/40 py-3">
                         <pre className="text-xs font-mono whitespace-pre-wrap break-all">
                           {JSON.stringify(event.metadata, null, 2)}
@@ -188,19 +190,12 @@ export default function AuditLogPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               ))}
-              {searched && items.length === 0 && (
+              {!loading && items.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     No audit events found
-                  </TableCell>
-                </TableRow>
-              )}
-              {!searched && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    Use the filters above and click Search to load audit events
                   </TableCell>
                 </TableRow>
               )}

@@ -78,7 +78,7 @@ func (r *AuditRepo) List(ctx context.Context, cursor *time.Time, limit int, even
 	}
 	defer rows.Close()
 
-	var items []domain.AuditEvent
+	items := make([]domain.AuditEvent, 0)
 	for rows.Next() {
 		var e domain.AuditEvent
 		if err := rows.Scan(&e.ID, &e.ActorID, &e.ActorEmail, &e.OrgID, &e.EventType,

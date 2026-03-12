@@ -27,12 +27,22 @@ func (h *Handler) PlatformListAudit(w http.ResponseWriter, r *http.Request) {
 	var startDate, endDate *time.Time
 	if startStr != "" {
 		t, err := time.Parse(time.RFC3339, startStr)
+		if err != nil {
+			t, err = time.Parse("2006-01-02", startStr)
+		}
 		if err == nil {
 			startDate = &t
 		}
 	}
 	if endStr != "" {
 		t, err := time.Parse(time.RFC3339, endStr)
+		if err != nil {
+			t, err = time.Parse("2006-01-02", endStr)
+			if err == nil {
+				// End of day
+				t = t.Add(24*time.Hour - time.Nanosecond)
+			}
+		}
 		if err == nil {
 			endDate = &t
 		}
