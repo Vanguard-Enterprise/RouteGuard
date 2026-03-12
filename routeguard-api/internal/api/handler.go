@@ -16,8 +16,9 @@ type Handler struct {
 	members *repository.MembershipRepo
 	roles   *repository.RoleRepo
 	sso     *repository.SSORepo
-	audit   *repository.AuditRepo
-	billing *repository.BillingRepo
+	audit        *repository.AuditRepo
+	billing      *repository.BillingRepo
+	integrations *repository.IntegrationRepo
 }
 
 func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler {
@@ -30,7 +31,8 @@ func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler
 		members: repository.NewMembershipRepo(pool),
 		roles:   repository.NewRoleRepo(pool),
 		sso:     repository.NewSSORepo(pool),
-		audit:   repository.NewAuditRepo(pool),
-		billing: repository.NewBillingRepo(pool),
+		audit:        repository.NewAuditRepo(pool),
+		billing:      repository.NewBillingRepo(pool),
+		integrations: repository.NewIntegrationRepo(pool),
 	}
 }
