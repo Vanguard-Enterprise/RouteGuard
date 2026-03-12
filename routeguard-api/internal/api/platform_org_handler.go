@@ -187,12 +187,49 @@ func (h *Handler) PlatformDeleteOrg(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) PlatformListOrgMembers(w http.ResponseWriter, r *http.Request) {
 	orgID := chi.URLParam(r, "id")
-	members, err := h.members.ListMembersByOrg(r.Context(), orgID)
+	ctx := r.Context()
+
+	memberships, err := h.members.ListMembersByOrg(ctx, orgID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "failed to list members")
 		return
 	}
-	JSON(w, http.StatusOK, members)
+
+	type memberRole struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	type enrichedMember struct {
+		UserID string       `json:"user_id"`
+		Email  string       `json:"email"`
+		Name   string       `json:"name"`
+		Roles  []memberRole `json:"roles"`
+	}
+
+	result := make([]enrichedMember, 0, len(memberships))
+	for _, m := range memberships {
+		user, err := h.users.GetByID(ctx, m.UserID)
+		if err != nil {
+			continue
+		}
+		email, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.EmailEnc)
+		name, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.NameEnc)
+
+		roles, _ := h.roles.ListMemberRoles(ctx, m.ID)
+		memberRoles := make([]memberRole, 0, len(roles))
+		for _, r := range roles {
+			memberRoles = append(memberRoles, memberRole{ID: r.ID, Name: r.Name})
+		}
+
+		result = append(result, enrichedMember{
+			UserID: m.UserID,
+			Email:  email,
+			Name:   name,
+			Roles:  memberRoles,
+		})
+	}
+
+	JSON(w, http.StatusOK, result)
 }
 
 func (h *Handler) PlatformAddOrgMember(w http.ResponseWriter, r *http.Request) {
