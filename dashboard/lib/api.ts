@@ -53,6 +53,13 @@ async function platformRequest<T>(path: string, init?: RequestInit): Promise<T> 
   return request<T>(path, init)
 }
 
+async function orgRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  if (typeof window !== 'undefined') {
+    return clientRequest<T>(`/api${path}`, init)
+  }
+  return request<T>(path, init)
+}
+
 async function clientRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -215,6 +222,51 @@ export interface CursorResponse<T> {
   has_more: boolean
 }
 
+export interface SSOConnection {
+  id: string
+  org_id: string
+  type: "saml" | "oidc"
+  display_name: string
+  enabled: boolean
+  oidc_issuer_url?: string
+  oidc_client_id?: string
+  oidc_scopes?: string
+  saml_entity_id?: string
+  saml_sso_url?: string
+  saml_metadata_url?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Integration {
+  id: string
+  org_id: string
+  type: string
+  display_name: string
+  base_url: string
+  has_api_key: boolean
+  has_api_secret: boolean
+  enabled: boolean
+  sync_schedule: string | null
+  last_synced_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface OrgMember {
+  user_id: string
+  email: string
+  name: string
+  roles: { id: string; name: string }[]
+}
+
+export interface OrgRole {
+  id: string
+  name: string
+  permissions: string[]
+  is_system: boolean
+}
+
 // API methods
 export const api = {
   auth: {
@@ -294,6 +346,50 @@ export const api = {
     },
     billing: {
       listAll: () => platformRequest<OrgBilling[]>('/platform/billing'),
+    },
+  },
+  org: {
+    settings: {
+      get: () => orgRequest<Organization>('/org/settings'),
+      update: (data: { name: string }) =>
+        orgRequest<Organization>('/org/settings', { method: 'PUT', body: JSON.stringify(data) }),
+    },
+    members: {
+      list: () => orgRequest<OrgMember[]>('/org/members'),
+      create: (data: { email: string; name: string }) =>
+        orgRequest<PlatformUser>('/org/members', { method: 'POST', body: JSON.stringify(data) }),
+      invite: (email: string) =>
+        orgRequest<void>('/org/members/invite', { method: 'POST', body: JSON.stringify({ email }) }),
+      remove: (userId: string) =>
+        orgRequest<void>(`/org/members/${userId}`, { method: 'DELETE' }),
+      updateRoles: (userId: string, roleIds: string[]) =>
+        orgRequest<void>(`/org/members/${userId}/roles`, { method: 'PUT', body: JSON.stringify({ role_ids: roleIds }) }),
+    },
+    roles: {
+      list: () => orgRequest<OrgRole[]>('/org/roles'),
+    },
+    sso: {
+      list: () => orgRequest<SSOConnection[]>('/org/sso'),
+      create: (data: Partial<SSOConnection> & { oidc_client_secret?: string; saml_certificate?: string }) =>
+        orgRequest<SSOConnection>('/org/sso', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<SSOConnection> & { oidc_client_secret?: string; saml_certificate?: string }) =>
+        orgRequest<SSOConnection>(`/org/sso/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        orgRequest<void>(`/org/sso/${id}`, { method: 'DELETE' }),
+    },
+    billing: {
+      get: () => orgRequest<OrgBilling>('/org/billing'),
+      updateContact: (email: string) =>
+        orgRequest<void>('/org/billing/contact', { method: 'PUT', body: JSON.stringify({ billing_contact_email: email }) }),
+    },
+    integrations: {
+      list: () => orgRequest<Integration[]>('/org/integrations'),
+      create: (data: { type: string; display_name: string; base_url: string; api_key?: string; api_secret?: string; enabled?: boolean }) =>
+        orgRequest<Integration>('/org/integrations', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: { display_name?: string; base_url?: string; api_key?: string; api_secret?: string; enabled?: boolean; type?: string }) =>
+        orgRequest<Integration>(`/org/integrations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        orgRequest<void>(`/org/integrations/${id}`, { method: 'DELETE' }),
     },
   },
 }
