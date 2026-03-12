@@ -44,6 +44,18 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
+function qs(params?: Record<string, unknown>): string {
+  if (!params) return ''
+  const filtered: Record<string, string> = {}
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') {
+      filtered[k] = String(v)
+    }
+  }
+  const s = new URLSearchParams(filtered).toString()
+  return s ? `?${s}` : ''
+}
+
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${AUTH_BASE}${path}`, {
     ...init,
@@ -203,7 +215,7 @@ export const api = {
     stats: () => request<PlatformStats>('/platform/stats'),
     orgs: {
       list: (params?: { search?: string; page?: number; per_page?: number }) =>
-        request<PageResponse<Organization>>(`/platform/orgs?${new URLSearchParams(params as Record<string, string>)}`),
+        request<PageResponse<Organization>>(`/platform/orgs${qs(params)}`),
       get: (id: string) => request<Organization>(`/platform/orgs/${id}`),
       create: (data: { name: string; slug: string }) =>
         request<Organization>('/platform/orgs', { method: 'POST', body: JSON.stringify(data) }),
@@ -229,7 +241,7 @@ export const api = {
     },
     users: {
       list: (params?: { email?: string; page?: number; per_page?: number }) =>
-        request<PageResponse<PlatformUser>>(`/platform/users?${new URLSearchParams(params as Record<string, string>)}`),
+        request<PageResponse<PlatformUser>>(`/platform/users${qs(params)}`),
       get: (id: string) => request<PlatformUserDetail>(`/platform/users/${id}`),
       disable: (id: string) => request<void>(`/platform/users/${id}/disable`, { method: 'POST' }),
       enable: (id: string) => request<void>(`/platform/users/${id}/enable`, { method: 'POST' }),
@@ -238,7 +250,7 @@ export const api = {
     },
     audit: {
       list: (params?: { cursor?: string; limit?: number; event_type?: string; actor_id?: string; start_date?: string; end_date?: string }) =>
-        request<CursorResponse<AuditEvent>>(`/platform/audit?${new URLSearchParams(params as Record<string, string>)}`),
+        request<CursorResponse<AuditEvent>>(`/platform/audit${qs(params)}`),
     },
     billing: {
       listAll: () => request<OrgBilling[]>('/platform/billing'),
