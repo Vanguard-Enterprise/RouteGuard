@@ -108,7 +108,7 @@ export function HeroSection() {
 								alt="RouteGuard admin dashboard"
 								className="z-2 aspect-video rounded-lg border dark:hidden"
 								height="1080"
-								src="https://storage.efferd.com/screen/dashboard-light.webp"
+								src="/screens/dashboard-light.webp"
 								width="1920"
 							/>
 							{/* eslint-disable-next-line @next/next/no-img-element */}
@@ -116,7 +116,7 @@ export function HeroSection() {
 								alt="RouteGuard admin dashboard"
 								className="hidden aspect-video rounded-lg bg-background dark:block"
 								height="1080"
-								src="https://storage.efferd.com/screen/dashboard-dark.webp"
+								src="/screens/dashboard-dark.webp"
 								width="1920"
 							/>
 						</div>
