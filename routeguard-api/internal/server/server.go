@@ -37,6 +37,7 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(corsMiddleware(s.cfg))
 
 	h := api.NewHandler(s.pool, s.cache, s.cfg)
+	auditEvents := middleware.AuditEvents(s.pool, s.cfg)
 
 	// Health checks
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -54,14 +55,15 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/magic-link/consume", h.ConsumeMagicLink)
 
 	// Authenticated auth
-	r.With(middleware.Authenticate(s.cache, s.pool)).Post("/auth/logout", h.Logout)
-	r.With(middleware.Authenticate(s.cache, s.pool)).Get("/auth/me", h.Me)
-	r.With(middleware.Authenticate(s.cache, s.pool)).Post("/auth/switch-org", h.SwitchOrg)
-	r.With(middleware.Authenticate(s.cache, s.pool)).Get("/auth/orgs", h.ListMyOrgs)
+	r.With(middleware.Authenticate(s.cache, s.pool), auditEvents).Post("/auth/logout", h.Logout)
+	r.With(middleware.Authenticate(s.cache, s.pool), auditEvents).Get("/auth/me", h.Me)
+	r.With(middleware.Authenticate(s.cache, s.pool), auditEvents).Post("/auth/switch-org", h.SwitchOrg)
+	r.With(middleware.Authenticate(s.cache, s.pool), auditEvents).Get("/auth/orgs", h.ListMyOrgs)
 
 	// Platform admin routes
 	r.Route("/platform", func(r chi.Router) {
 		r.Use(middleware.Authenticate(s.cache, s.pool))
+		r.Use(auditEvents)
 		r.Use(middleware.RequirePlatform(PlatformOrgID))
 
 		// Orgs
@@ -101,6 +103,7 @@ func (s *Server) buildRouter() chi.Router {
 	// Org-level routes (session-scoped)
 	r.Route("/org", func(r chi.Router) {
 		r.Use(middleware.Authenticate(s.cache, s.pool))
+		r.Use(auditEvents)
 
 		r.Get("/settings", h.OrgGetSettings)
 		r.With(middleware.RequirePermission("org:manage")).Put("/settings", h.OrgUpdateSettings)

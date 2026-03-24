@@ -21,7 +21,7 @@ func (r *AuditRepo) Create(ctx context.Context, e domain.AuditEvent) (*domain.Au
 	row := r.pool.QueryRow(ctx,
 		`INSERT INTO audit_events (actor_id, actor_email, org_id, event_type, target_type, target_id, metadata, ip_address)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		 RETURNING id, actor_id, actor_email, org_id, event_type, target_type, target_id, metadata, ip_address, created_at`,
+		 RETURNING id, actor_id, actor_email, org_id, event_type, target_type, target_id, metadata, ip_address::text, created_at`,
 		e.ActorID, e.ActorEmail, e.OrgID, e.EventType, e.TargetType, e.TargetID, e.Metadata, e.IPAddress,
 	)
 	var out domain.AuditEvent
@@ -38,7 +38,7 @@ func (r *AuditRepo) List(ctx context.Context, cursor *time.Time, limit int, even
 		limit = 50
 	}
 
-	query := `SELECT id, actor_id, actor_email, org_id, event_type, target_type, target_id, metadata, ip_address, created_at
+	query := `SELECT id, actor_id, actor_email, org_id, event_type, target_type, target_id, metadata, ip_address::text, created_at
 	          FROM audit_events WHERE 1=1`
 	args := []any{}
 	argIdx := 1

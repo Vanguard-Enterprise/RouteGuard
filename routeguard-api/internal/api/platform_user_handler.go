@@ -10,7 +10,6 @@ import (
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/domain"
-	"github.com/routeguard/api/internal/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -123,21 +122,6 @@ func (h *Handler) PlatformCreateUser(w http.ResponseWriter, r *http.Request) {
 		link := buildMagicLinkURL(h.cfg.BaseURL, token)
 		magicLinkURL = &link
 	}
-
-	session := middleware.SessionFromContext(ctx)
-	meta, _ := json.Marshal(map[string]string{
-		"email":           body.Email,
-		"name":            body.Name,
-		"delivery_method": body.DeliveryMethod,
-	})
-	h.audit.Create(ctx, domain.AuditEvent{
-		ActorID:    session.UserID,
-		ActorEmail: h.actorEmail(ctx, session.UserID),
-		EventType:  "user.created",
-		TargetType: "user",
-		TargetID:   &user.ID,
-		Metadata:   meta,
-	})
 
 	user.Email = body.Email
 	user.Name = body.Name

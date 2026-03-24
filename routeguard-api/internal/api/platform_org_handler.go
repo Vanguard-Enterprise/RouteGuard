@@ -10,7 +10,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/domain"
-	"github.com/routeguard/api/internal/middleware"
 )
 
 // actorEmail gets the current user's decrypted email for audit logging.
@@ -99,18 +98,6 @@ func (h *Handler) PlatformCreateOrg(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = h.billing.GetOrCreateByOrg(ctx, org.ID)
-
-	// Audit
-	session := middleware.SessionFromContext(ctx)
-	meta, _ := json.Marshal(map[string]string{"name": body.Name, "slug": body.Slug})
-	h.audit.Create(ctx, domain.AuditEvent{
-		ActorID:    session.UserID,
-		ActorEmail: h.actorEmail(ctx, session.UserID),
-		EventType:  "org.created",
-		TargetType: "organization",
-		TargetID:   &org.ID,
-		Metadata:   meta,
-	})
 
 	org.Name = body.Name
 	JSON(w, http.StatusCreated, org)
