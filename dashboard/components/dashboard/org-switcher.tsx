@@ -63,7 +63,13 @@ export function OrgSwitcher({ currentOrg }: { currentOrg: OrgOption }) {
     if (orgId === currentOrg.id) return
     setLoading(true)
     try {
-      await api.auth.switchOrg(orgId)
+      const result = await api.auth.switchOrg(orgId)
+      const switchedToPlatform = result.org.is_platform
+
+      if (!switchedToPlatform && pathname.startsWith("/dashboard/admin")) {
+        router.push("/dashboard")
+      }
+
       await mutate()
       router.refresh()
     } catch {
