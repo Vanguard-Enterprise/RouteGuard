@@ -19,7 +19,7 @@ const (
 
 // CreateSession generates a random token, stores the payload in Redis, and returns the token.
 func CreateSession(ctx context.Context, c *cache.Cache, payload *domain.SessionPayload) (string, error) {
-	token, err := generateToken(32)
+	token, err := GenerateToken(32)
 	if err != nil {
 		return "", fmt.Errorf("generate token: %w", err)
 	}
@@ -69,7 +69,7 @@ func InvalidateUserSessions(ctx context.Context, c *cache.Cache, userID string) 
 	return c.Del(ctx, userSetPrefix+userID)
 }
 
-func generateToken(bytes int) (string, error) {
+func GenerateToken(bytes int) (string, error) {
 	b := make([]byte, bytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", err

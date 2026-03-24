@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const API_BASE = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
 export async function GET(request: NextRequest) {
   const headers: Record<string, string> = {}
@@ -9,11 +9,24 @@ export async function GET(request: NextRequest) {
     headers['Cookie'] = `rg_session=${cookie.value}`
   }
 
-  const res = await fetch(`${API_BASE}/auth/orgs`, { headers })
+  const res = await fetch(`${API_BASE}/auth/orgs`, {
+    headers,
+    cache: 'no-store',
+  })
 
   if (res.status === 204) {
-    return new NextResponse(null, { status: 204 })
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    })
   }
   const data = await res.json()
-  return NextResponse.json(data, { status: res.status })
+  return NextResponse.json(data, {
+    status: res.status,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
+  })
 }

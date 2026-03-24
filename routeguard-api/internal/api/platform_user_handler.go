@@ -4,26 +4,59 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/middleware"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (h *Handler) PlatformCreateUser(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Email  string  `json:"email"`
-		Name   string  `json:"name"`
-		OrgID  *string `json:"org_id"`
+		Email           string  `json:"email"`
+		Name            string  `json:"name"`
+		OrgID           *string `json:"org_id"`
+		DeliveryMethod  string  `json:"delivery_method"`
+		InitialPassword string  `json:"initial_password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	body.Email = normalizeEmail(body.Email)
+	body.Name = normalizeName(body.Name)
+	body.DeliveryMethod = strings.TrimSpace(body.DeliveryMethod)
 	if body.Email == "" || body.Name == "" {
 		Error(w, http.StatusBadRequest, "email and name are required")
+		return
+	}
+	if body.DeliveryMethod == "" {
+		body.DeliveryMethod = "none"
+	}
+	switch body.DeliveryMethod {
+	case "none", "email", "magic_link", "password":
+	default:
+		Error(w, http.StatusBadRequest, "invalid delivery method")
+		return
+	}
+	if body.DeliveryMethod == "password" {
+		if strings.TrimSpace(body.InitialPassword) == "" {
+			Error(w, http.StatusBadRequest, "initial password is required")
+			return
+		}
+		if len(body.InitialPassword) < 8 {
+			Error(w, http.StatusBadRequest, "initial password must be at least 8 characters")
+			return
+		}
+	} else if strings.TrimSpace(body.InitialPassword) != "" {
+		Error(w, http.StatusBadRequest, "initial password is only allowed for password delivery")
+		return
+	}
+	if (body.DeliveryMethod == "email" || body.DeliveryMethod == "magic_link") && (body.OrgID == nil || strings.TrimSpace(*body.OrgID) == "") {
+		Error(w, http.StatusBadRequest, "org_id is required for email and magic link delivery")
 		return
 	}
 
@@ -40,7 +73,18 @@ func (h *Handler) PlatformCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	emailHash := crypto.HMAC(h.cfg.HMACKey, body.Email)
 
-	user, err := h.users.Create(ctx, emailEnc, emailHash, nameEnc, nil)
+	var passwordHash *string
+	if body.DeliveryMethod == "password" {
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(body.InitialPassword), bcrypt.DefaultCost)
+		if hashErr != nil {
+			Error(w, http.StatusInternalServerError, "failed to hash password")
+			return
+		}
+		hashStr := string(hash)
+		passwordHash = &hashStr
+	}
+
+	user, err := h.users.Create(ctx, emailEnc, emailHash, nameEnc, passwordHash)
 	if err != nil {
 		if isUniqueViolation(err) {
 			Error(w, http.StatusConflict, "a user with this email already exists")
@@ -51,11 +95,41 @@ func (h *Handler) PlatformCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if body.OrgID != nil && *body.OrgID != "" {
-		_, _ = h.members.Create(ctx, user.ID, *body.OrgID)
+		if _, err := h.members.Create(ctx, user.ID, *body.OrgID); err != nil {
+			if isUniqueViolation(err) {
+				Error(w, http.StatusConflict, "user already a member")
+				return
+			}
+			Error(w, http.StatusInternalServerError, "failed to add member")
+			return
+		}
+	}
+
+	var magicLinkURL *string
+	if body.DeliveryMethod == "email" || body.DeliveryMethod == "magic_link" {
+		token, tokenErr := auth.GenerateToken(32)
+		if tokenErr != nil {
+			Error(w, http.StatusInternalServerError, "failed to create magic link")
+			return
+		}
+		payload := magicLinkPayload{
+			UserID: user.ID,
+			OrgID:  *body.OrgID,
+		}
+		if err := h.cache.Set(ctx, magicLinkCacheKey(token), payload, magicLinkTTL); err != nil {
+			Error(w, http.StatusInternalServerError, "failed to store magic link")
+			return
+		}
+		link := buildMagicLinkURL(h.cfg.BaseURL, token)
+		magicLinkURL = &link
 	}
 
 	session := middleware.SessionFromContext(ctx)
-	meta, _ := json.Marshal(map[string]string{"email": body.Email, "name": body.Name})
+	meta, _ := json.Marshal(map[string]string{
+		"email":           body.Email,
+		"name":            body.Name,
+		"delivery_method": body.DeliveryMethod,
+	})
 	h.audit.Create(ctx, domain.AuditEvent{
 		ActorID:    session.UserID,
 		ActorEmail: h.actorEmail(ctx, session.UserID),
@@ -67,7 +141,16 @@ func (h *Handler) PlatformCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	user.Email = body.Email
 	user.Name = body.Name
-	JSON(w, http.StatusCreated, user)
+	JSON(w, http.StatusCreated, map[string]any{
+		"id":             user.ID,
+		"email":          user.Email,
+		"name":           user.Name,
+		"disabled_at":    user.DisabledAt,
+		"last_login_at":  user.LastLoginAt,
+		"created_at":     user.CreatedAt,
+		"updated_at":     user.UpdatedAt,
+		"magic_link_url": magicLinkURL,
+	})
 }
 
 func (h *Handler) PlatformListUsers(w http.ResponseWriter, r *http.Request) {

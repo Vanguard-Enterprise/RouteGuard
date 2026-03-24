@@ -21,7 +21,6 @@ func (r *MembershipRepo) Create(ctx context.Context, userID, orgID string) (*dom
 	err := r.pool.QueryRow(ctx,
 		`INSERT INTO org_memberships (user_id, org_id)
 		 VALUES ($1, $2)
-		 ON CONFLICT (user_id, org_id) DO UPDATE SET user_id = EXCLUDED.user_id
 		 RETURNING id, user_id, org_id, created_at`,
 		userID, orgID,
 	).Scan(&m.ID, &m.UserID, &m.OrgID, &m.CreatedAt)
@@ -59,6 +58,7 @@ func (r *MembershipRepo) ListOrgsByUser(ctx context.Context, userID string) ([]d
 		 FROM organizations o
 		 JOIN org_memberships m ON m.org_id = o.id
 		 WHERE m.user_id = $1
+		   AND o.deleted_at IS NULL
 		 ORDER BY o.created_at`, userID,
 	)
 	if err != nil {

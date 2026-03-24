@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { IconSelector, IconBuilding } from "@tabler/icons-react"
 import { api, type OrgOption } from "@/lib/api"
@@ -17,22 +17,54 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import useSWR from "swr"
 
 export function OrgSwitcher({ currentOrg }: { currentOrg: OrgOption }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { isMobile } = useSidebar()
-  const [orgs, setOrgs] = useState<OrgOption[]>([])
   const [loading, setLoading] = useState(false)
+  const hasHydratedOrgs = useRef(false)
+  const knownOrgIds = useRef<Set<string>>(new Set([currentOrg.id]))
+
+  const { data: orgsData, mutate } = useSWR<OrgOption[]>(
+    ["auth-orgs"],
+    () => api.auth.orgs(),
+    {
+      fallbackData: [currentOrg],
+      refreshInterval: 5000,
+      revalidateOnFocus: true,
+      onSuccess: (nextOrgs) => {
+        const nextOrgIds = new Set(nextOrgs.map((org) => org.id))
+
+        if (!hasHydratedOrgs.current) {
+          knownOrgIds.current = nextOrgIds
+          hasHydratedOrgs.current = true
+          return
+        }
+
+        const newlyAddedOrgs = nextOrgs.filter((org) => !knownOrgIds.current.has(org.id))
+        for (const org of newlyAddedOrgs) {
+          toast.success(`You were added to ${org.name}.`)
+        }
+
+        knownOrgIds.current = nextOrgIds
+      },
+    }
+  )
 
   useEffect(() => {
-    api.auth.orgs().then(setOrgs).catch(() => {})
-  }, [])
+    mutate().catch(() => {})
+  }, [mutate, pathname])
+
+  const orgs = orgsData ?? [currentOrg]
 
   async function handleSwitch(orgId: string) {
     if (orgId === currentOrg.id) return
     setLoading(true)
     try {
       await api.auth.switchOrg(orgId)
+      await mutate()
       router.refresh()
     } catch {
       toast.error("Failed to switch organization.")

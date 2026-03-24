@@ -51,6 +51,7 @@ func (s *Server) buildRouter() chi.Router {
 	// Public auth (rate-limited)
 	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/lookup", h.Lookup)
 	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/login", h.Login)
+	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/magic-link/consume", h.ConsumeMagicLink)
 
 	// Authenticated auth
 	r.With(middleware.Authenticate(s.cache, s.pool)).Post("/auth/logout", h.Logout)

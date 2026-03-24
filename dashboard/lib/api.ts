@@ -1,4 +1,5 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const PUBLIC_API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const INTERNAL_API_BASE = process.env.INTERNAL_API_URL ?? PUBLIC_API_BASE
 const AUTH_BASE = ''
 
 export class APIError extends Error {
@@ -9,6 +10,7 @@ export class APIError extends Error {
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const apiBase = typeof window === 'undefined' ? INTERNAL_API_BASE : PUBLIC_API_BASE
   const reqHeaders: Record<string, string> = {}
 
   if (!(init?.body instanceof FormData)) {
@@ -28,7 +30,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${apiBase}${path}`, {
     ...init,
     credentials: 'include',
     headers: {
@@ -201,6 +203,10 @@ export interface PlatformUser {
   updated_at: string
 }
 
+export interface PlatformCreatedUser extends PlatformUser {
+  magic_link_url?: string | null
+}
+
 export interface PlatformUserDetail extends PlatformUser {
   memberships: {
     org_id: string
@@ -282,6 +288,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       }),
+    consumeMagicLink: (token: string) =>
+      authRequest<void>('/api/auth/magic-link/consume', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
     logout: () => authRequest<void>('/api/auth/logout', { method: 'POST' }),
     me: () => request<MeResponse>('/auth/me'),
     switchOrg: (orgId: string) => {
@@ -334,8 +345,14 @@ export const api = {
     users: {
       list: (params?: { email?: string; page?: number; per_page?: number }) =>
         platformRequest<PageResponse<PlatformUser>>(`/platform/users${qs(params)}`),
-      create: (data: { email: string; name: string; org_id?: string }) =>
-        platformRequest<PlatformUser>('/platform/users', { method: 'POST', body: JSON.stringify(data) }),
+      create: (data: {
+        email: string
+        name: string
+        org_id?: string
+        delivery_method?: "email" | "magic_link" | "password"
+        initial_password?: string
+      }) =>
+        platformRequest<PlatformCreatedUser>('/platform/users', { method: 'POST', body: JSON.stringify(data) }),
       get: (id: string) => platformRequest<PlatformUserDetail>(`/platform/users/${id}`),
       disable: (id: string) => platformRequest<void>(`/platform/users/${id}/disable`, { method: 'POST' }),
       enable: (id: string) => platformRequest<void>(`/platform/users/${id}/enable`, { method: 'POST' }),
@@ -359,7 +376,7 @@ export const api = {
     members: {
       list: () => orgRequest<OrgMember[]>('/org/members'),
       create: (data: { email: string; name: string }) =>
-        orgRequest<PlatformUser>('/org/members', { method: 'POST', body: JSON.stringify(data) }),
+        orgRequest<OrgMember>('/org/members', { method: 'POST', body: JSON.stringify(data) }),
       invite: (email: string) =>
         orgRequest<void>('/org/members/invite', { method: 'POST', body: JSON.stringify({ email }) }),
       remove: (userId: string) =>

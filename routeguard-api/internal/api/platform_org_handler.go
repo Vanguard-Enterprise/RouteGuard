@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -195,37 +196,17 @@ func (h *Handler) PlatformListOrgMembers(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	type memberRole struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	}
-	type enrichedMember struct {
-		UserID string       `json:"user_id"`
-		Email  string       `json:"email"`
-		Name   string       `json:"name"`
-		Roles  []memberRole `json:"roles"`
-	}
-
 	result := make([]enrichedMember, 0, len(memberships))
 	for _, m := range memberships {
-		user, err := h.users.GetByID(ctx, m.UserID)
+		member, err := h.buildEnrichedMember(ctx, &m)
 		if err != nil {
 			continue
 		}
-		email, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.EmailEnc)
-		name, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.NameEnc)
-
-		roles, _ := h.roles.ListMemberRoles(ctx, m.ID)
-		memberRoles := make([]memberRole, 0, len(roles))
-		for _, r := range roles {
-			memberRoles = append(memberRoles, memberRole{ID: r.ID, Name: r.Name})
-		}
-
 		result = append(result, enrichedMember{
-			UserID: m.UserID,
-			Email:  email,
-			Name:   name,
-			Roles:  memberRoles,
+			UserID: member.UserID,
+			Email:  member.Email,
+			Name:   member.Name,
+			Roles:  member.Roles,
 		})
 	}
 
@@ -268,6 +249,11 @@ func (h *Handler) PlatformRemoveOrgMember(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if err := h.ensureCriticalPermissionsRetained(r.Context(), orgID, userID, nil); err != nil {
+		Error(w, http.StatusConflict, err.Error())
+		return
+	}
+
 	if err := h.members.Delete(r.Context(), membership.ID); err != nil {
 		Error(w, http.StatusInternalServerError, "failed to remove member")
 		return
@@ -288,6 +274,16 @@ func (h *Handler) PlatformUpdateMemberRoles(w http.ResponseWriter, r *http.Reque
 	}
 
 	ctx := r.Context()
+	roleIDs, targetPermissions, err := h.validateRoleAssignments(ctx, orgID, body.RoleIDs)
+	if err != nil {
+		if errors.Is(err, errInvalidRoleAssignment) {
+			Error(w, http.StatusBadRequest, "role assignment contains a role outside this organization")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to validate roles")
+		return
+	}
+
 	membership, err := h.members.GetByUserAndOrg(ctx, userID, orgID)
 	if err != nil {
 		if isNotFound(err) {
@@ -295,6 +291,11 @@ func (h *Handler) PlatformUpdateMemberRoles(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		Error(w, http.StatusInternalServerError, "failed to find membership")
+		return
+	}
+
+	if err := h.ensureCriticalPermissionsRetained(ctx, orgID, userID, targetPermissions); err != nil {
+		Error(w, http.StatusConflict, err.Error())
 		return
 	}
 
@@ -309,7 +310,7 @@ func (h *Handler) PlatformUpdateMemberRoles(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
-	for _, roleID := range body.RoleIDs {
+	for _, roleID := range roleIDs {
 		if err := h.roles.AssignToMember(ctx, membership.ID, roleID); err != nil {
 			Error(w, http.StatusInternalServerError, "failed to assign role")
 			return

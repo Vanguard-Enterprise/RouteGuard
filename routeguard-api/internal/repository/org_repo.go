@@ -47,7 +47,7 @@ func (r *OrgRepo) GetBySlug(ctx context.Context, slug string) (*domain.Organizat
 	var o domain.Organization
 	err := r.pool.QueryRow(ctx,
 		`SELECT id, name_enc, slug, is_platform, suspended_at, deleted_at, created_at, updated_at
-		 FROM organizations WHERE slug = $1`, slug,
+		 FROM organizations WHERE slug = $1 AND deleted_at IS NULL`, slug,
 	).Scan(&o.ID, &o.NameEnc, &o.Slug, &o.IsPlatform, &o.SuspendedAt, &o.DeletedAt, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get org by slug: %w", err)

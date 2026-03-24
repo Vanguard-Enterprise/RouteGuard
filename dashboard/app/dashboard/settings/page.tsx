@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import useSWR from "swr"
 import { api } from "@/lib/api"
 import type {
@@ -10,8 +10,6 @@ import type {
   OrgBilling,
   SSOConnection,
   Integration,
-  PlatformUser,
-  PageResponse,
 } from "@/lib/api"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +25,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -35,6 +34,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
 
 // ---------------------------------------------------------------------------
 // General Tab
@@ -127,49 +130,43 @@ function GeneralTab() {
 // Members Tab
 // ---------------------------------------------------------------------------
 function MembersTab() {
-  const { data: members, mutate: mutateMembers } = useSWR<OrgMember[]>(
-    "org-members",
-    () => api.org.members.list()
-  )
-  const { data: roles } = useSWR<OrgRole[]>("org-roles", () =>
+  const {
+    data: members,
+    error: membersError,
+    mutate: mutateMembers,
+  } = useSWR<OrgMember[]>("org-members", () => api.org.members.list())
+  const { data: roles, error: rolesError } = useSWR<OrgRole[]>("org-roles", () =>
     api.org.roles.list()
   )
 
   const [addMode, setAddMode] = useState(false)
-  const [addEmail, setAddEmail] = useState("")
-  const [searchResults, setSearchResults] = useState<PlatformUser[]>([])
-  const [searching, setSearching] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [addingByEmail, setAddingByEmail] = useState(false)
   const [newUserName, setNewUserName] = useState("")
   const [newUserEmail, setNewUserEmail] = useState("")
   const [creatingUser, setCreatingUser] = useState(false)
   const [editingRoles, setEditingRoles] = useState<string | null>(null)
-  const [selectedRoleId, setSelectedRoleId] = useState("")
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
 
-  const handleSearchUser = useCallback(async () => {
-    if (!addEmail.trim()) return
-    setSearching(true)
-    try {
-      const result: PageResponse<PlatformUser> =
-        await api.platform.users.list({ email: addEmail.trim(), per_page: 5 })
-      setSearchResults(result.items ?? [])
-    } catch {
-      toast.error("Failed to search users")
-    } finally {
-      setSearching(false)
-    }
-  }, [addEmail])
+  function resetAddMemberForm() {
+    setAddMode(false)
+    setInviteEmail("")
+    setNewUserEmail("")
+    setNewUserName("")
+  }
 
-  async function handleInvite() {
-    if (!addEmail.trim()) return
+  async function handleInviteByEmail() {
+    if (!inviteEmail.trim()) return
+    setAddingByEmail(true)
     try {
-      await api.org.members.invite(addEmail.trim())
-      toast.success("Member invited")
-      setAddMode(false)
-      setAddEmail("")
-      setSearchResults([])
+      await api.org.members.invite(inviteEmail.trim().toLowerCase())
+      toast.success("Member added")
+      resetAddMemberForm()
       mutateMembers()
-    } catch {
-      toast.error("Failed to invite member")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to add member"))
+    } finally {
+      setAddingByEmail(false)
     }
   }
 
@@ -178,22 +175,23 @@ function MembersTab() {
     setCreatingUser(true)
     try {
       await api.org.members.create({
-        email: newUserEmail.trim(),
+        email: newUserEmail.trim().toLowerCase(),
         name: newUserName.trim(),
       })
       toast.success("User created and added")
-      setNewUserEmail("")
-      setNewUserName("")
-      setAddMode(false)
+      resetAddMemberForm()
       mutateMembers()
-    } catch {
-      toast.error("Failed to create user")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to create user"))
     } finally {
       setCreatingUser(false)
     }
   }
 
-  async function handleRemove(userId: string) {
+  async function handleRemove(userId: string, memberName: string) {
+    if (!window.confirm(`Remove ${memberName || "this member"} from the organization?`)) {
+      return
+    }
     try {
       await api.org.members.remove(userId)
       toast.success("Member removed")
@@ -205,17 +203,44 @@ function MembersTab() {
     }
   }
 
+  function startEditingRoles(member: OrgMember) {
+    setEditingRoles(member.user_id)
+    setSelectedRoleIds(member.roles.map((role) => role.id))
+  }
+
+  function toggleRole(roleId: string, checked: boolean) {
+    setSelectedRoleIds((current) => {
+      if (checked) {
+        if (current.includes(roleId)) return current
+        return [...current, roleId]
+      }
+      return current.filter((currentRoleId) => currentRoleId !== roleId)
+    })
+  }
+
   async function handleUpdateRoles(userId: string) {
-    if (!selectedRoleId) return
     try {
-      await api.org.members.updateRoles(userId, [selectedRoleId])
+      await api.org.members.updateRoles(userId, selectedRoleIds)
       toast.success("Roles updated")
       setEditingRoles(null)
-      setSelectedRoleId("")
+      setSelectedRoleIds([])
       mutateMembers()
-    } catch {
-      toast.error("Failed to update roles")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update roles"))
     }
+  }
+
+  if (membersError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-destructive">
+          {getErrorMessage(membersError, "Failed to load members")}
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -227,55 +252,23 @@ function MembersTab() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-medium">
-                Search existing user by email
+              <p className="text-sm font-medium">Add by email</p>
+              <p className="text-sm text-muted-foreground">
+                Existing RouteGuard users are added immediately. New email
+                addresses are created as invited placeholder accounts.
               </p>
               <div className="flex gap-2">
                 <Input
                   placeholder="user@example.com"
-                  value={addEmail}
-                  onChange={(e) => setAddEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearchUser()}
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleInviteByEmail()}
                   className="max-w-sm"
                 />
-                <Button
-                  onClick={handleSearchUser}
-                  disabled={searching}
-                  variant="outline"
-                  size="sm"
-                >
-                  {searching ? "Searching..." : "Search"}
-                </Button>
-                <Button onClick={handleInvite} size="sm">
-                  Invite by Email
+                <Button onClick={handleInviteByEmail} disabled={addingByEmail} size="sm">
+                  {addingByEmail ? "Adding..." : "Add by Email"}
                 </Button>
               </div>
-              {searchResults.length > 0 && (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableBody>
-                      {searchResults.map((u) => (
-                        <TableRow key={u.id}>
-                          <TableCell className="font-medium">
-                            {u.name}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {u.email}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              onClick={() => handleInvite()}
-                            >
-                              Add
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
             </div>
             <div className="border-t pt-4 space-y-2">
               <p className="text-sm font-medium">Or create a new user</p>
@@ -305,11 +298,7 @@ function MembersTab() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setAddMode(false)
-                  setSearchResults([])
-                  setAddEmail("")
-                }}
+                onClick={resetAddMemberForm}
               >
                 Cancel
               </Button>
@@ -319,7 +308,10 @@ function MembersTab() {
       )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Members</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Members</CardTitle>
+            <Badge variant="secondary">{members?.length ?? 0}</Badge>
+          </div>
           {!addMode && (
             <Button size="sm" onClick={() => setAddMode(true)}>
               Add Member
@@ -327,6 +319,11 @@ function MembersTab() {
           )}
         </CardHeader>
         <CardContent>
+          {rolesError && (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Role editing is unavailable: {getErrorMessage(rolesError, "Failed to load roles")}
+            </p>
+          )}
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -358,60 +355,78 @@ function MembersTab() {
                       </TableCell>
                       <TableCell>
                         {editingRoles === member.user_id ? (
-                          <div className="flex gap-2 items-center">
-                            <Select
-                              value={selectedRoleId}
-                              onValueChange={setSelectedRoleId}
-                            >
-                              <SelectTrigger className="w-[160px]">
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(roles ?? []).map((role) => (
-                                  <SelectItem key={role.id} value={role.id}>
-                                    {role.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              size="sm"
-                              onClick={() => handleUpdateRoles(member.user_id)}
-                              disabled={!selectedRoleId}
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setEditingRoles(null)
-                                setSelectedRoleId("")
-                              }}
-                            >
-                              Cancel
-                            </Button>
+                          <div className="min-w-[280px] space-y-3">
+                            <div className="grid gap-2">
+                              {(roles ?? []).map((role) => (
+                                <label
+                                  key={role.id}
+                                  className="flex items-start gap-2 rounded-md border p-2"
+                                >
+                                  <Checkbox
+                                    checked={selectedRoleIds.includes(role.id)}
+                                    onCheckedChange={(checked) =>
+                                      toggleRole(role.id, checked === true)
+                                    }
+                                  />
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-medium">{role.name}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {role.permissions.join(", ") || "No permissions"}
+                                    </div>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                            <div className="flex gap-2 items-center">
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateRoles(member.user_id)}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingRoles(null)
+                                  setSelectedRoleIds([])
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
                         ) : (
-                          <span
-                            className="cursor-pointer hover:underline"
-                            onClick={() => {
-                              setEditingRoles(member.user_id)
-                              setSelectedRoleId(
-                                member.roles?.[0]?.id ?? ""
-                              )
-                            }}
-                          >
-                            {member.roles?.map((r) => r.name).join(", ") ||
-                              "-"}
-                          </span>
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap gap-1">
+                              {member.roles.length === 0 ? (
+                                <span className="text-muted-foreground">-</span>
+                              ) : (
+                                member.roles.map((role) => (
+                                  <Badge key={role.id} variant="secondary">
+                                    {role.name}
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                            {!rolesError && roles && roles.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto px-0"
+                                onClick={() => startEditingRoles(member)}
+                              >
+                                Edit roles
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleRemove(member.user_id)}
+                          onClick={() => handleRemove(member.user_id, member.name)}
                         >
                           Remove
                         </Button>

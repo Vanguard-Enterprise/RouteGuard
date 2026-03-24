@@ -10,6 +10,12 @@ export function middleware(request: NextRequest) {
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
 
   const isDev = process.env.NODE_ENV === 'development'
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+  const wsUrl = apiUrl.startsWith('https://')
+    ? `wss://${apiUrl.slice('https://'.length)}`
+    : apiUrl.startsWith('http://')
+      ? `ws://${apiUrl.slice('http://'.length)}`
+      : apiUrl
 
   const csp = [
     "default-src 'self'",
@@ -17,7 +23,7 @@ export function middleware(request: NextRequest) {
     "img-src 'self' data: blob:",
     isDev
       ? "connect-src 'self' http://localhost:* ws://localhost:*"
-      : "connect-src 'self' https://api.route-guard.com wss://api.route-guard.com",
+      : `connect-src 'self' ${apiUrl} ${wsUrl}`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
   ].join('; ')

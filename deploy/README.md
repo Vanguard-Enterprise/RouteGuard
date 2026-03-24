@@ -158,3 +158,38 @@ cd deploy
 ## Rollback
 
 To roll back to a previous image tag, update `docker-compose.yml` image tags and re-run `deploy.sh`.
+
+## Local development with auto-reload
+
+Run only the shared infrastructure in Docker:
+
+```bash
+cd /opt/routeguard/deploy
+docker compose --env-file .env -f docker-compose.local.yml up --build
+```
+
+Run the API on the host machine in a separate terminal:
+
+```bash
+cd /opt/routeguard/routeguard-api
+powershell -ExecutionPolicy Bypass -File ./dev.ps1
+```
+
+Run the dashboard on the host machine in another terminal:
+
+```bash
+cd /opt/routeguard/dashboard
+npm install
+npm run dev:local
+```
+
+The local workflow is split on purpose:
+- `postgres`, `redis`, and `rustfs` stay containerized.
+- The API runs on the host at `http://localhost:8080` with `air`-style reloads.
+- The dashboard runs on the host at `http://localhost:3100`, so Next.js file watching reloads immediately when you edit UI code.
+
+Local env files are committed to the working tree but ignored by Git:
+- `routeguard-api/.env` points the API at the Dockerized Postgres/Redis instances on localhost.
+- `dashboard/.env.local` points Next.js at the local API.
+
+If you need to change ports or credentials later, update `deploy/.env`, `routeguard-api/.env`, and `dashboard/.env.local` together.

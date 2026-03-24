@@ -21,6 +21,10 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+type magicLinkConsumeRequest struct {
+	Token string `json:"token"`
+}
+
 type loginResponse struct {
 	User loginUser   `json:"user"`
 	Orgs []orgOption `json:"orgs"`
@@ -193,6 +197,76 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ConsumeMagicLink authenticates with a one-time onboarding link.
+func (h *Handler) ConsumeMagicLink(w http.ResponseWriter, r *http.Request) {
+	var req magicLinkConsumeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	req.Token = strings.TrimSpace(req.Token)
+	if req.Token == "" {
+		Error(w, http.StatusBadRequest, "token is required")
+		return
+	}
+
+	var payload magicLinkPayload
+	if err := h.cache.GetDel(r.Context(), magicLinkCacheKey(req.Token), &payload); err != nil {
+		if h.cache.IsNotFound(err) {
+			Error(w, http.StatusUnauthorized, "magic link is invalid or expired")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to consume magic link")
+		return
+	}
+
+	user, err := h.users.GetByID(r.Context(), payload.UserID)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "magic link is invalid or expired")
+		return
+	}
+	if user.DisabledAt != nil {
+		Error(w, http.StatusForbidden, "user is disabled")
+		return
+	}
+	if _, err := h.members.GetByUserAndOrg(r.Context(), payload.UserID, payload.OrgID); err != nil {
+		Error(w, http.StatusForbidden, "user is not a member of this organization")
+		return
+	}
+
+	perms, err := h.members.GetUserPermissions(r.Context(), payload.UserID, payload.OrgID)
+	if err != nil {
+		perms = []string{}
+	}
+
+	session := &domain.SessionPayload{
+		UserID:      payload.UserID,
+		OrgID:       payload.OrgID,
+		HomeOrgID:   payload.OrgID,
+		Permissions: perms,
+	}
+
+	token, err := auth.CreateSession(r.Context(), h.cache, session)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to create session")
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "rg_session",
+		Value:    token,
+		Path:     "/",
+		MaxAge:   int(auth.SessionTTL.Seconds()),
+		HttpOnly: true,
+		Secure:   h.cfg.IsProd,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	_, _ = h.pool.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, payload.UserID)
+
+	NoContent(w)
+}
+
 // Logout destroys the session.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := middleware.TokenFromContext(r.Context())
@@ -273,6 +347,15 @@ func (h *Handler) SwitchOrg(w http.ResponseWriter, r *http.Request) {
 	_, err := h.members.GetByUserAndOrg(r.Context(), session.UserID, req.OrgID)
 	if err != nil {
 		Error(w, http.StatusForbidden, "not a member of this organization")
+		return
+	}
+	accessible, err := h.orgs.IsOrgAccessible(r.Context(), req.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to verify organization access")
+		return
+	}
+	if !accessible {
+		Error(w, http.StatusForbidden, "organization is unavailable")
 		return
 	}
 

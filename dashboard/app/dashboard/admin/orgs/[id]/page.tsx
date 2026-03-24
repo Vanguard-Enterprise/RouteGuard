@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { api } from "@/lib/api"
-import type { Organization, PlatformUser, PageResponse } from "@/lib/api"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { Organization, OrgMember } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -17,15 +16,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { AddOrgMemberDialog } from "@/components/dashboard/add-org-member-dialog"
 import { toast } from "sonner"
 import useSWR from "swr"
-
-interface OrgMember {
-  user_id: string
-  email: string
-  name: string
-  roles: { id: string; name: string }[]
-}
 
 export default function OrgDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -49,14 +42,6 @@ export default function OrgDetailPage() {
   const [editSlug, setEditSlug] = useState("")
   const [editMode, setEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
-
-  const [addEmail, setAddEmail] = useState("")
-  const [searchResults, setSearchResults] = useState<PlatformUser[]>([])
-  const [searching, setSearching] = useState(false)
-  const [addMode, setAddMode] = useState(false)
-  const [newUserName, setNewUserName] = useState("")
-  const [newUserEmail, setNewUserEmail] = useState("")
-  const [creatingUser, setCreatingUser] = useState(false)
 
   function startEdit(org: Organization) {
     setEditName(org.name)
@@ -120,54 +105,6 @@ export default function OrgDetailPage() {
     }
   }
 
-  const handleSearchUser = useCallback(async () => {
-    if (!addEmail.trim()) return
-    setSearching(true)
-    try {
-      const result: PageResponse<PlatformUser> = await api.platform.users.list({ email: addEmail.trim(), per_page: 5 })
-      setSearchResults(result.items ?? [])
-    } catch {
-      toast.error("Failed to search users")
-    } finally {
-      setSearching(false)
-    }
-  }, [addEmail])
-
-  async function handleAddExistingMember(userId: string) {
-    if (!org) return
-    try {
-      await api.platform.orgs.addMember(org.id, userId)
-      toast.success("Member added")
-      setAddMode(false)
-      setAddEmail("")
-      setSearchResults([])
-      mutateMembers()
-    } catch {
-      toast.error("Failed to add member")
-    }
-  }
-
-  async function handleCreateAndAdd() {
-    if (!org || !newUserEmail.trim() || !newUserName.trim()) return
-    setCreatingUser(true)
-    try {
-      await api.platform.users.create({
-        email: newUserEmail.trim(),
-        name: newUserName.trim(),
-        org_id: org.id,
-      })
-      toast.success("User created and added to organization")
-      setNewUserEmail("")
-      setNewUserName("")
-      setAddMode(false)
-      mutateMembers()
-    } catch {
-      toast.error("Failed to create user")
-    } finally {
-      setCreatingUser(false)
-    }
-  }
-
   async function handleRemoveMember(userId: string) {
     if (!org) return
     try {
@@ -205,284 +142,191 @@ export default function OrgDetailPage() {
         )}
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="danger">Danger Zone</TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {editMode ? (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Name</label>
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Slug</label>
-                    <Input
-                      value={editSlug}
-                      onChange={(e) => setEditSlug(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleSave} disabled={saving} size="sm">
-                      {saving ? "Saving..." : "Save"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={cancelEdit}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Name</p>
-                      <p className="font-medium">{org.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Slug</p>
-                      <p className="font-medium">{org.slug}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Status</p>
-                      <p className="font-medium">
-                        {org.suspended_at ? "Suspended" : "Active"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Platform org</p>
-                      <p className="font-medium">
-                        {org.is_platform ? "Yes" : "No"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Created</p>
-                      <p className="font-medium">
-                        {new Date(org.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Updated</p>
-                      <p className="font-medium">
-                        {new Date(org.updated_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startEdit(org)}
-                  >
-                    Edit
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Members Tab */}
-        <TabsContent value="members" className="mt-4 space-y-4">
-          {addMode ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Member</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Search existing user by email</p>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="user@example.com"
-                      value={addEmail}
-                      onChange={(e) => setAddEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleSearchUser()}
-                      className="max-w-sm"
-                    />
-                    <Button onClick={handleSearchUser} disabled={searching} variant="outline" size="sm">
-                      {searching ? "Searching..." : "Search"}
-                    </Button>
-                  </div>
-                  {searchResults.length > 0 && (
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableBody>
-                          {searchResults.map((u) => (
-                            <TableRow key={u.id}>
-                              <TableCell className="font-medium">{u.name}</TableCell>
-                              <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                              <TableCell className="text-right">
-                                <Button size="sm" onClick={() => handleAddExistingMember(u.id)}>
-                                  Add
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                  {searchResults.length === 0 && addEmail && !searching && (
-                    <p className="text-sm text-muted-foreground">No users found.</p>
-                  )}
-                </div>
-                <div className="border-t pt-4 space-y-2">
-                  <p className="text-sm font-medium">Or create a new user</p>
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <Input
-                      placeholder="Name"
-                      value={newUserName}
-                      onChange={(e) => setNewUserName(e.target.value)}
-                      className="max-w-[200px]"
-                    />
-                    <Input
-                      placeholder="Email"
-                      value={newUserEmail}
-                      onChange={(e) => setNewUserEmail(e.target.value)}
-                      className="max-w-sm"
-                    />
-                    <Button onClick={handleCreateAndAdd} disabled={creatingUser || !newUserName || !newUserEmail} size="sm">
-                      {creatingUser ? "Creating..." : "Create & Add"}
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <Button variant="outline" size="sm" onClick={() => { setAddMode(false); setSearchResults([]); setAddEmail("") }}>
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Members</CardTitle>
-              {!addMode && (
-                <Button size="sm" onClick={() => setAddMode(true)}>
-                  Add Member
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Roles</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {!members || members.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className="text-center py-8 text-muted-foreground"
-                        >
-                          No members found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      members.map((member) => (
-                        <TableRow key={member.user_id}>
-                          <TableCell className="font-medium">
-                            {member.name}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {member.email}
-                          </TableCell>
-                          <TableCell>
-                            {member.roles
-                              ?.map((r) => r.name)
-                              .join(", ") || "-"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleRemoveMember(member.user_id)
-                              }
-                            >
-                              Remove
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+      <Card>
+        <CardHeader>
+          <CardTitle>Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {editMode ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Name</label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Danger Zone Tab */}
-        <TabsContent value="danger" className="mt-4">
-          <Card className="border-destructive">
-            <CardHeader>
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Slug</label>
+                <Input
+                  value={editSlug}
+                  onChange={(e) => setEditSlug(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSave} disabled={saving} size="sm">
+                  {saving ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={cancelEdit}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
+                  <p className="text-muted-foreground">Name</p>
+                  <p className="font-medium">{org.name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Slug</p>
+                  <p className="font-medium">{org.slug}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Status</p>
                   <p className="font-medium">
-                    {org.suspended_at
-                      ? "Reactivate organization"
-                      : "Suspend organization"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {org.suspended_at
-                      ? "Restore access for this organization."
-                      : "Temporarily disable access for this organization."}
+                    {org.suspended_at ? "Suspended" : "Active"}
                   </p>
                 </div>
-                {org.suspended_at ? (
-                  <Button variant="outline" onClick={handleReactivate}>
-                    Reactivate
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={handleSuspend}>
-                    Suspend
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border border-destructive p-4">
                 <div>
-                  <p className="font-medium">Delete organization</p>
-                  <p className="text-sm text-muted-foreground">
-                    Permanently remove this organization and all its data. This
-                    cannot be undone.
+                  <p className="text-muted-foreground">Created</p>
+                  <p className="font-medium">
+                    {new Date(org.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <Button variant="destructive" onClick={handleDelete}>
-                  Delete
-                </Button>
+                <div>
+                  <p className="text-muted-foreground">Updated</p>
+                  <p className="font-medium">
+                    {new Date(org.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => startEdit(org)}
+              >
+                Edit
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Members</CardTitle>
+          <AddOrgMemberDialog
+            orgId={org.id}
+            orgName={org.name}
+            existingMemberIds={(members ?? []).map((member) => member.user_id)}
+            onMemberAdded={() => mutateMembers()}
+          />
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Roles</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!members || members.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No members found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  members.map((member) => (
+                    <TableRow key={member.user_id}>
+                      <TableCell className="font-medium">
+                        {member.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {member.email}
+                      </TableCell>
+                      <TableCell>
+                        {member.roles
+                          ?.map((r) => r.name)
+                          .join(", ") || "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleRemoveMember(member.user_id)
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <p className="font-medium">
+                {org.suspended_at
+                  ? "Reactivate organization"
+                  : "Suspend organization"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {org.suspended_at
+                  ? "Restore access for this organization."
+                  : "Temporarily disable access for this organization."}
+              </p>
+            </div>
+            {org.suspended_at ? (
+              <Button variant="outline" onClick={handleReactivate}>
+                Reactivate
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={handleSuspend}>
+                Suspend
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-destructive p-4">
+            <div>
+              <p className="font-medium">Delete organization</p>
+              <p className="text-sm text-muted-foreground">
+                Permanently remove this organization and all its data. This
+                cannot be undone.
+              </p>
+            </div>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

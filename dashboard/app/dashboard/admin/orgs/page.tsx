@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import type { Organization, PageResponse } from "@/lib/api"
 import {
@@ -14,13 +15,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { CreateOrganizationDialog } from "@/components/dashboard/create-organization-dialog"
 import { toast } from "sonner"
 import useSWR from "swr"
-import Link from "next/link"
 
 const PER_PAGE = 25
 
 export default function OrgsPage() {
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [page, setPage] = useState(1)
@@ -72,13 +74,18 @@ export default function OrgsPage() {
   const orgs = data?.items ?? []
   const totalPages = data?.total_pages ?? 1
 
+  const openOrg = useCallback(
+    (orgId: string) => {
+      router.push(`/dashboard/admin/orgs/${orgId}`)
+    },
+    [router]
+  )
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Organizations</h1>
-        <Button asChild>
-          <Link href="/dashboard/admin/orgs/new">Create Organization</Link>
-        </Button>
+        <CreateOrganizationDialog onCreated={() => mutate()} />
       </div>
 
       <div className="flex items-center gap-2">
@@ -114,13 +121,24 @@ export default function OrgsPage() {
               </TableRow>
             ) : orgs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No organizations found.
-                </TableCell>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No organizations found.
+                  </TableCell>
               </TableRow>
             ) : (
               orgs.map((org) => (
-                <TableRow key={org.id}>
+                <TableRow
+                  key={org.id}
+                  tabIndex={0}
+                  className="cursor-pointer transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                  onClick={() => openOrg(org.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      openOrg(org.id)
+                    }
+                  }}
+                >
                   <TableCell className="font-medium">{org.name}</TableCell>
                   <TableCell className="text-muted-foreground">{org.slug}</TableCell>
                   <TableCell>
@@ -134,14 +152,14 @@ export default function OrgsPage() {
                     {new Date(org.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/dashboard/admin/orgs/${org.id}`}>View</Link>
-                    </Button>
                     {org.suspended_at ? (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleReactivate(org)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleReactivate(org)
+                        }}
                       >
                         Reactivate
                       </Button>
@@ -149,7 +167,10 @@ export default function OrgsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleSuspend(org)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSuspend(org)
+                        }}
                       >
                         Suspend
                       </Button>

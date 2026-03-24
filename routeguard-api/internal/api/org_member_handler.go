@@ -1,13 +1,55 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/middleware"
 )
+
+type memberRole struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type enrichedMember struct {
+	UserID string       `json:"user_id"`
+	Email  string       `json:"email"`
+	Name   string       `json:"name"`
+	Roles  []memberRole `json:"roles"`
+}
+
+func (h *Handler) buildEnrichedMember(ctx context.Context, membership *domain.OrgMembership) (*enrichedMember, error) {
+	user, err := h.users.GetByID(ctx, membership.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	email, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.EmailEnc)
+	name, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.NameEnc)
+
+	roles, err := h.roles.ListMemberRoles(ctx, membership.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	memberRoles := make([]memberRole, 0, len(roles))
+	for _, role := range roles {
+		memberRoles = append(memberRoles, memberRole{ID: role.ID, Name: role.Name})
+	}
+
+	return &enrichedMember{
+		UserID: membership.UserID,
+		Email:  email,
+		Name:   name,
+		Roles:  memberRoles,
+	}, nil
+}
 
 func (h *Handler) OrgListMembers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -19,38 +61,13 @@ func (h *Handler) OrgListMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type memberRole struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	}
-	type enrichedMember struct {
-		UserID string       `json:"user_id"`
-		Email  string       `json:"email"`
-		Name   string       `json:"name"`
-		Roles  []memberRole `json:"roles"`
-	}
-
 	result := make([]enrichedMember, 0, len(memberships))
 	for _, m := range memberships {
-		user, err := h.users.GetByID(ctx, m.UserID)
+		member, err := h.buildEnrichedMember(ctx, &m)
 		if err != nil {
 			continue
 		}
-		email, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.EmailEnc)
-		name, _ := crypto.Decrypt(h.cfg.DataEncryptionKey, user.NameEnc)
-
-		roles, _ := h.roles.ListMemberRoles(ctx, m.ID)
-		memberRoles := make([]memberRole, 0, len(roles))
-		for _, role := range roles {
-			memberRoles = append(memberRoles, memberRole{ID: role.ID, Name: role.Name})
-		}
-
-		result = append(result, enrichedMember{
-			UserID: m.UserID,
-			Email:  email,
-			Name:   name,
-			Roles:  memberRoles,
-		})
+		result = append(result, *member)
 	}
 
 	JSON(w, http.StatusOK, result)
@@ -68,6 +85,8 @@ func (h *Handler) OrgCreateMember(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	body.Email = normalizeEmail(body.Email)
+	body.Name = normalizeName(body.Name)
 	if body.Email == "" || body.Name == "" {
 		Error(w, http.StatusBadRequest, "email and name are required")
 		return
@@ -104,7 +123,12 @@ func (h *Handler) OrgCreateMember(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "failed to add member")
 		return
 	}
-	JSON(w, http.StatusCreated, membership)
+	member, err := h.buildEnrichedMember(ctx, membership)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to load member")
+		return
+	}
+	JSON(w, http.StatusCreated, member)
 }
 
 func (h *Handler) OrgInviteMember(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +142,7 @@ func (h *Handler) OrgInviteMember(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	body.Email = normalizeEmail(body.Email)
 	if body.Email == "" {
 		Error(w, http.StatusBadRequest, "email is required")
 		return
@@ -181,39 +206,8 @@ func (h *Handler) OrgRemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Guard: block removal of last org:manage member.
-	allMemberships, err := h.members.ListMembersByOrg(ctx, session.OrgID)
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "failed to list members")
-		return
-	}
-
-	adminCount := 0
-	for _, m := range allMemberships {
-		if m.UserID == userID {
-			continue
-		}
-		perms, _ := h.members.GetUserPermissions(ctx, m.UserID, session.OrgID)
-		for _, p := range perms {
-			if p == "org:manage" {
-				adminCount++
-				break
-			}
-		}
-	}
-
-	// Check whether the target user has org:manage
-	targetPerms, _ := h.members.GetUserPermissions(ctx, userID, session.OrgID)
-	targetIsAdmin := false
-	for _, p := range targetPerms {
-		if p == "org:manage" {
-			targetIsAdmin = true
-			break
-		}
-	}
-
-	if targetIsAdmin && adminCount == 0 {
-		Error(w, http.StatusConflict, "cannot remove the last org:manage member")
+	if err := h.ensureCriticalPermissionsRetained(ctx, session.OrgID, userID, nil); err != nil {
+		Error(w, http.StatusConflict, err.Error())
 		return
 	}
 
@@ -236,6 +230,15 @@ func (h *Handler) OrgUpdateMemberRoles(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	roleIDs, targetPermissions, err := h.validateRoleAssignments(ctx, session.OrgID, body.RoleIDs)
+	if err != nil {
+		if errors.Is(err, errInvalidRoleAssignment) {
+			Error(w, http.StatusBadRequest, "role assignment contains a role outside this organization")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to validate roles")
+		return
+	}
 
 	membership, err := h.members.GetByUserAndOrg(ctx, userID, session.OrgID)
 	if err != nil {
@@ -244,6 +247,11 @@ func (h *Handler) OrgUpdateMemberRoles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		Error(w, http.StatusInternalServerError, "failed to find membership")
+		return
+	}
+
+	if err := h.ensureCriticalPermissionsRetained(ctx, session.OrgID, userID, targetPermissions); err != nil {
+		Error(w, http.StatusConflict, err.Error())
 		return
 	}
 
@@ -258,7 +266,7 @@ func (h *Handler) OrgUpdateMemberRoles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	for _, roleID := range body.RoleIDs {
+	for _, roleID := range roleIDs {
 		if err := h.roles.AssignToMember(ctx, membership.ID, roleID); err != nil {
 			Error(w, http.StatusInternalServerError, "failed to assign role")
 			return
