@@ -86,8 +86,8 @@ jobs:
           git -C /opt/routeguard fetch origin main
           git -C /opt/routeguard checkout -f main
           git -C /opt/routeguard reset --hard origin/main
-          docker compose pull dashboard
-          docker compose up -d --no-deps --force-recreate dashboard
+          sudo docker compose --env-file /opt/routeguard/deploy/.env pull dashboard
+          sudo docker compose --env-file /opt/routeguard/deploy/.env up -d --no-deps --force-recreate dashboard
 
       - name: Mark deployment success
         if: success()
