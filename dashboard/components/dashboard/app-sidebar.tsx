@@ -80,6 +80,24 @@ const districtNavItems = [
   },
 ]
 
+const districtManagementNavItems = [
+  {
+    title: "Student",
+    url: "/dashboard/management/student",
+    icon: <UsersIcon />,
+  },
+  {
+    title: "School",
+    url: "/dashboard/management/school",
+    icon: <BuildingIcon />,
+  },
+  {
+    title: "Veichles",
+    url: "/dashboard/management/veichles",
+    icon: <BusIcon />,
+  },
+]
+
 const secondaryNavItems = [
   {
     title: "Settings",
@@ -109,6 +127,20 @@ export function AppSidebar({
     ? platformNavItems
     : districtNavItems
 
+  const showManagement = !isPlatform || isImpersonating
+  const managementItems = districtManagementNavItems.filter((item) => {
+    if (item.url === "/dashboard/management/student") {
+      return me.permissions.includes("org:manage")
+    }
+    if (item.url === "/dashboard/management/school") {
+      return me.permissions.includes("org:manage")
+    }
+    if (item.url === "/dashboard/management/veichles") {
+      return me.permissions.includes("vehicles:read")
+    }
+    return true
+  })
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -134,6 +166,9 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
+        {showManagement && managementItems.length > 0 ? (
+          <NavMain title="Management" items={managementItems} />
+        ) : null}
         <NavSecondary items={secondaryNavItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

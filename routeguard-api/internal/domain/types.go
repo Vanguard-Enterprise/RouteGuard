@@ -162,6 +162,47 @@ type Integration struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
+type Student struct {
+	ID              string     `json:"id"`
+	OrgID           string     `json:"org_id"`
+	StudentID       string     `json:"student_id"`
+	FirstName       string     `json:"first_name"`
+	LastName        string     `json:"last_name"`
+	Grade           string     `json:"grade"`
+	School          string     `json:"school"`
+	GuardianName    string     `json:"guardian_name"`
+	GuardianContact string     `json:"guardian_contact"`
+	IsActive        bool       `json:"is_active"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
+}
+
+type School struct {
+	ID           string     `json:"id"`
+	OrgID        string     `json:"org_id"`
+	SchoolID     string     `json:"school_id"`
+	Name         string     `json:"name"`
+	Address      string     `json:"address"`
+	ContactPhone string     `json:"contact_phone"`
+	IsActive     bool       `json:"is_active"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+}
+
+type Vehicle struct {
+	ID           string     `json:"id"`
+	OrgID        string     `json:"org_id"`
+	VehicleID    string     `json:"vehicle_id"`
+	LicensePlate string     `json:"license_plate"`
+	Capacity     int        `json:"capacity"`
+	IsActive     bool       `json:"is_active"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+}
+
 type SoftwareRelease struct {
 	ID           string    `json:"id"`
 	Version      string    `json:"version"`

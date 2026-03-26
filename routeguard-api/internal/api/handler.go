@@ -8,31 +8,37 @@ import (
 )
 
 type Handler struct {
-	pool    *pgxpool.Pool
-	cache   *cache.Cache
-	cfg     *config.Config
-	users   *repository.UserRepo
-	orgs    *repository.OrgRepo
-	members *repository.MembershipRepo
-	roles   *repository.RoleRepo
-	sso     *repository.SSORepo
+	pool         *pgxpool.Pool
+	cache        *cache.Cache
+	cfg          *config.Config
+	users        *repository.UserRepo
+	orgs         *repository.OrgRepo
+	members      *repository.MembershipRepo
+	roles        *repository.RoleRepo
+	sso          *repository.SSORepo
 	audit        *repository.AuditRepo
 	billing      *repository.BillingRepo
 	integrations *repository.IntegrationRepo
+	students     *repository.StudentRepo
+	schools      *repository.SchoolRepo
+	vehicles     *repository.VehicleRepo
 }
 
 func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler {
 	return &Handler{
-		pool:    pool,
-		cache:   c,
-		cfg:     cfg,
-		users:   repository.NewUserRepo(pool),
-		orgs:    repository.NewOrgRepo(pool),
-		members: repository.NewMembershipRepo(pool),
-		roles:   repository.NewRoleRepo(pool),
-		sso:     repository.NewSSORepo(pool),
+		pool:         pool,
+		cache:        c,
+		cfg:          cfg,
+		users:        repository.NewUserRepo(pool),
+		orgs:         repository.NewOrgRepo(pool),
+		members:      repository.NewMembershipRepo(pool),
+		roles:        repository.NewRoleRepo(pool),
+		sso:          repository.NewSSORepo(pool),
 		audit:        repository.NewAuditRepo(pool),
 		billing:      repository.NewBillingRepo(pool),
 		integrations: repository.NewIntegrationRepo(pool),
+		students:     repository.NewStudentRepo(pool),
+		schools:      repository.NewSchoolRepo(pool),
+		vehicles:     repository.NewVehicleRepo(pool),
 	}
 }

@@ -2,8 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/api ./cmd/api"
-bin = "./tmp/api"
+cmd = "go build -o ./tmp/api.exe ./cmd/api"
+bin = "./tmp/api.exe"
 include_ext = ["go", "sql", "tpl", "tmpl", "html"]
 exclude_dir = ["tmp", "vendor"]
 delay = 500

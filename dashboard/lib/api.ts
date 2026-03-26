@@ -261,6 +261,93 @@ export interface Integration {
   updated_at: string
 }
 
+export interface Student {
+  id: string
+  org_id: string
+  student_id: string
+  first_name: string
+  last_name: string
+  grade: string
+  school: string
+  guardian_name: string
+  guardian_contact: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface StudentListParams extends Record<string, unknown> {
+  search?: string
+  status?: "active" | "inactive" | "all"
+  page?: number
+  per_page?: number
+}
+
+export interface StudentUpsertPayload {
+  student_id: string
+  first_name: string
+  last_name: string
+  grade: string
+  school: string
+  guardian_name?: string
+  guardian_contact?: string
+  is_active?: boolean
+}
+
+export interface Vehicle {
+  id: string
+  org_id: string
+  vehicle_id: string
+  license_plate: string
+  capacity: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface VehicleListParams extends Record<string, unknown> {
+  search?: string
+  status?: "active" | "inactive" | "all"
+  page?: number
+  per_page?: number
+}
+
+export interface VehicleUpsertPayload {
+  vehicle_id: string
+  license_plate: string
+  capacity: number
+  is_active?: boolean
+}
+
+export interface School {
+  id: string
+  org_id: string
+  school_id: string
+  name: string
+  address: string
+  contact_phone: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface SchoolListParams extends Record<string, unknown> {
+  search?: string
+  status?: "active" | "inactive" | "all"
+  page?: number
+  per_page?: number
+}
+
+export interface SchoolUpsertPayload {
+  name: string
+  address: string
+  contact_phone?: string
+  is_active?: boolean
+}
+
 export interface OrgMember {
   user_id: string
   email: string
@@ -409,6 +496,54 @@ export const api = {
         orgRequest<Integration>(`/org/integrations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
       delete: (id: string) =>
         orgRequest<void>(`/org/integrations/${id}`, { method: 'DELETE' }),
+    },
+    students: {
+      list: (params?: StudentListParams) =>
+        orgRequest<PageResponse<Student>>(`/org/students${qs(params)}`),
+      listDeleted: (params?: StudentListParams) =>
+        orgRequest<PageResponse<Student>>(`/org/students/deleted${qs(params)}`),
+      get: (id: string) =>
+        orgRequest<Student>(`/org/students/${id}`),
+      create: (data: StudentUpsertPayload) =>
+        orgRequest<Student>('/org/students', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: StudentUpsertPayload) =>
+        orgRequest<Student>(`/org/students/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      remove: (id: string) =>
+        orgRequest<void>(`/org/students/${id}`, { method: 'DELETE' }),
+      restore: (id: string) =>
+        orgRequest<Student>(`/org/students/${id}/restore`, { method: 'POST' }),
+    },
+    schools: {
+      list: (params?: SchoolListParams) =>
+        orgRequest<PageResponse<School>>(`/org/schools${qs(params)}`),
+      listDeleted: (params?: SchoolListParams) =>
+        orgRequest<PageResponse<School>>(`/org/schools/deleted${qs(params)}`),
+      get: (id: string) =>
+        orgRequest<School>(`/org/schools/${id}`),
+      create: (data: SchoolUpsertPayload) =>
+        orgRequest<School>('/org/schools', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: SchoolUpsertPayload) =>
+        orgRequest<School>(`/org/schools/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      remove: (id: string) =>
+        orgRequest<void>(`/org/schools/${id}`, { method: 'DELETE' }),
+      restore: (id: string) =>
+        orgRequest<School>(`/org/schools/${id}/restore`, { method: 'POST' }),
+    },
+    vehicles: {
+      list: (params?: VehicleListParams) =>
+        orgRequest<PageResponse<Vehicle>>(`/org/vehicles${qs(params)}`),
+      listDeleted: (params?: VehicleListParams) =>
+        orgRequest<PageResponse<Vehicle>>(`/org/vehicles/deleted${qs(params)}`),
+      get: (id: string) =>
+        orgRequest<Vehicle>(`/org/vehicles/${id}`),
+      create: (data: VehicleUpsertPayload) =>
+        orgRequest<Vehicle>('/org/vehicles', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: VehicleUpsertPayload) =>
+        orgRequest<Vehicle>(`/org/vehicles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      remove: (id: string) =>
+        orgRequest<void>(`/org/vehicles/${id}`, { method: 'DELETE' }),
+      restore: (id: string) =>
+        orgRequest<Vehicle>(`/org/vehicles/${id}/restore`, { method: 'POST' }),
     },
   },
 }

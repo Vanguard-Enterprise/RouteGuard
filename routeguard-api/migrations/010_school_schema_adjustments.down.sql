@@ -1,0 +1,5 @@
+ALTER TABLE schools
+    ADD COLUMN IF NOT EXISTS contact_name TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE schools
+    ALTER COLUMN school_id DROP DEFAULT;

@@ -198,7 +198,7 @@ func (r *OrgRepo) MemberCount(ctx context.Context, orgID string) (int, error) {
 func (r *OrgRepo) SeedSystemRoles(ctx context.Context, orgID string) error {
 	_, err := r.pool.Exec(ctx,
 		`INSERT INTO org_roles (org_id, name, permissions, is_system) VALUES
-		 ($1, 'Owner', ARRAY['org:manage', 'members:read', 'members:write', 'roles:read', 'roles:write', 'sso:read', 'sso:write'], true),
+		 ($1, 'Owner', ARRAY['org:manage', 'members:read', 'members:write', 'roles:read', 'roles:write', 'sso:read', 'sso:write', 'vehicles:read', 'vehicles:write'], true),
 		 ($1, 'Member', ARRAY['members:read'], true)`,
 		orgID,
 	)

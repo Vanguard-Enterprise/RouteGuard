@@ -127,6 +127,30 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("org:manage")).Post("/integrations", h.OrgCreateIntegration)
 		r.With(middleware.RequirePermission("org:manage")).Put("/integrations/{id}", h.OrgUpdateIntegration)
 		r.With(middleware.RequirePermission("org:manage")).Delete("/integrations/{id}", h.OrgDeleteIntegration)
+
+		r.With(middleware.RequirePermission("org:manage")).Get("/students", h.OrgListStudents)
+		r.With(middleware.RequirePermission("org:manage")).Get("/students/deleted", h.OrgListDeletedStudents)
+		r.With(middleware.RequirePermission("org:manage")).Post("/students", h.OrgCreateStudent)
+		r.With(middleware.RequirePermission("org:manage")).Get("/students/{id}", h.OrgGetStudent)
+		r.With(middleware.RequirePermission("org:manage")).Put("/students/{id}", h.OrgUpdateStudent)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/students/{id}", h.OrgDeleteStudent)
+		r.With(middleware.RequirePermission("org:manage")).Post("/students/{id}/restore", h.OrgRestoreStudent)
+
+		r.With(middleware.RequirePermission("org:manage")).Get("/schools", h.OrgListSchools)
+		r.With(middleware.RequirePermission("org:manage")).Get("/schools/deleted", h.OrgListDeletedSchools)
+		r.With(middleware.RequirePermission("org:manage")).Post("/schools", h.OrgCreateSchool)
+		r.With(middleware.RequirePermission("org:manage")).Get("/schools/{id}", h.OrgGetSchool)
+		r.With(middleware.RequirePermission("org:manage")).Put("/schools/{id}", h.OrgUpdateSchool)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/schools/{id}", h.OrgDeleteSchool)
+		r.With(middleware.RequirePermission("org:manage")).Post("/schools/{id}/restore", h.OrgRestoreSchool)
+
+		r.With(middleware.RequirePermission("vehicles:read")).Get("/vehicles", h.OrgListVehicles)
+		r.With(middleware.RequirePermission("vehicles:read")).Get("/vehicles/deleted", h.OrgListDeletedVehicles)
+		r.With(middleware.RequirePermission("vehicles:write")).Post("/vehicles", h.OrgCreateVehicle)
+		r.With(middleware.RequirePermission("vehicles:read")).Get("/vehicles/{id}", h.OrgGetVehicle)
+		r.With(middleware.RequirePermission("vehicles:write")).Put("/vehicles/{id}", h.OrgUpdateVehicle)
+		r.With(middleware.RequirePermission("vehicles:write")).Delete("/vehicles/{id}", h.OrgDeleteVehicle)
+		r.With(middleware.RequirePermission("vehicles:write")).Post("/vehicles/{id}/restore", h.OrgRestoreVehicle)
 	})
 
 	return r

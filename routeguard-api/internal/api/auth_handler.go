@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -11,6 +12,8 @@ import (
 	"github.com/routeguard/api/internal/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const platformOrgID = "00000000-0000-0000-0000-000000000001"
 
 type lookupRequest struct {
 	Email string `json:"email"`
@@ -141,11 +144,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	// Auto-select first org
 	selectedOrg := orgs[0]
 
-	// Load permissions for selected org
-	perms, err := h.members.GetUserPermissions(r.Context(), user.ID, selectedOrg.ID)
-	if err != nil {
-		perms = []string{}
-	}
+	// Load permissions for selected org, plus platform-level permissions when applicable.
+	perms := h.loadSessionPermissions(r.Context(), user.ID, selectedOrg.ID)
 
 	// Create session
 	payload := &domain.SessionPayload{
@@ -234,10 +234,7 @@ func (h *Handler) ConsumeMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	perms, err := h.members.GetUserPermissions(r.Context(), payload.UserID, payload.OrgID)
-	if err != nil {
-		perms = []string{}
-	}
+	perms := h.loadSessionPermissions(r.Context(), payload.UserID, payload.OrgID)
 
 	session := &domain.SessionPayload{
 		UserID:      payload.UserID,
@@ -359,11 +356,8 @@ func (h *Handler) SwitchOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load permissions for new org
-	perms, err := h.members.GetUserPermissions(r.Context(), session.UserID, req.OrgID)
-	if err != nil {
-		perms = []string{}
-	}
+	// Load permissions for new org, plus platform-level permissions when applicable.
+	perms := h.loadSessionPermissions(r.Context(), session.UserID, req.OrgID)
 
 	// Update session
 	session.OrgID = req.OrgID
@@ -415,4 +409,37 @@ func (h *Handler) ListMyOrgs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) loadSessionPermissions(ctx context.Context, userID, activeOrgID string) []string {
+	perms, err := h.members.GetUserPermissions(ctx, userID, activeOrgID)
+	if err != nil {
+		perms = []string{}
+	}
+
+	if activeOrgID != platformOrgID {
+		if _, err := h.members.GetByUserAndOrg(ctx, userID, platformOrgID); err == nil {
+			if platformPerms, err := h.members.GetUserPermissions(ctx, userID, platformOrgID); err == nil {
+				seen := make(map[string]struct{}, len(perms)+len(platformPerms))
+				merged := make([]string, 0, len(perms)+len(platformPerms))
+				for _, p := range perms {
+					if _, ok := seen[p]; ok {
+						continue
+					}
+					seen[p] = struct{}{}
+					merged = append(merged, p)
+				}
+				for _, p := range platformPerms {
+					if _, ok := seen[p]; ok {
+						continue
+					}
+					seen[p] = struct{}{}
+					merged = append(merged, p)
+				}
+				perms = merged
+			}
+		}
+	}
+
+	return perms
 }
