@@ -83,7 +83,9 @@ jobs:
       - name: Deploy
         working-directory: /opt/routeguard/deploy
         run: |
-          git -C /opt/routeguard pull
+          git -C /opt/routeguard fetch origin main
+          git -C /opt/routeguard checkout -f main
+          git -C /opt/routeguard reset --hard origin/main
           docker compose pull dashboard
           docker compose up -d --no-deps --force-recreate dashboard
 
