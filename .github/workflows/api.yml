@@ -98,8 +98,8 @@ jobs:
           git -C /opt/routeguard fetch origin main
           git -C /opt/routeguard checkout -f main
           git -C /opt/routeguard reset --hard origin/main
-          sudo docker compose --env-file /opt/routeguard/deploy/.env pull routeguard-api
-          sudo docker compose --env-file /opt/routeguard/deploy/.env up -d --no-deps --force-recreate routeguard-api
+          docker compose --env-file /opt/routeguard/deploy/.env pull routeguard-api
+          docker compose --env-file /opt/routeguard/deploy/.env up -d --no-deps --force-recreate routeguard-api
 
       - name: Mark deployment success
         uses: actions/github-script@v8
