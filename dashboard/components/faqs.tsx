@@ -55,7 +55,7 @@ export function FaqsSection() {
 				<h2 className="text-balance font-black font-mono text-4xl md:text-5xl lg:font-black">
 					FAQs
 				</h2>
-				<p className="text-muted-foreground">Common questions about RouteGuard.</p>
+				<p className="text-muted-foreground">Common questions from district transportation teams and families.</p>
 			</div>
 			<div className="relative grid min-h-full grid-cols-1 py-12 md:grid-cols-3">
 				<div className="flex h-full items-start justify-center border-b pb-2 md:border-b-0">
@@ -117,69 +117,69 @@ const faqs = [
 		category: "getting-started",
 		title: "How quickly can we get RouteGuard up and running?",
 		content:
-			"Most districts are fully operational within a single afternoon. You plug the RouteGuard device into your bus, it self-configures using a secure provisioning token from the admin console, and you assign routes from the dashboard. No complex IT setup required.",
+			"Initial deployments run as guided pilots. Our current model starts with select buses per school so teams can validate safety, accountability, and operations before broader rollout.",
 	},
 	{
 		id: 2,
 		category: "getting-started",
 		title: "What hardware do we need?",
 		content:
-			"Each bus requires a RouteGuard Pi device (a pre-configured Raspberry Pi unit) and an RFID reader. Students receive RFID tags or cards. The admin dashboard runs in any modern web browser - no software installation needed.",
+			"Each bus uses RouteGuard bus hardware, an RFID scanner, and student RFID bands/tags. The district team manages operations through a web-based admin dashboard.",
 	},
 	{
 		id: 3,
 		category: "getting-started",
 		title: "Do drivers need to learn new software?",
 		content:
-			"No. Drivers interact only with the RFID reader on the bus. The student scanning is automatic - students tap their card, the device logs the event and triggers guardian notifications. Drivers don't need to touch any dashboard or app.",
+			"No. Drivers focus on transportation and use simple on-bus controls, including a tiered panic button for emergency severity reporting. Student verification and guardian notifications run automatically.",
 	},
 	{
 		id: 4,
 		category: "features",
 		title: "How accurate is the GPS tracking?",
 		content:
-			"The RouteGuard device uses standard GPS with a typical accuracy of 3 to 5 meters. Position updates are sent to the live map every few seconds, giving dispatchers and administrators a near-real-time view of all vehicles.",
+			"RouteGuard provides live route visibility for district teams and families, with continuous status updates that support both daily operations and rapid incident response.",
 	},
 	{
 		id: 5,
 		category: "features",
 		title: "What information do parents receive in SMS alerts?",
 		content:
-			"When a student boards or exits the bus, their parent or guardian receives an automated SMS with the student's name, the event (boarding or exiting), the bus route, and the time. No app download is required on the parent's end.",
+			"Parents and guardians receive real-time notifications tied to student boarding and exit activity, helping close visibility gaps beyond location-only tracking.",
 	},
 	{
 		id: 6,
 		category: "features",
 		title: "Can we manage multiple schools and routes from one account?",
 		content:
-			"Yes. The admin dashboard supports multiple organizations, schools, routes, and drivers under a single district account. Role-based permissions let you control who can see and edit which data.",
+			"Yes. RouteGuard is designed for district operations across multiple schools, routes, and drivers with centralized visibility and operational control.",
 	},
 	{
 		id: 7,
 		category: "pricing",
 		title: "How is RouteGuard priced?",
 		content:
-			"Pricing is based on the number of buses in your district. Contact our team for a personalized quote - we work with districts of all sizes and can tailor a plan to your fleet and budget.",
+			"Our current business plan models pricing in fleet packages. For example, the per-20-bus package is listed at $142,750 and includes bus hardware, RFID bands, admin dashboard access, sensors, and cellular/offline support.",
 	},
 	{
 		id: 8,
 		category: "pricing",
-		title: "Is there a trial or demo available?",
+		title: "Is there a pilot or demo available?",
 		content:
-			"Yes. We offer a guided demo where we walk your transportation team through the full platform using your district's route data. Reach out via the contact page to schedule one.",
+			"Yes. RouteGuard supports pilot-first deployments and guided demos. Pilot outcomes are used to refine configuration before district-wide adoption.",
 	},
 	{
 		id: 9,
 		category: "support",
 		title: "What support is included?",
 		content:
-			"All plans include email support with responses within one business day. Larger districts can request priority phone support and dedicated onboarding assistance to get every bus up and running smoothly.",
+			"Districts receive onboarding guidance, rollout support, and direct issue resolution pathways so implementation remains smooth as adoption expands.",
 	},
 	{
 		id: 10,
 		category: "support",
 		title: "What happens if a device goes offline mid-route?",
 		content:
-			"The device stores scan events locally and syncs them to the server once connectivity is restored. GPS tracking resumes automatically when the device reconnects. Administrators receive an alert when a device loses connection.",
+			"RouteGuard includes an offline safety layer that keeps critical scan and safety functions active when connectivity drops, then syncs records when service returns.",
 	},
 ];

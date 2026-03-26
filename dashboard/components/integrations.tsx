@@ -18,10 +18,12 @@ export function Integrations() {
 			{/* Left Content */}
 			<div className="max-w-xl space-y-5">
 				<h2 className="font-medium text-3xl text-foreground tracking-tight sm:text-4xl md:text-5xl">
-					Connects With What You Already Use
+					District-Compatible By Design
 				</h2>
 				<p className="text-lg text-muted-foreground leading-8">
-					RouteGuard integrates with the student information systems and identity providers your district already runs - so student data stays in sync and setup takes days, not months.
+					RouteGuard syncs with common SIS and identity tools so rosters and
+					attendance stay aligned. The platform is built around minimal,
+					non-identifiable student data handling with FERPA-focused workflows.
 				</p>
 			</div>
 

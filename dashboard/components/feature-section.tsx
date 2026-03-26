@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import type React from "react";
 import { CobeGlobe } from "@/components/cobe-globe";
 import { RfidScanVisual } from "@/components/rfid-scan-visual";
-import { MapPinIcon, GlobeIcon, SquareMousePointerIcon, MessageCircleIcon } from "lucide-react";
+import { MapPinIcon, ShieldAlertIcon, SquareMousePointerIcon, MessageCircleIcon } from "lucide-react";
 
 const features = [
 	{
@@ -92,7 +92,8 @@ function GpsTrackingVisual() {
 			<div className="relative mt-8 space-y-1.5 text-center">
 				<FeatureTitle>Live GPS Tracking</FeatureTitle>
 				<FeatureDescription>
-					Monitor every bus in real time on an interactive map. Know exactly where each vehicle is and whether routes are running on schedule.
+					Track route progress in real time and give dispatchers instant visibility
+					during regular operations and emergencies.
 				</FeatureDescription>
 			</div>
 		</>
@@ -115,7 +116,8 @@ function SmsAlertsVisual() {
 			<div className="relative z-10 mt-8 space-y-1.5 text-center">
 				<FeatureTitle>Guardian SMS Alerts</FeatureTitle>
 				<FeatureDescription>
-					Parents receive an automatic text the moment their child boards or exits the bus. No app required - just a phone number.
+					Automatically notify guardians when students board or exit the bus, with
+					no app download required.
 				</FeatureDescription>
 			</div>
 		</>
@@ -134,7 +136,8 @@ function DashboardVisual() {
 						Intuitive Admin Dashboard
 					</FeatureTitle>
 					<FeatureDescription>
-						Manage routes, devices, students, and drivers from one clean interface. Built for transportation coordinators, not IT specialists.
+						Manage routes, devices, students, and drivers from one district-ready
+						console built for transportation teams.
 					</FeatureDescription>
 				</div>
 			</div>
@@ -155,14 +158,15 @@ function PresenceVisual() {
 		<div className="grid max-h-120 sm:grid-cols-2">
 			<div className="space-y-6 pt-8 pb-4 pl-8 sm:pb-8">
 				<div className="flex size-12 items-center justify-center rounded-full border bg-card shadow-xs outline outline-border/80 outline-offset-2">
-					<GlobeIcon className="size-5 text-primary/80" />
+					<ShieldAlertIcon className="size-5 text-primary/80" />
 				</div>
 				<div className="space-y-2">
 					<FeatureTitle className="text-base">
-						Monitor From Anywhere
+						Tiered Panic Response + Offline Safety
 					</FeatureTitle>
 					<FeatureDescription>
-						Access the live map and student records from any device. No software install - just log in from a browser.
+						Drivers can report emergency severity instantly while on-bus systems
+						keep recording critical events even when connectivity drops.
 					</FeatureDescription>
 				</div>
 			</div>

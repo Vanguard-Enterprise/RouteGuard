@@ -10,7 +10,7 @@ export function CallToAction() {
 			<div className="relative mx-auto flex w-full max-w-3xl flex-col justify-between border-x border-white/10 md:flex-row">
 				<div className="border-b border-white/10 p-4 md:border-b-0">
 					<h2 className="text-center font-bold text-lg text-white md:text-left md:text-2xl">
-						Ready to see RouteGuard in action?
+						Plan your RouteGuard pilot deployment
 					</h2>
 				</div>
 				<div className="flex items-center justify-center gap-2 p-4 md:border-l md:border-white/10">

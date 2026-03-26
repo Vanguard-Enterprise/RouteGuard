@@ -36,7 +36,7 @@ export function HeroSection() {
 						<div className="rounded-xs border border-white/20 bg-white/10 px-1.5 py-0.5">
 							<p className="font-mono text-xs text-white">NEW</p>
 						</div>
-						<span className="text-xs text-white/80">Now accepting new district onboardings</span>
+						<span className="text-xs text-white/80">Pilot-ready for district transportation teams</span>
 						<span className="block h-5 border-l border-white/20" />
 						<div className="pr-1">
 							<ArrowRightIcon className="size-3 -translate-x-0.5 text-white/60 duration-150 ease-out group-hover:translate-x-0.5" />
@@ -49,7 +49,7 @@ export function HeroSection() {
 							"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out"
 						)}
 					>
-						Keep Every Student Safe, Every Ride
+						Close The School Bus Safety Gap, Every Ride
 					</h1>
 
 					<p
@@ -58,9 +58,9 @@ export function HeroSection() {
 							"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out"
 						)}
 					>
-						Real-time GPS tracking, RFID student check-ins, and instant guardian
-						SMS alerts - all in one platform built for K-12 transportation
-						departments.
+						RouteGuard combines UHF RFID student verification, live GPS
+						visibility, instant guardian alerts, and tiered panic escalation in
+						one platform for K-12 transportation operations.
 					</p>
 
 					<div className="fade-in slide-in-from-bottom-10 flex w-fit animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
