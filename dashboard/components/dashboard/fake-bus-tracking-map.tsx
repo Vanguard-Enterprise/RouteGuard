@@ -18,6 +18,18 @@ type FakeBus = {
   lat: number
 }
 
+type FakeBusTrackingMapProps = {
+  mode?: "fleet" | "driver"
+}
+
+const driverBus: FakeBus = {
+  id: "DEMO-BUS-42",
+  route: "North Loop",
+  status: "On Time",
+  lng: -96.797,
+  lat: 32.7767,
+}
+
 const fakeBuses: FakeBus[] = [
   { id: "BUS-12", route: "North Loop", status: "On Time", lng: -96.828, lat: 32.807 },
   { id: "BUS-21", route: "Riverside", status: "Delayed", lng: -96.792, lat: 32.789 },
@@ -47,7 +59,9 @@ function statusColor(status: FakeBus["status"]) {
   return "#10b981"
 }
 
-export function FakeBusTrackingMap() {
+export function FakeBusTrackingMap({
+  mode = "fleet",
+}: FakeBusTrackingMapProps = {}) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<import("mapbox-gl").Map | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
@@ -57,6 +71,9 @@ export function FakeBusTrackingMap() {
   const clientMapToken = publicMapToken && publicMapToken.length > 0
     ? publicMapToken
     : "pk.routeguard.proxy"
+  const centerLng = mode === "driver" ? driverBus.lng : -96.797
+  const centerLat = mode === "driver" ? driverBus.lat : 32.7767
+  const mapZoom = mode === "driver" ? 13.6 : 11.4
 
   useEffect(() => {
     if (!mapContainerRef.current) return
@@ -64,6 +81,7 @@ export function FakeBusTrackingMap() {
     let isMounted = true
     let resizeMap: (() => void) | null = null
     let handleResize: (() => void) | null = null
+    const visibleBuses = mode === "driver" ? [driverBus] : fakeBuses
 
     const initMap = async () => {
       try {
@@ -77,8 +95,8 @@ export function FakeBusTrackingMap() {
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
           style: "mapbox://styles/mapbox/streets-v12",
-          center: [-96.797, 32.7767],
-          zoom: 11.4,
+          center: [centerLng, centerLat],
+          zoom: mapZoom,
           pitch: 0,
           bearing: 0,
           attributionControl: false,
@@ -98,7 +116,9 @@ export function FakeBusTrackingMap() {
         })
 
         mapRef.current = map
-        map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right")
+        if (mode === "fleet") {
+          map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right")
+        }
 
         // Ensure WebGL canvas matches container dimensions after layout settles.
         resizeMap = () => {
@@ -131,8 +151,7 @@ export function FakeBusTrackingMap() {
         })
 
         map.on("load", () => {
-          // Keep the map anchored to Dallas while still showing all simulated buses.
-          map.jumpTo({ center: [-96.797, 32.7767], zoom: 11.4 })
+          map.jumpTo({ center: [centerLng, centerLat], zoom: mapZoom })
 
           if (resizeMap) resizeMap()
 
@@ -140,7 +159,7 @@ export function FakeBusTrackingMap() {
             type: "geojson",
             data: {
               type: "FeatureCollection",
-              features: fakeBuses.map((bus) => ({
+              features: visibleBuses.map((bus) => ({
                 type: "Feature",
                 geometry: {
                   type: "Point",
@@ -160,20 +179,23 @@ export function FakeBusTrackingMap() {
             type: "circle",
             source: "bus-points",
             paint: {
-              "circle-radius": 12,
-              "circle-color": [
-                "match",
-                ["get", "status"],
-                "Emergency",
-                "rgba(239, 68, 68, 0.28)",
-                "Out of Service",
-                "rgba(234, 179, 8, 0.28)",
-                "Delayed",
-                "rgba(245, 158, 11, 0.28)",
-                "At Stop",
-                "rgba(14, 165, 233, 0.28)",
-                "rgba(16, 185, 129, 0.28)",
-              ],
+              "circle-radius": mode === "driver" ? 18 : 12,
+              "circle-color":
+                mode === "driver"
+                  ? "rgba(37, 99, 235, 0.18)"
+                  : [
+                      "match",
+                      ["get", "status"],
+                      "Emergency",
+                      "rgba(239, 68, 68, 0.28)",
+                      "Out of Service",
+                      "rgba(234, 179, 8, 0.28)",
+                      "Delayed",
+                      "rgba(245, 158, 11, 0.28)",
+                      "At Stop",
+                      "rgba(14, 165, 233, 0.28)",
+                      "rgba(16, 185, 129, 0.28)",
+                    ],
             },
           })
 
@@ -182,55 +204,60 @@ export function FakeBusTrackingMap() {
             type: "circle",
             source: "bus-points",
             paint: {
-              "circle-radius": 7,
-              "circle-color": [
-                "match",
-                ["get", "status"],
-                "Emergency",
-                statusColor("Emergency"),
-                "Out of Service",
-                statusColor("Out of Service"),
-                "Delayed",
-                statusColor("Delayed"),
-                "At Stop",
-                statusColor("At Stop"),
-                statusColor("On Time"),
-              ],
-              "circle-stroke-width": 2,
+              "circle-radius": mode === "driver" ? 7 : 7,
+              "circle-color":
+                mode === "driver"
+                  ? "#2563eb"
+                  : [
+                      "match",
+                      ["get", "status"],
+                      "Emergency",
+                      statusColor("Emergency"),
+                      "Out of Service",
+                      statusColor("Out of Service"),
+                      "Delayed",
+                      statusColor("Delayed"),
+                      "At Stop",
+                      statusColor("At Stop"),
+                      statusColor("On Time"),
+                    ],
+              "circle-stroke-width": mode === "driver" ? 4 : 2,
               "circle-stroke-color": "#ffffff",
             },
           })
 
-          map.on("click", "bus-points-layer", (event) => {
-            const feature = event.features?.[0]
-            if (!feature || feature.geometry.type !== "Point") return
-            const coords = feature.geometry.coordinates as [number, number]
-            const id = String(feature.properties?.id ?? "Unknown")
-            const route = String(feature.properties?.route ?? "Unknown Route")
-            const status = String(feature.properties?.status ?? "Unknown")
+          if (mode === "fleet") {
+            map.on("click", "bus-points-layer", (event) => {
+              const feature = event.features?.[0]
+              if (!feature || feature.geometry.type !== "Point") return
+              const coords = feature.geometry.coordinates as [number, number]
+              const id = String(feature.properties?.id ?? "Unknown")
+              const route = String(feature.properties?.route ?? "Unknown Route")
+              const status = String(feature.properties?.status ?? "Unknown")
 
-            new mapboxgl.Popup({
-              closeButton: false,
-              offset: 14,
-              maxWidth: "220px",
+              new mapboxgl.Popup({
+                closeButton: false,
+                offset: 14,
+                maxWidth: "220px",
+              })
+                .setLngLat(coords)
+                .setHTML(
+                  `<div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; font-size:12px; line-height:1.45;">
+                     <div style="font-weight:700;">${id}</div>
+                     <div style="color:#334155;">${route}</div>
+                     <div style="margin-top:4px; color:#0f172a;">Status: ${status}</div>
+                   </div>`
+                )
+                .addTo(map)
             })
-              .setLngLat(coords)
-              .setHTML(
-                `<div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; font-size:12px; line-height:1.45;">
-                   <div style="font-weight:700;">${id}</div>
-                   <div style="color:#334155;">${route}</div>
-                   <div style="margin-top:4px; color:#0f172a;">Status: ${status}</div>
-                 </div>`
-              )
-              .addTo(map)
-          })
 
-          map.on("mouseenter", "bus-points-layer", () => {
-            map.getCanvas().style.cursor = "pointer"
-          })
-          map.on("mouseleave", "bus-points-layer", () => {
-            map.getCanvas().style.cursor = ""
-          })
+            map.on("mouseenter", "bus-points-layer", () => {
+              map.getCanvas().style.cursor = "pointer"
+            })
+            map.on("mouseleave", "bus-points-layer", () => {
+              map.getCanvas().style.cursor = ""
+            })
+          }
         })
       } catch (error) {
         if (!isMounted) return
@@ -251,7 +278,72 @@ export function FakeBusTrackingMap() {
       mapRef.current?.remove()
       mapRef.current = null
     }
-  }, [clientMapToken])
+  }, [centerLat, centerLng, clientMapToken, mapZoom, mode])
+
+  const mapSurface = (
+    <div
+      className={`relative h-full overflow-hidden bg-slate-100 ${
+        mode === "driver" ? "rounded-[1.65rem] border border-slate-200/90" : "rounded-lg border"
+      }`}
+    >
+      <div ref={mapContainerRef} className="absolute inset-0 h-full w-full" aria-label="Live bus tracking map" />
+
+      {mapError ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-100 px-4 text-center text-sm text-slate-600">
+          <MapPinIcon className="size-5 text-slate-500" />
+          <p>
+            Unable to load map data. Check <code>MAPBOX_TOKEN</code> (or <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>) and
+            <code> /api/mapbox/proxy</code>.
+          </p>
+        </div>
+      ) : null}
+
+      {mode === "fleet" ? (
+        <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-slate-900/15 bg-white/90 px-2.5 py-2 text-[11px] text-slate-700 shadow-sm">
+          <div className="mb-1.5 font-semibold text-slate-800">Bus Status</div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            On Time
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-amber-500" />
+            Delayed
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-sky-500" />
+            At Stop
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-yellow-500" />
+            Out of Service
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-red-500" />
+            Emergency
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+
+  if (mode === "driver") {
+    return (
+      <div className="h-full">
+        {mapSurface}
+        <style jsx>{`
+          @keyframes busPulse {
+            0%,
+            100% {
+              transform: scale(1);
+            }
+            50% {
+              transform: scale(1.08);
+            }
+          }
+        `}</style>
+      </div>
+    )
+  }
 
   return (
     <div className="px-4 lg:px-6">
@@ -263,42 +355,8 @@ export function FakeBusTrackingMap() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative h-[270px] overflow-hidden rounded-lg border bg-slate-100 sm:h-[340px]">
-            <div ref={mapContainerRef} className="absolute inset-0 h-full w-full" aria-label="Live bus tracking map" />
-
-            {mapError ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-100 px-4 text-center text-sm text-slate-600">
-                <MapPinIcon className="size-5 text-slate-500" />
-                <p>
-                  Unable to load map data. Check <code>MAPBOX_TOKEN</code> (or <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>) and
-                  <code> /api/mapbox/proxy</code>.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-slate-900/15 bg-white/90 px-2.5 py-2 text-[11px] text-slate-700 shadow-sm">
-              <div className="mb-1.5 font-semibold text-slate-800">Bus Status</div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                On Time
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-amber-500" />
-                Delayed
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-sky-500" />
-                At Stop
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-yellow-500" />
-                Out of Service
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-red-500" />
-                Emergency
-              </div>
-            </div>
+          <div className="h-[270px] sm:h-[340px]">
+            {mapSurface}
           </div>
         </CardContent>
       </Card>
