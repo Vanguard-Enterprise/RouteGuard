@@ -661,7 +661,7 @@ function LockedDriverScreen({
   return (
     <div className="relative flex h-full flex-col overflow-hidden p-4 pt-6 sm:p-5 sm:pt-7">
       <div className="shrink-0 pb-3 text-center">
-        <div className="text-4xl leading-tight font-semibold tracking-tight">{clockText}</div>
+        <div className="text-5xl leading-tight font-semibold tracking-tight sm:text-6xl">{clockText}</div>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col justify-between gap-5">
@@ -674,7 +674,7 @@ function LockedDriverScreen({
                 <span
                   key={slot}
                   className={cn(
-                    "size-3 rounded-full border",
+                    "size-5 rounded-full border-2",
                     filled ? "border-primary bg-primary" : "border-muted-foreground/60 bg-transparent"
                   )}
                 />
