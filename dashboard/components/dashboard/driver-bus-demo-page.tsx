@@ -1339,26 +1339,24 @@ function DriverStageScreen({
       <div className="relative flex h-full flex-col px-4 pb-14 pt-24">
         <div className="min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-white/80 bg-white/72 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
           <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between gap-3 pb-3">
-              <div />
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 rounded-full px-4 text-xs font-medium"
-                onClick={onMinimize}
-              >
-                <MinusIcon className="size-3.5" />
-                Minimize
-              </Button>
-            </div>
-
             <div className="min-h-0 flex-1 overflow-hidden rounded-[1.9rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(241,245,249,0.92))] p-4">
               <div className="flex h-full flex-col">
                 <div className="mb-4 flex items-center justify-between">
                   <div className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.22em] text-slate-500">
                     Driver
                   </div>
-                  <div className="text-xs text-muted-foreground">{waitingCount} waiting</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs text-muted-foreground">{waitingCount} waiting</div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 rounded-full px-3.5 text-xs font-medium"
+                      onClick={onMinimize}
+                    >
+                      <MinusIcon className="size-3.5" />
+                      Minimize
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="relative min-h-0 flex-1 overflow-y-auto rounded-[1.5rem] bg-slate-100/80 p-3">
