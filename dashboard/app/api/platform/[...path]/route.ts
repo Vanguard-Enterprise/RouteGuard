@@ -26,6 +26,18 @@ async function proxyRequest(request: NextRequest, { params }: { params: Promise<
     body,
   })
 
+  const contentType = res.headers.get('content-type') ?? ''
+  if (contentType.includes('text/event-stream')) {
+    return new NextResponse(res.body, {
+      status: res.status,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
+  }
+
   if (res.status === 204) {
     return new NextResponse(null, { status: 204 })
   }

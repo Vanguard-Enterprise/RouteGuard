@@ -321,6 +321,111 @@ export interface VehicleUpsertPayload {
   is_active?: boolean
 }
 
+export interface Driver {
+  id: string
+  org_id: string
+  driver_id: string
+  name: string
+  phone: string
+  is_available: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface DriverListParams extends Record<string, unknown> {
+  search?: string
+  status?: "active" | "inactive" | "available" | "unavailable" | "all"
+  page?: number
+  per_page?: number
+}
+
+export interface DriverUpsertPayload {
+  driver_id: string
+  name: string
+  phone?: string
+  is_available?: boolean
+  is_active?: boolean
+}
+
+export interface Stop {
+  id: string
+  org_id: string
+  stop_id: string
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+  notes: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface StopListParams extends Record<string, unknown> {
+  search?: string
+  status?: "active" | "inactive" | "all"
+  page?: number
+  per_page?: number
+}
+
+export interface StopUpsertPayload {
+  stop_id?: string
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+  notes?: string
+  is_active?: boolean
+}
+
+export interface Route {
+  id: string
+  org_id: string
+  planner_run_id: string
+  route_code: string
+  service_window: "AM" | "PM"
+  status: "draft" | "active" | "archived"
+  objective_mode: "FASTEST_TIME" | "FEWEST_BUSES"
+  vehicle_id?: string | null
+  driver_id?: string | null
+  estimated_travel_minutes: number
+  assigned_students: number
+  seat_utilization: number
+  unassigned_count: number
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface RouteListParams extends Record<string, unknown> {
+  status?: "draft" | "active" | "archived" | "all"
+  page?: number
+  per_page?: number
+}
+
+export interface PlannerRun {
+  id: string
+  org_id: string
+  mode: "FASTEST_TIME" | "FEWEST_BUSES"
+  service_window: "AM" | "PM"
+  status: "draft" | "published"
+  created_by: string
+  created_at: string
+  published_at?: string | null
+}
+
+export interface PlannerIssue {
+  id: string
+  issue_type: string
+  severity: "info" | "warning" | "error"
+  message: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
 export interface School {
   id: string
   org_id: string
@@ -360,6 +465,31 @@ export interface OrgRole {
   name: string
   permissions: string[]
   is_system: boolean
+}
+
+export type SupportTicketStatus = "open" | "in_progress" | "waiting" | "resolved"
+
+export interface SupportTicket {
+  id: string
+  org_id: string
+  created_by_user_id: string
+  assigned_admin_user_id: string | null
+  subject: string
+  status: SupportTicketStatus
+  created_at: string
+  updated_at: string
+  last_message_at: string
+  resolved_at: string | null
+}
+
+export interface SupportMessage {
+  id: string
+  ticket_id: string
+  sender_user_id: string
+  sender_org_id: string
+  sender_is_platform: boolean
+  body: string
+  created_at: string
 }
 
 // API methods
@@ -453,6 +583,21 @@ export const api = {
     billing: {
       listAll: () => platformRequest<OrgBilling[]>('/platform/billing'),
     },
+    support: {
+      listTickets: (params?: { status?: SupportTicketStatus; org_id?: string; assigned_to?: string; page?: number; per_page?: number }) =>
+        platformRequest<PageResponse<SupportTicket>>(`/platform/support/tickets${qs(params)}`),
+      getTicket: (id: string) =>
+        platformRequest<SupportTicket>(`/platform/support/tickets/${id}`),
+      updateTicket: (id: string, data: { status?: SupportTicketStatus; assigned_admin_user_id?: string | null }) =>
+        platformRequest<SupportTicket>(`/platform/support/tickets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      listMessages: (id: string) =>
+        platformRequest<SupportMessage[]>(`/platform/support/tickets/${id}/messages`),
+      sendMessage: (id: string, body: string) =>
+        platformRequest<{ ticket: SupportTicket; message: SupportMessage }>(`/platform/support/tickets/${id}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ body }),
+        }),
+    },
   },
   org: {
     settings: {
@@ -544,6 +689,89 @@ export const api = {
         orgRequest<void>(`/org/vehicles/${id}`, { method: 'DELETE' }),
       restore: (id: string) =>
         orgRequest<Vehicle>(`/org/vehicles/${id}/restore`, { method: 'POST' }),
+    },
+    drivers: {
+      list: (params?: DriverListParams) =>
+        orgRequest<PageResponse<Driver>>(`/org/drivers${qs(params)}`),
+      listDeleted: (params?: DriverListParams) =>
+        orgRequest<PageResponse<Driver>>(`/org/drivers/deleted${qs(params)}`),
+      get: (id: string) =>
+        orgRequest<Driver>(`/org/drivers/${id}`),
+      create: (data: DriverUpsertPayload) =>
+        orgRequest<Driver>('/org/drivers', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: DriverUpsertPayload) =>
+        orgRequest<Driver>(`/org/drivers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      remove: (id: string) =>
+        orgRequest<void>(`/org/drivers/${id}`, { method: 'DELETE' }),
+      restore: (id: string) =>
+        orgRequest<Driver>(`/org/drivers/${id}/restore`, { method: 'POST' }),
+    },
+    stops: {
+      list: (params?: StopListParams) =>
+        orgRequest<PageResponse<Stop>>(`/org/stops${qs(params)}`),
+      listDeleted: (params?: StopListParams) =>
+        orgRequest<PageResponse<Stop>>(`/org/stops/deleted${qs(params)}`),
+      get: (id: string) =>
+        orgRequest<Stop>(`/org/stops/${id}`),
+      create: (data: StopUpsertPayload) =>
+        orgRequest<Stop>('/org/stops', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: StopUpsertPayload) =>
+        orgRequest<Stop>(`/org/stops/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      remove: (id: string) =>
+        orgRequest<void>(`/org/stops/${id}`, { method: 'DELETE' }),
+      restore: (id: string) =>
+        orgRequest<Stop>(`/org/stops/${id}/restore`, { method: 'POST' }),
+      assignStudent: (studentId: string, data: { stop_id: string; service_window?: "AM" | "PM"; is_active?: boolean }) =>
+        orgRequest<{ student_id: string; stop_id: string; service_window: "AM" | "PM"; is_active: boolean }>(
+          `/org/students/${studentId}/stop-assignment`,
+          { method: 'PUT', body: JSON.stringify(data) }
+        ),
+    },
+    routes: {
+      list: (params?: RouteListParams) =>
+        orgRequest<PageResponse<Route>>(`/org/routes${qs(params)}`),
+      listDeleted: (params?: RouteListParams) =>
+        orgRequest<PageResponse<Route>>(`/org/routes/deleted${qs(params)}`),
+      get: (id: string) =>
+        orgRequest<{ route: Route; stops: unknown[]; students: unknown[] }>(`/org/routes/${id}`),
+      update: (id: string, data: Partial<Route>) =>
+        orgRequest<Route>(`/org/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      remove: (id: string) =>
+        orgRequest<void>(`/org/routes/${id}`, { method: 'DELETE' }),
+      restore: (id: string) =>
+        orgRequest<Route>(`/org/routes/${id}/restore`, { method: 'POST' }),
+      listAssignments: () =>
+        orgRequest<{ items: Array<{ id: string; driver_id: string; vehicle_id: string; is_active: boolean; created_at: string; updated_at: string }> }>('/org/driver-vehicle-assignments'),
+      upsertAssignment: (data: { driver_id: string; vehicle_id: string; is_active?: boolean }) =>
+        orgRequest<{ id: string; driver_id: string; vehicle_id: string; is_active: boolean }>('/org/driver-vehicle-assignments', { method: 'POST', body: JSON.stringify(data) }),
+    },
+    plannerRuns: {
+      list: (params?: { page?: number; per_page?: number }) =>
+        orgRequest<PageResponse<PlannerRun>>(`/org/planner-runs${qs(params)}`),
+      get: (id: string) =>
+        orgRequest<{ run: PlannerRun; routes: Route[]; issues: PlannerIssue[] }>(`/org/planner-runs/${id}`),
+      create: (data: { mode: "FASTEST_TIME" | "FEWEST_BUSES"; service_window: "PM" }) =>
+        orgRequest<{ run: PlannerRun; issues: PlannerIssue[] }>('/org/planner-runs', { method: 'POST', body: JSON.stringify(data) }),
+      publish: (id: string) =>
+        orgRequest<PlannerRun>(`/org/planner-runs/${id}/publish`, { method: 'POST' }),
+    },
+    support: {
+      listTickets: (params?: { status?: SupportTicketStatus; page?: number; per_page?: number }) =>
+        orgRequest<PageResponse<SupportTicket>>(`/org/support/tickets${qs(params)}`),
+      createTicket: (data: { subject: string; body: string }) =>
+        orgRequest<{ ticket: SupportTicket; message: SupportMessage }>('/org/support/tickets', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      getTicket: (id: string) =>
+        orgRequest<SupportTicket>(`/org/support/tickets/${id}`),
+      listMessages: (id: string) =>
+        orgRequest<SupportMessage[]>(`/org/support/tickets/${id}/messages`),
+      sendMessage: (id: string, body: string) =>
+        orgRequest<{ ticket: SupportTicket; message: SupportMessage }>(`/org/support/tickets/${id}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ body }),
+        }),
     },
   },
 }

@@ -22,10 +22,12 @@ export function proxy(request: NextRequest) {
     "script-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     isDev
-      ? "connect-src 'self' http://localhost:* ws://localhost:*"
-      : `connect-src 'self' ${apiUrl} ${wsUrl}`,
+      ? "connect-src 'self' http://localhost:* ws://localhost:* https://events.mapbox.com"
+      : `connect-src 'self' ${apiUrl} ${wsUrl} https://events.mapbox.com`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
+    "worker-src 'self' blob:",
+    "child-src 'self' blob:",
   ].join('; ')
 
   response.headers.set('Content-Security-Policy', csp)

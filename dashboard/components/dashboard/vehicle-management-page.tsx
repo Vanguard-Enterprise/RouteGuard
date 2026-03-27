@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import useSWR from "swr"
 import { api } from "@/lib/api"
 import type { Vehicle, VehicleUpsertPayload } from "@/lib/api"
@@ -103,6 +103,7 @@ export function VehicleManagementPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const userSetPerPageRef = useRef(false)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -257,6 +258,22 @@ export function VehicleManagementPage() {
     return () => window.clearTimeout(timer)
   }, [query])
 
+  useEffect(() => {
+    const updatePerPageForViewport = () => {
+      if (userSetPerPageRef.current) return
+      const viewportHeight = window.innerHeight
+      const reservedVerticalSpacePx = 390
+      const estimatedRowHeightPx = 54
+      const estimatedVisibleRows = Math.floor((viewportHeight - reservedVerticalSpacePx) / estimatedRowHeightPx)
+      const clampedRows = Math.max(10, Math.min(24, estimatedVisibleRows))
+      setPerPage((current) => (current === clampedRows ? current : clampedRows))
+    }
+
+    updatePerPageForViewport()
+    window.addEventListener("resize", updatePerPageForViewport)
+    return () => window.removeEventListener("resize", updatePerPageForViewport)
+  }, [])
+
   function applyFilters() {
     setFilters(draftFilters)
     setFiltersOpen(false)
@@ -272,6 +289,11 @@ export function VehicleManagementPage() {
   const hasActiveFilters =
     Boolean(filters.license_plate.trim()) ||
     filters.status !== "all"
+
+  const perPageOptions = useMemo(() => {
+    const base = [10, 25, 50]
+    return Array.from(new Set([...base, perPage])).sort((a, b) => a - b)
+  }, [perPage])
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-6">
@@ -500,6 +522,7 @@ export function VehicleManagementPage() {
               <Select
                 value={String(perPage)}
                 onValueChange={(value) => {
+                  userSetPerPageRef.current = true
                   setPerPage(Number(value))
                   setPage(1)
                 }}
@@ -511,9 +534,11 @@ export function VehicleManagementPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
+                  {perPageOptions.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

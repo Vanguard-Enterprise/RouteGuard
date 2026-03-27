@@ -60,6 +60,11 @@ const platformNavItems = [
     url: "/dashboard/admin/updates",
     icon: <ArrowDownToLineIcon />,
   },
+  {
+    title: "Support",
+    url: "/dashboard/admin/support",
+    icon: <CircleHelpIcon />,
+  },
 ]
 
 const districtNavItems = [
@@ -96,6 +101,29 @@ const districtManagementNavItems = [
     url: "/dashboard/management/veichles",
     icon: <BusIcon />,
   },
+  {
+    title: "Drivers",
+    url: "/dashboard/management/drivers",
+    icon: <UsersIcon />,
+  },
+  {
+    title: "Stops",
+    url: "/dashboard/management/stops",
+    icon: <BusIcon />,
+  },
+  {
+    title: "Planner Runs",
+    url: "/dashboard/management/planner-runs",
+    icon: <LayoutDashboardIcon />,
+  },
+]
+
+const testingNavItems = [
+  {
+    title: "Demo",
+    url: "/dashboard/testing/demo",
+    icon: <BusIcon />,
+  },
 ]
 
 const secondaryNavItems = [
@@ -103,11 +131,6 @@ const secondaryNavItems = [
     title: "Settings",
     url: "/dashboard/settings",
     icon: <Settings2Icon />,
-  },
-  {
-    title: "Get Help",
-    url: "/dashboard/help",
-    icon: <CircleHelpIcon />,
   },
   {
     title: "Search",
@@ -126,8 +149,20 @@ export function AppSidebar({
   const navItems = isPlatform && !isImpersonating
     ? platformNavItems
     : districtNavItems
+  const effectiveSecondaryNavItems = isPlatform && !isImpersonating
+    ? secondaryNavItems
+    : [
+      secondaryNavItems[0],
+      {
+        title: "Get Help",
+        url: "/dashboard/help",
+        icon: <CircleHelpIcon />,
+      },
+      secondaryNavItems[1],
+    ]
 
   const showManagement = !isPlatform || isImpersonating
+  const showTesting = !isPlatform || isImpersonating
   const managementItems = districtManagementNavItems.filter((item) => {
     if (item.url === "/dashboard/management/student") {
       return me.permissions.includes("org:manage")
@@ -137,6 +172,15 @@ export function AppSidebar({
     }
     if (item.url === "/dashboard/management/veichles") {
       return me.permissions.includes("vehicles:read")
+    }
+    if (item.url === "/dashboard/management/drivers") {
+      return me.permissions.includes("drivers:read")
+    }
+    if (item.url === "/dashboard/management/stops") {
+      return me.permissions.includes("stops:read")
+    }
+    if (item.url === "/dashboard/management/planner-runs") {
+      return me.permissions.includes("planning:run")
     }
     return true
   })
@@ -169,7 +213,10 @@ export function AppSidebar({
         {showManagement && managementItems.length > 0 ? (
           <NavMain title="Management" items={managementItems} />
         ) : null}
-        <NavSecondary items={secondaryNavItems} className="mt-auto" />
+        {showTesting ? (
+          <NavMain title="Testing" items={testingNavItems} />
+        ) : null}
+        <NavSecondary items={effectiveSecondaryNavItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={me.user} />

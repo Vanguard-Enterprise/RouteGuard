@@ -13,6 +13,7 @@ type Config struct {
 	RedisPassword     string
 	BaseURL           string
 	APIBaseURL        string
+	MapboxAccessToken string
 	DataEncryptionKey []byte
 	HMACKey           []byte
 	IsProd            bool
@@ -35,6 +36,7 @@ func Load() (*Config, error) {
 		RedisPassword:     os.Getenv("REDIS_PASSWORD"),
 		BaseURL:           envOr("BASE_URL", "http://localhost:3000"),
 		APIBaseURL:        envOr("API_BASE_URL", "http://localhost:8080"),
+		MapboxAccessToken: envOr("MAPBOX_ACCESS_TOKEN", ""),
 		DataEncryptionKey: dataKey,
 		HMACKey:           hmacKey,
 		IsProd:            os.Getenv("NODE_ENV") == "production" || os.Getenv("ENV") == "production",

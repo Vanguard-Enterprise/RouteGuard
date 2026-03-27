@@ -25,6 +25,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -112,6 +122,7 @@ export function SchoolManagementPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const userSetPerPageRef = useRef(false)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -119,6 +130,8 @@ export function SchoolManagementPage() {
   const [filters, setFilters] = useState<SchoolFilters>(emptyFilters)
   const [draftFilters, setDraftFilters] = useState<SchoolFilters>(emptyFilters)
   const [saving, setSaving] = useState(false)
+  const [archiveTarget, setArchiveTarget] = useState<School | null>(null)
+  const [archiving, setArchiving] = useState(false)
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([])
   const [addressSearchLoading, setAddressSearchLoading] = useState(false)
   const [placeDetailsLoading, setPlaceDetailsLoading] = useState(false)
@@ -127,6 +140,7 @@ export function SchoolManagementPage() {
   const [deletedPage, setDeletedPage] = useState(1)
   const [recoveringId, setRecoveringId] = useState<string | null>(null)
   const addressCacheRef = useRef<Map<string, AddressSuggestion[]>>(new Map())
+  const suppressBlurLookupRef = useRef(false)
 
   const key = useMemo(
     () => ["org-schools", debouncedQuery, page, perPage] as const,
@@ -238,7 +252,10 @@ export function SchoolManagementPage() {
       const payload = (await response.json()) as { name?: string; address?: string; phone?: string }
       setForm((current) => ({
         ...current,
-        name: payload.name?.trim() || current.name,
+        name:
+          !current.name.trim() && payload.name?.trim()
+            ? payload.name.trim()
+            : current.name,
         address: payload.address?.trim() || current.address,
         contact_phone: payload.phone?.trim() || current.contact_phone,
       }))
@@ -285,21 +302,25 @@ export function SchoolManagementPage() {
     }
   }
 
-  async function handleArchive(school: School) {
-    if (!window.confirm(`Archive ${school.name}?`)) {
+  async function handleArchiveConfirmed() {
+    if (!archiveTarget) {
       return
     }
+    setArchiving(true)
     try {
-      await api.org.schools.remove(school.id)
+      await api.org.schools.remove(archiveTarget.id)
       toast.success("School archived")
-      if (editingId === school.id) {
+      if (editingId === archiveTarget.id) {
         setModalOpen(false)
         resetForm()
       }
+      setArchiveTarget(null)
       mutate()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive school"
       toast.error(message)
+    } finally {
+      setArchiving(false)
     }
   }
 
@@ -324,6 +345,22 @@ export function SchoolManagementPage() {
     }, 250)
     return () => window.clearTimeout(timer)
   }, [query])
+
+  useEffect(() => {
+    const updatePerPageForViewport = () => {
+      if (userSetPerPageRef.current) return
+      const viewportHeight = window.innerHeight
+      const reservedVerticalSpacePx = 390
+      const estimatedRowHeightPx = 54
+      const estimatedVisibleRows = Math.floor((viewportHeight - reservedVerticalSpacePx) / estimatedRowHeightPx)
+      const clampedRows = Math.max(10, Math.min(24, estimatedVisibleRows))
+      setPerPage((current) => (current === clampedRows ? current : clampedRows))
+    }
+
+    updatePerPageForViewport()
+    window.addEventListener("resize", updatePerPageForViewport)
+    return () => window.removeEventListener("resize", updatePerPageForViewport)
+  }, [])
 
   useEffect(() => {
     if (!modalOpen) {
@@ -397,6 +434,11 @@ export function SchoolManagementPage() {
     Boolean(filters.name.trim()) ||
     Boolean(filters.address.trim())
 
+  const perPageOptions = useMemo(() => {
+    const base = [10, 25, 50]
+    return Array.from(new Set([...base, perPage])).sort((a, b) => a - b)
+  }, [perPage])
+
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-6">
       <div className="space-y-1">
@@ -418,15 +460,6 @@ export function SchoolManagementPage() {
             <DialogTitle>{editingId ? "Edit School" : "Add School"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="school-name">Name</Label>
-              <Input
-                id="school-name"
-                value={form.name}
-                onChange={(e) => updateForm("name", e.target.value)}
-                placeholder="North Elementary"
-              />
-            </div>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="school-address">Address</Label>
               <div className="relative">
@@ -436,6 +469,10 @@ export function SchoolManagementPage() {
                   onFocus={() => setAddressFocused(true)}
                   onBlur={() => {
                     setTimeout(() => setAddressFocused(false), 120)
+                    if (suppressBlurLookupRef.current) {
+                      suppressBlurLookupRef.current = false
+                      return
+                    }
                     if (form.address.trim()) {
                       void applyGooglePlaceDetailsFromQuery(form.address)
                     }
@@ -456,13 +493,17 @@ export function SchoolManagementPage() {
                         className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
                         onMouseDown={(event) => {
                           event.preventDefault()
+                          suppressBlurLookupRef.current = true
                           updateForm("address", suggestion.address)
+                          if (!form.name.trim() && suggestion.label.trim()) {
+                            updateForm("name", suggestion.label.trim())
+                          }
                           setAddressSuggestions([])
                           setAddressFocused(false)
                           if (suggestion.source === "google" && suggestion.place_id) {
                             void applyGooglePlaceDetails(suggestion.place_id)
                           } else {
-                            void applyGooglePlaceDetailsFromQuery(suggestion.address)
+                            void applyGooglePlaceDetailsFromQuery(suggestion.label || suggestion.address)
                           }
                         }}
                       >
@@ -481,6 +522,15 @@ export function SchoolManagementPage() {
               {placeDetailsLoading ? (
                 <p className="text-xs text-muted-foreground">Fetching location details...</p>
               ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="school-name">Name</Label>
+              <Input
+                id="school-name"
+                value={form.name}
+                onChange={(e) => updateForm("name", e.target.value)}
+                placeholder="North Elementary"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact-phone">Contact Phone</Label>
@@ -642,7 +692,7 @@ export function SchoolManagementPage() {
                           <Button size="sm" variant="outline" onClick={() => openEditModal(school)}>
                             Edit
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleArchive(school)}>
+                          <Button size="sm" variant="destructive" onClick={() => setArchiveTarget(school)}>
                             Archive
                           </Button>
                         </div>
@@ -658,6 +708,7 @@ export function SchoolManagementPage() {
               <Select
                 value={String(perPage)}
                 onValueChange={(value) => {
+                  userSetPerPageRef.current = true
                   setPerPage(Number(value))
                   setPage(1)
                 }}
@@ -669,9 +720,11 @@ export function SchoolManagementPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
+                  {perPageOptions.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -702,6 +755,23 @@ export function SchoolManagementPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={Boolean(archiveTarget)} onOpenChange={(open) => !open && setArchiveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive School?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will archive {archiveTarget?.name}. You can no longer manage this school in this list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={archiving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={archiving} onClick={handleArchiveConfirmed}>
+              {archiving ? "Archiving..." : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
         <DialogContent className="sm:max-w-4xl">

@@ -98,6 +98,14 @@ func (s *Server) buildRouter() chi.Router {
 
 		// Stats
 		r.Get("/stats", h.PlatformStats)
+
+		// Support
+		r.Get("/support/tickets", h.PlatformListSupportTickets)
+		r.Get("/support/tickets/{id}", h.PlatformGetSupportTicket)
+		r.Patch("/support/tickets/{id}", h.PlatformUpdateSupportTicket)
+		r.Get("/support/tickets/{id}/messages", h.PlatformListSupportMessages)
+		r.Post("/support/tickets/{id}/messages", h.PlatformPostSupportMessage)
+		r.Get("/support/stream", h.PlatformSupportStream)
 	})
 
 	// Org-level routes (session-scoped)
@@ -151,6 +159,44 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("vehicles:write")).Put("/vehicles/{id}", h.OrgUpdateVehicle)
 		r.With(middleware.RequirePermission("vehicles:write")).Delete("/vehicles/{id}", h.OrgDeleteVehicle)
 		r.With(middleware.RequirePermission("vehicles:write")).Post("/vehicles/{id}/restore", h.OrgRestoreVehicle)
+
+		r.With(middleware.RequirePermission("drivers:read")).Get("/drivers", h.OrgListDrivers)
+		r.With(middleware.RequirePermission("drivers:read")).Get("/drivers/deleted", h.OrgListDeletedDrivers)
+		r.With(middleware.RequirePermission("drivers:write")).Post("/drivers", h.OrgCreateDriver)
+		r.With(middleware.RequirePermission("drivers:read")).Get("/drivers/{id}", h.OrgGetDriver)
+		r.With(middleware.RequirePermission("drivers:write")).Put("/drivers/{id}", h.OrgUpdateDriver)
+		r.With(middleware.RequirePermission("drivers:write")).Delete("/drivers/{id}", h.OrgDeleteDriver)
+		r.With(middleware.RequirePermission("drivers:write")).Post("/drivers/{id}/restore", h.OrgRestoreDriver)
+
+		r.With(middleware.RequirePermission("stops:read")).Get("/stops", h.OrgListStops)
+		r.With(middleware.RequirePermission("stops:read")).Get("/stops/deleted", h.OrgListDeletedStops)
+		r.With(middleware.RequirePermission("stops:write")).Post("/stops", h.OrgCreateStop)
+		r.With(middleware.RequirePermission("stops:read")).Get("/stops/{id}", h.OrgGetStop)
+		r.With(middleware.RequirePermission("stops:write")).Put("/stops/{id}", h.OrgUpdateStop)
+		r.With(middleware.RequirePermission("stops:write")).Delete("/stops/{id}", h.OrgDeleteStop)
+		r.With(middleware.RequirePermission("stops:write")).Post("/stops/{id}/restore", h.OrgRestoreStop)
+		r.With(middleware.RequirePermission("stops:write")).Put("/students/{id}/stop-assignment", h.OrgUpsertStudentStopAssignment)
+
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes", h.OrgListRoutes)
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes/deleted", h.OrgListDeletedRoutes)
+		r.With(middleware.RequirePermission("routes:read")).Get("/routes/{id}", h.OrgGetRoute)
+		r.With(middleware.RequirePermission("routes:write")).Put("/routes/{id}", h.OrgUpdateRoute)
+		r.With(middleware.RequirePermission("routes:write")).Delete("/routes/{id}", h.OrgDeleteRoute)
+		r.With(middleware.RequirePermission("routes:write")).Post("/routes/{id}/restore", h.OrgRestoreRoute)
+		r.With(middleware.RequirePermission("routes:write")).Get("/driver-vehicle-assignments", h.OrgListDriverVehicleAssignments)
+		r.With(middleware.RequirePermission("routes:write")).Post("/driver-vehicle-assignments", h.OrgUpsertDriverVehicleAssignment)
+
+		r.With(middleware.RequirePermission("planning:run")).Post("/planner-runs", h.OrgCreatePlannerRun)
+		r.With(middleware.RequirePermission("planning:run")).Get("/planner-runs", h.OrgListPlannerRuns)
+		r.With(middleware.RequirePermission("planning:run")).Get("/planner-runs/{id}", h.OrgGetPlannerRun)
+		r.With(middleware.RequirePermission("planning:publish")).Post("/planner-runs/{id}/publish", h.OrgPublishPlannerRun)
+
+		r.Get("/support/tickets", h.OrgListSupportTickets)
+		r.Post("/support/tickets", h.OrgCreateSupportTicket)
+		r.Get("/support/tickets/{id}", h.OrgGetSupportTicket)
+		r.Get("/support/tickets/{id}/messages", h.OrgListSupportMessages)
+		r.Post("/support/tickets/{id}/messages", h.OrgPostSupportMessage)
+		r.Get("/support/stream", h.OrgSupportStream)
 	})
 
 	return r

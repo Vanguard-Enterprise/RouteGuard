@@ -203,6 +203,94 @@ type Vehicle struct {
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
 }
 
+type Driver struct {
+	ID          string     `json:"id"`
+	OrgID       string     `json:"org_id"`
+	DriverID    string     `json:"driver_id"`
+	Name        string     `json:"name"`
+	Phone       string     `json:"phone"`
+	IsAvailable bool       `json:"is_available"`
+	IsActive    bool       `json:"is_active"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+}
+
+type Stop struct {
+	ID        string     `json:"id"`
+	OrgID     string     `json:"org_id"`
+	StopID    string     `json:"stop_id"`
+	Name      string     `json:"name"`
+	Address   string     `json:"address"`
+	Latitude  float64    `json:"latitude"`
+	Longitude float64    `json:"longitude"`
+	Notes     string     `json:"notes"`
+	IsActive  bool       `json:"is_active"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+}
+
+type DriverVehicleAssignment struct {
+	ID        string     `json:"id"`
+	OrgID     string     `json:"org_id"`
+	DriverID  string     `json:"driver_id"`
+	VehicleID string     `json:"vehicle_id"`
+	IsActive  bool       `json:"is_active"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+}
+
+type PlannerRun struct {
+	ID            string     `json:"id"`
+	OrgID         string     `json:"org_id"`
+	Mode          string     `json:"mode"`
+	ServiceWindow string     `json:"service_window"`
+	Status        string     `json:"status"`
+	CreatedBy     string     `json:"created_by"`
+	CreatedAt     time.Time  `json:"created_at"`
+	PublishedAt   *time.Time `json:"published_at"`
+}
+
+type Route struct {
+	ID                     string     `json:"id"`
+	OrgID                  string     `json:"org_id"`
+	PlannerRunID           string     `json:"planner_run_id"`
+	RouteCode              string     `json:"route_code"`
+	ServiceWindow          string     `json:"service_window"`
+	Status                 string     `json:"status"`
+	ObjectiveMode          string     `json:"objective_mode"`
+	VehicleID              *string    `json:"vehicle_id,omitempty"`
+	DriverID               *string    `json:"driver_id,omitempty"`
+	EstimatedTravelMinutes int        `json:"estimated_travel_minutes"`
+	AssignedStudents       int        `json:"assigned_students"`
+	SeatUtilization        float64    `json:"seat_utilization"`
+	UnassignedCount        int        `json:"unassigned_count"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
+	DeletedAt              *time.Time `json:"deleted_at,omitempty"`
+}
+
+type RouteStop struct {
+	ID           string    `json:"id"`
+	RouteID      string    `json:"route_id"`
+	StopID       string    `json:"stop_id"`
+	StopOrder    int       `json:"stop_order"`
+	ETAMinutes   int       `json:"eta_minutes"`
+	StudentCount int       `json:"student_count"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type RouteStudent struct {
+	ID        string    `json:"id"`
+	RouteID   string    `json:"route_id"`
+	StudentID string    `json:"student_id"`
+	StopID    string    `json:"stop_id"`
+	StopOrder int       `json:"stop_order"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type SoftwareRelease struct {
 	ID           string    `json:"id"`
 	Version      string    `json:"version"`
@@ -243,4 +331,27 @@ type UserOrgMembership struct {
 	OrgName string    `json:"org_name"`
 	OrgSlug string    `json:"org_slug"`
 	Roles   []OrgRole `json:"roles"`
+}
+
+type SupportTicket struct {
+	ID                  string     `json:"id"`
+	OrgID               string     `json:"org_id"`
+	CreatedByUserID     string     `json:"created_by_user_id"`
+	AssignedAdminUserID *string    `json:"assigned_admin_user_id"`
+	Subject             string     `json:"subject"`
+	Status              string     `json:"status"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+	LastMessageAt       time.Time  `json:"last_message_at"`
+	ResolvedAt          *time.Time `json:"resolved_at"`
+}
+
+type SupportMessage struct {
+	ID               string    `json:"id"`
+	TicketID         string    `json:"ticket_id"`
+	SenderUserID     string    `json:"sender_user_id"`
+	SenderOrgID      string    `json:"sender_org_id"`
+	SenderIsPlatform bool      `json:"sender_is_platform"`
+	Body             string    `json:"body"`
+	CreatedAt        time.Time `json:"created_at"`
 }

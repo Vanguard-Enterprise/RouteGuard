@@ -22,6 +22,11 @@ type Handler struct {
 	students     *repository.StudentRepo
 	schools      *repository.SchoolRepo
 	vehicles     *repository.VehicleRepo
+	drivers      *repository.DriverRepo
+	stops        *repository.StopRepo
+	routes       *repository.RouteRepo
+	planner      *repository.PlannerRepo
+	support      *repository.SupportRepo
 }
 
 func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler {
@@ -40,5 +45,10 @@ func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler
 		students:     repository.NewStudentRepo(pool),
 		schools:      repository.NewSchoolRepo(pool),
 		vehicles:     repository.NewVehicleRepo(pool),
+		drivers:      repository.NewDriverRepo(pool),
+		stops:        repository.NewStopRepo(pool),
+		routes:       repository.NewRouteRepo(pool),
+		planner:      repository.NewPlannerRepo(pool),
+		support:      repository.NewSupportRepo(pool),
 	}
 }
