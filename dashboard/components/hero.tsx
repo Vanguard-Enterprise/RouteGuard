@@ -11,7 +11,6 @@ export function HeroSection() {
 			className="-mt-14 w-full overflow-hidden pt-14"
 			style={{ backgroundColor: "var(--color-brand-navy)" }}
 		>
-			{/* Background radial glow */}
 			<div
 				aria-hidden="true"
 				className="absolute inset-0 size-full overflow-hidden"
@@ -102,22 +101,22 @@ export function HeroSection() {
 							"fade-in slide-in-from-bottom-5 animate-in fill-mode-backwards delay-100 duration-1000 ease-out"
 						)}
 					>
-						<div className="relative inset-shadow-2xs inset-shadow-white/10 mx-auto max-w-5xl overflow-hidden rounded-lg border border-white/10 bg-background p-2 shadow-xl ring-1 ring-white/10">
+						<div className="relative inset-shadow-2xs inset-shadow-white/10 mx-auto max-w-5xl overflow-hidden rounded-[24px] border border-white/10 bg-background/90 p-2 shadow-2xl ring-1 ring-white/10">
 							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img
-								alt="RouteGuard admin dashboard"
-								className="z-2 aspect-video rounded-lg border dark:hidden"
-								height="1080"
-								src="/screens/dashboard-light.webp"
-								width="1920"
+								alt="RouteGuard admin dashboard screenshot"
+								className="z-2 aspect-[2.01/1] w-full rounded-[16px] border border-slate-200/80 object-cover object-top shadow-[0_24px_70px_rgba(15,23,42,0.3)] dark:hidden"
+								height="1020"
+								src="/screens/route-guard-home.png"
+								width="2048"
 							/>
 							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img
-								alt="RouteGuard admin dashboard"
-								className="hidden aspect-video rounded-lg bg-background dark:block"
-								height="1080"
-								src="/screens/dashboard-dark.webp"
-								width="1920"
+								alt="RouteGuard admin dashboard screenshot"
+								className="hidden aspect-[2.01/1] w-full rounded-[16px] border border-white/10 object-cover object-top shadow-[0_24px_70px_rgba(15,23,42,0.45)] dark:block"
+								height="1020"
+								src="/screens/route-guard-home.png"
+								width="2048"
 							/>
 						</div>
 					</div>
