@@ -5,7 +5,7 @@ import { useScroll } from "@/hooks/use-scroll";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { AuthUser } from "@/lib/api";
 import {
 	Avatar,
@@ -114,13 +114,15 @@ function HeaderUserMenu({ user, scrolled }: { user: AuthUser; scrolled: boolean 
 
 export function Header({ user }: { user?: AuthUser | null }) {
 	const scrolled = useScroll(10);
+	const pathname = usePathname();
+	const solidNav = scrolled || pathname !== "/";
 
 	return (
 		<header className="sticky top-0 z-50 w-full">
 			<nav
 				className={cn(
 					"mx-auto flex h-14 w-full items-center justify-between md:rounded-md md:border",
-					scrolled
+					solidNav
 						? "max-w-3xl border-border bg-background/95 px-2 shadow backdrop-blur-sm supports-backdrop-filter:bg-background/50"
 						: "max-w-4xl border-transparent px-4"
 				)}
@@ -131,14 +133,14 @@ export function Header({ user }: { user?: AuthUser | null }) {
 				<Link
 					className={cn(
 						"flex items-center gap-2 rounded-md p-2 transition-colors",
-						scrolled ? "hover:bg-muted dark:hover:bg-muted/50" : "hover:bg-white/10"
+						solidNav ? "hover:bg-muted dark:hover:bg-muted/50" : "hover:bg-white/10"
 					)}
 					href="/"
 				>
 					<LogoIcon className="h-8 w-auto" />
 					<span className="text-lg font-semibold tracking-tight">
 						<span className="text-[#2A7D4F]">Route</span>
-						<span className={scrolled ? "text-foreground" : "text-white"}>
+						<span className={solidNav ? "text-foreground" : "text-white"}>
 							Guard
 						</span>
 					</span>
@@ -152,7 +154,7 @@ export function Header({ user }: { user?: AuthUser | null }) {
 								size="sm"
 								variant="ghost"
 								className={
-									scrolled ? "" : "text-white/80 hover:bg-white/10 hover:text-white"
+									solidNav ? "" : "text-white/80 hover:bg-white/10 hover:text-white"
 								}
 							>
 								<Link href={link.href}>{link.label}</Link>
@@ -160,8 +162,8 @@ export function Header({ user }: { user?: AuthUser | null }) {
 						))}
 					</div>
 					{user ? (
-						<HeaderUserMenu user={user} scrolled={scrolled} />
-					) : scrolled ? (
+						<HeaderUserMenu user={user} scrolled={solidNav} />
+					) : solidNav ? (
 						<Button asChild size="sm">
 							<Link href="/login">Login</Link>
 						</Button>
@@ -176,7 +178,7 @@ export function Header({ user }: { user?: AuthUser | null }) {
 						</Button>
 					)}
 				</div>
-				<MobileNav scrolled={scrolled} user={user} />
+				<MobileNav scrolled={solidNav} user={user} />
 			</nav>
 		</header>
 	);
