@@ -13,7 +13,7 @@ env:
 
 jobs:
   build-deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, routeguard]
     permissions:
       contents: read
       deployments: write

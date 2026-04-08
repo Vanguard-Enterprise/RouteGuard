@@ -7,7 +7,7 @@ on:
 
 jobs:
   cleanup:
-    runs-on: self-hosted
+    runs-on: [self-hosted, routeguard]
     steps:
       - name: Prune stopped containers, dangling images, and build cache
         run: docker system prune -f
