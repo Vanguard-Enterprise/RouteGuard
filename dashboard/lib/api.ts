@@ -152,11 +152,33 @@ export interface Organization {
   name: string
   slug: string
   is_platform: boolean
+  is_demo: boolean
+  demo_template_version: string | null
+  demo_last_reset_at: string | null
   suspended_at: string | null
   deleted_at: string | null
   member_count?: number
   created_at: string
   updated_at: string
+}
+
+export interface DemoResetRun {
+  id: string
+  org_id: string
+  template_version: string
+  reset_mode: "full" | "refresh"
+  status: "running" | "succeeded" | "failed"
+  started_by_user_id: string
+  started_by_email: string
+  started_at: string
+  completed_at: string | null
+  last_error: string | null
+}
+
+export interface DemoResetStatus {
+  org_id: string
+  template_version: string
+  latest_run: DemoResetRun | null
 }
 
 export interface OrgBilling {
@@ -558,6 +580,10 @@ export const api = {
       getBilling: (id: string) => platformRequest<OrgBilling>(`/platform/orgs/${id}/billing`),
       updateBilling: (id: string, data: Partial<OrgBilling>) =>
         platformRequest<OrgBilling>(`/platform/orgs/${id}/billing`, { method: 'PUT', body: JSON.stringify(data) }),
+      demoResetStatus: (id: string) =>
+        platformRequest<DemoResetStatus>(`/platform/orgs/${id}/demo-reset`),
+      resetDemo: (id: string, data?: { reset_mode?: "full" | "refresh" }) =>
+        platformRequest<DemoResetRun>(`/platform/orgs/${id}/demo-reset`, { method: 'POST', body: JSON.stringify(data ?? {}) }),
     },
     users: {
       list: (params?: { email?: string; page?: number; per_page?: number }) =>

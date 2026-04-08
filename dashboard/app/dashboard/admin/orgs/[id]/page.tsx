@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { api } from "@/lib/api"
-import type { Organization, OrgMember } from "@/lib/api"
+import type { DemoResetStatus, Organization, OrgMember } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -37,11 +37,16 @@ export default function OrgDetailPage() {
     id ? ["platform-org-members", id] : null,
     () => api.platform.orgs.members(id) as Promise<OrgMember[]>
   )
+  const { data: demoResetStatus, mutate: mutateDemoResetStatus } = useSWR<DemoResetStatus>(
+    id ? ["platform-org-demo-reset", id] : null,
+    () => api.platform.orgs.demoResetStatus(id)
+  )
 
   const [editName, setEditName] = useState("")
   const [editSlug, setEditSlug] = useState("")
   const [editMode, setEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [resettingDemo, setResettingDemo] = useState(false)
 
   function startEdit(org: Organization) {
     setEditName(org.name)
@@ -55,6 +60,10 @@ export default function OrgDetailPage() {
 
   async function handleSave() {
     if (!org) return
+    if (org.is_demo) {
+      toast.error("The protected demo org cannot be edited")
+      return
+    }
     setSaving(true)
     try {
       await api.platform.orgs.update(org.id, { name: editName, slug: editSlug })
@@ -70,6 +79,10 @@ export default function OrgDetailPage() {
 
   async function handleSuspend() {
     if (!org) return
+    if (org.is_demo) {
+      toast.error("The protected demo org cannot be suspended")
+      return
+    }
     try {
       await api.platform.orgs.suspend(org.id)
       toast.success("Organization suspended")
@@ -92,6 +105,10 @@ export default function OrgDetailPage() {
 
   async function handleDelete() {
     if (!org) return
+    if (org.is_demo) {
+      toast.error("The protected demo org cannot be deleted")
+      return
+    }
     const confirmed = window.confirm(
       `Are you sure you want to delete "${org.name}"? This action cannot be undone.`
     )
@@ -116,6 +133,27 @@ export default function OrgDetailPage() {
     }
   }
 
+  async function handleResetDemo() {
+    if (!org || !org.is_demo) return
+    const confirmed = window.confirm(
+      `Reset "${org.name}" back to the curated demo baseline? All current org data changes will be replaced.`
+    )
+    if (!confirmed) return
+
+    setResettingDemo(true)
+    try {
+      await api.platform.orgs.resetDemo(org.id, { reset_mode: "full" })
+      toast.success("Demo org reset completed")
+      await Promise.all([mutate(), mutateMembers(), mutateDemoResetStatus()])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to reset demo org"
+      toast.error(message)
+      await mutateDemoResetStatus()
+    } finally {
+      setResettingDemo(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="p-6 text-muted-foreground">Loading organization...</div>
@@ -135,11 +173,14 @@ export default function OrgDetailPage() {
           <h1 className="text-2xl font-bold">{org.name}</h1>
           <p className="text-muted-foreground text-sm">{org.slug}</p>
         </div>
-        {org.suspended_at ? (
-          <Badge variant="destructive">Suspended</Badge>
-        ) : (
-          <Badge variant="default">Active</Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {org.is_demo ? <Badge variant="secondary">Protected Demo</Badge> : null}
+          {org.suspended_at ? (
+            <Badge variant="destructive">Suspended</Badge>
+          ) : (
+            <Badge variant="default">Active</Badge>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -195,6 +236,12 @@ export default function OrgDetailPage() {
                   </p>
                 </div>
                 <div>
+                  <p className="text-muted-foreground">Mode</p>
+                  <p className="font-medium">
+                    {org.is_demo ? "Protected demo org" : "Standard organization"}
+                  </p>
+                </div>
+                <div>
                   <p className="text-muted-foreground">Created</p>
                   <p className="font-medium">
                     {new Date(org.created_at).toLocaleDateString()}
@@ -211,6 +258,7 @@ export default function OrgDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => startEdit(org)}
+                disabled={org.is_demo}
               >
                 Edit
               </Button>
@@ -218,6 +266,47 @@ export default function OrgDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {org.is_demo ? (
+        <Card className="border-amber-300 bg-amber-50/40">
+          <CardHeader>
+            <CardTitle>Demo Reset</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This production org is protected and can be reset to the curated fake county baseline.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2 text-sm">
+              <div>
+                <p className="text-muted-foreground">Template Version</p>
+                <p className="font-medium">{demoResetStatus?.template_version ?? org.demo_template_version ?? "-"}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Last Org Reset</p>
+                <p className="font-medium">
+                  {org.demo_last_reset_at ? new Date(org.demo_last_reset_at).toLocaleString() : "Never"}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Latest Run Status</p>
+                <p className="font-medium">{demoResetStatus?.latest_run?.status ?? "No runs yet"}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Latest Run Actor</p>
+                <p className="font-medium">{demoResetStatus?.latest_run?.started_by_email ?? "-"}</p>
+              </div>
+            </div>
+            {demoResetStatus?.latest_run?.last_error ? (
+              <div className="rounded-md border border-destructive/40 bg-background p-3 text-sm text-destructive">
+                {demoResetStatus.latest_run.last_error}
+              </div>
+            ) : null}
+            <Button onClick={handleResetDemo} disabled={resettingDemo}>
+              {resettingDemo ? "Resetting..." : "Reset Demo Org"}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -297,17 +386,19 @@ export default function OrgDetailPage() {
                   : "Suspend organization"}
               </p>
               <p className="text-sm text-muted-foreground">
-                {org.suspended_at
+                {org.is_demo
+                  ? "Protected demo org actions are locked here. Use the reset flow above to restore the baseline."
+                  : org.suspended_at
                   ? "Restore access for this organization."
                   : "Temporarily disable access for this organization."}
               </p>
             </div>
             {org.suspended_at ? (
-              <Button variant="outline" onClick={handleReactivate}>
+              <Button variant="outline" onClick={handleReactivate} disabled={org.is_demo}>
                 Reactivate
               </Button>
             ) : (
-              <Button variant="outline" onClick={handleSuspend}>
+              <Button variant="outline" onClick={handleSuspend} disabled={org.is_demo}>
                 Suspend
               </Button>
             )}
@@ -317,11 +408,13 @@ export default function OrgDetailPage() {
             <div>
               <p className="font-medium">Delete organization</p>
               <p className="text-sm text-muted-foreground">
-                Permanently remove this organization and all its data. This
-                cannot be undone.
+                {org.is_demo
+                  ? "Protected demo orgs cannot be deleted."
+                  : "Permanently remove this organization and all its data. This"} 
+                {!org.is_demo ? " cannot be undone." : null}
               </p>
             </div>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={handleDelete} disabled={org.is_demo}>
               Delete
             </Button>
           </div>

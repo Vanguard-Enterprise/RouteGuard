@@ -4,6 +4,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/routeguard/api/internal/cache"
 	"github.com/routeguard/api/internal/config"
+	"github.com/routeguard/api/internal/demo"
 	"github.com/routeguard/api/internal/repository"
 )
 
@@ -18,6 +19,8 @@ type Handler struct {
 	sso          *repository.SSORepo
 	audit        *repository.AuditRepo
 	billing      *repository.BillingRepo
+	demoResets   *repository.DemoResetRepo
+	demoService  *demo.Service
 	integrations *repository.IntegrationRepo
 	students     *repository.StudentRepo
 	schools      *repository.SchoolRepo
@@ -41,6 +44,8 @@ func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler
 		sso:          repository.NewSSORepo(pool),
 		audit:        repository.NewAuditRepo(pool),
 		billing:      repository.NewBillingRepo(pool),
+		demoResets:   repository.NewDemoResetRepo(pool),
+		demoService:  demo.NewService(pool, cfg),
 		integrations: repository.NewIntegrationRepo(pool),
 		students:     repository.NewStudentRepo(pool),
 		schools:      repository.NewSchoolRepo(pool),

@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/demo"
 	"github.com/routeguard/api/internal/domain"
 )
 
@@ -22,6 +23,15 @@ func (h *Handler) PlatformGetBilling(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) PlatformUpdateBilling(w http.ResponseWriter, r *http.Request) {
 	orgID := chi.URLParam(r, "id")
+	org, err := h.orgs.GetByID(r.Context(), orgID)
+	if err != nil {
+		if isNotFound(err) {
+			Error(w, http.StatusNotFound, "org not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to load org")
+		return
+	}
 	var body struct {
 		BillingStatus       string     `json:"billing_status"`
 		PilotEndsAt         *time.Time `json:"pilot_ends_at"`
@@ -31,6 +41,20 @@ func (h *Handler) PlatformUpdateBilling(w http.ResponseWriter, r *http.Request) 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return
+	}
+	if h.isProtectedDemoOrg(org) {
+		current, currentErr := h.billing.GetOrCreateByOrg(r.Context(), orgID)
+		if currentErr != nil {
+			Error(w, http.StatusInternalServerError, "failed to load billing")
+			return
+		}
+		if body.BillingStatus != "" && body.BillingStatus != current.BillingStatus && h.enforceDemoProtection(r, org, demo.ActionUpdateBillingStatus) {
+			Error(w, http.StatusForbidden, "the protected demo org billing status cannot be changed")
+			return
+		}
+		if body.BillingStatus == "" {
+			body.BillingStatus = current.BillingStatus
+		}
 	}
 
 	switch body.BillingStatus {

@@ -7,16 +7,17 @@ import (
 )
 
 type Config struct {
-	Port              string
-	DatabaseURL       string
-	RedisAddr         string
-	RedisPassword     string
-	BaseURL           string
-	APIBaseURL        string
-	MapboxAccessToken string
-	DataEncryptionKey []byte
-	HMACKey           []byte
-	IsProd            bool
+	Port                string
+	DatabaseURL         string
+	RedisAddr           string
+	RedisPassword       string
+	BaseURL             string
+	APIBaseURL          string
+	MapboxAccessToken   string
+	DataEncryptionKey   []byte
+	HMACKey             []byte
+	DemoTemplateVersion string
+	IsProd              bool
 }
 
 func Load() (*Config, error) {
@@ -30,16 +31,17 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:              envOr("PORT", "8080"),
-		DatabaseURL:       mustEnv("DATABASE_URL"),
-		RedisAddr:         mustEnv("REDIS_ADDR"),
-		RedisPassword:     os.Getenv("REDIS_PASSWORD"),
-		BaseURL:           envOr("BASE_URL", "http://localhost:3000"),
-		APIBaseURL:        envOr("API_BASE_URL", "http://localhost:8080"),
-		MapboxAccessToken: envOr("MAPBOX_ACCESS_TOKEN", ""),
-		DataEncryptionKey: dataKey,
-		HMACKey:           hmacKey,
-		IsProd:            os.Getenv("NODE_ENV") == "production" || os.Getenv("ENV") == "production",
+		Port:                envOr("PORT", "8080"),
+		DatabaseURL:         mustEnv("DATABASE_URL"),
+		RedisAddr:           mustEnv("REDIS_ADDR"),
+		RedisPassword:       os.Getenv("REDIS_PASSWORD"),
+		BaseURL:             envOr("BASE_URL", "http://localhost:3000"),
+		APIBaseURL:          envOr("API_BASE_URL", "http://localhost:8080"),
+		MapboxAccessToken:   envOr("MAPBOX_ACCESS_TOKEN", ""),
+		DataEncryptionKey:   dataKey,
+		HMACKey:             hmacKey,
+		DemoTemplateVersion: envOr("DEMO_TEMPLATE_VERSION", "large-county-v1"),
+		IsProd:              os.Getenv("NODE_ENV") == "production" || os.Getenv("ENV") == "production",
 	}, nil
 }
 

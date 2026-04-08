@@ -20,15 +20,18 @@ type User struct {
 }
 
 type Organization struct {
-	ID          string     `json:"id"`
-	NameEnc     string     `json:"-"`
-	Name        string     `json:"name"`
-	Slug        string     `json:"slug"`
-	IsPlatform  bool       `json:"is_platform"`
-	SuspendedAt *time.Time `json:"suspended_at"`
-	DeletedAt   *time.Time `json:"deleted_at"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID                  string     `json:"id"`
+	NameEnc             string     `json:"-"`
+	Name                string     `json:"name"`
+	Slug                string     `json:"slug"`
+	IsPlatform          bool       `json:"is_platform"`
+	IsDemo              bool       `json:"is_demo"`
+	DemoTemplateVersion *string    `json:"demo_template_version"`
+	DemoLastResetAt     *time.Time `json:"demo_last_reset_at"`
+	SuspendedAt         *time.Time `json:"suspended_at"`
+	DeletedAt           *time.Time `json:"deleted_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type OrgMembership struct {
@@ -305,6 +308,19 @@ type PlatformStats struct {
 	TotalUsers     int `json:"total_users"`
 	ActiveSessions int `json:"active_sessions"`
 	ActiveTrips    int `json:"active_trips"`
+}
+
+type DemoResetRun struct {
+	ID              string     `json:"id"`
+	OrgID           string     `json:"org_id"`
+	TemplateVersion string     `json:"template_version"`
+	ResetMode       string     `json:"reset_mode"`
+	Status          string     `json:"status"`
+	StartedByUserID string     `json:"started_by_user_id"`
+	StartedByEmail  string     `json:"started_by_email"`
+	StartedAt       time.Time  `json:"started_at"`
+	CompletedAt     *time.Time `json:"completed_at"`
+	LastError       *string    `json:"last_error"`
 }
 
 type PageResponse[T any] struct {

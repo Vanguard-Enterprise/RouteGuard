@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/demo"
 	"github.com/routeguard/api/internal/domain"
 )
 
@@ -120,6 +121,19 @@ func (h *Handler) PlatformGetOrg(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) PlatformUpdateOrg(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	existing, err := h.orgs.GetByID(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			Error(w, http.StatusNotFound, "org not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to load org")
+		return
+	}
+	if h.enforceDemoProtection(r, existing, demo.ActionUpdateOrg) {
+		Error(w, http.StatusForbidden, "the protected demo org cannot be edited")
+		return
+	}
 	var body struct {
 		Name string `json:"name"`
 		Slug string `json:"slug"`
@@ -145,6 +159,19 @@ func (h *Handler) PlatformUpdateOrg(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) PlatformSuspendOrg(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	org, err := h.orgs.GetByID(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			Error(w, http.StatusNotFound, "org not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to load org")
+		return
+	}
+	if h.enforceDemoProtection(r, org, demo.ActionSuspend) {
+		Error(w, http.StatusForbidden, "the protected demo org cannot be suspended")
+		return
+	}
 	if err := h.orgs.Suspend(r.Context(), id); err != nil {
 		Error(w, http.StatusInternalServerError, "failed to suspend org")
 		return
@@ -165,6 +192,19 @@ func (h *Handler) PlatformReactivateOrg(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) PlatformDeleteOrg(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	org, err := h.orgs.GetByID(r.Context(), id)
+	if err != nil {
+		if isNotFound(err) {
+			Error(w, http.StatusNotFound, "org not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to load org")
+		return
+	}
+	if h.enforceDemoProtection(r, org, demo.ActionDelete) {
+		Error(w, http.StatusForbidden, "the protected demo org cannot be deleted")
+		return
+	}
 	if err := h.orgs.SoftDelete(r.Context(), id); err != nil {
 		Error(w, http.StatusInternalServerError, "failed to delete org")
 		return
