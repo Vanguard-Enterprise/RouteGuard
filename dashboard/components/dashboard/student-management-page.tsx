@@ -611,8 +611,8 @@ export function StudentManagementPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Card>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Card className="min-w-0">
           <CardHeader className="gap-2 pb-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex flex-col gap-1">
@@ -627,7 +627,7 @@ export function StudentManagementPage() {
               <div className="text-2xl font-semibold">{projectedAttendance}</div>
               <Badge variant="secondary">{activeStudentsCount} active</Badge>
             </div>
-            <ChartContainer config={attendanceChartConfig} className="h-28 w-full">
+            <ChartContainer config={attendanceChartConfig} className="h-24 w-full">
               <AreaChart accessibilityLayer data={attendanceTrend} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
                 <defs>
                   <linearGradient id="student-attendance-fill" x1="0" y1="0" x2="0" y2="1">
@@ -656,7 +656,7 @@ export function StudentManagementPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="gap-2 pb-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex flex-col gap-1">
@@ -671,7 +671,7 @@ export function StudentManagementPage() {
               <div className="text-2xl font-semibold">{data?.total ?? students.length}</div>
               <Badge variant="outline">{inactiveStudentsCount} inactive</Badge>
             </div>
-            <ChartContainer config={gradeDistributionChartConfig} className="h-28 w-full">
+            <ChartContainer config={gradeDistributionChartConfig} className="h-24 w-full">
               <BarChart accessibilityLayer data={gradeDistribution} margin={{ left: -12, right: 0, top: 4, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
@@ -687,7 +687,7 @@ export function StudentManagementPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="gap-2 pb-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex flex-col gap-1">
@@ -702,8 +702,8 @@ export function StudentManagementPage() {
               <div className="text-2xl font-semibold">{coveragePercent}%</div>
               <Badge variant="secondary">{guardianCoverageCount} with contacts</Badge>
             </div>
-            <div className="flex items-center gap-4">
-              <ChartContainer config={schoolShareChartConfig} className="h-28 w-28 shrink-0">
+            <div className="flex items-center gap-3">
+              <ChartContainer config={schoolShareChartConfig} className="h-24 w-24 shrink-0">
                 <PieChart accessibilityLayer>
                   <ChartTooltip
                     content={<ChartTooltipContent nameKey="school" labelKey="school" />}
@@ -712,8 +712,8 @@ export function StudentManagementPage() {
                     data={schoolShare}
                     dataKey="value"
                     nameKey="school"
-                    innerRadius={24}
-                    outerRadius={42}
+                    innerRadius={20}
+                    outerRadius={34}
                     strokeWidth={2}
                   >
                     {schoolShare.map((entry) => (
