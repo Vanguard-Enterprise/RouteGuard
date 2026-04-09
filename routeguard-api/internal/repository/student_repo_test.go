@@ -191,7 +191,7 @@ func TestStudentRepo_ListByOrg_FilterAndOptions(t *testing.T) {
 			School:          "Oak Middle",
 			GuardianName:    "Jordan Hill",
 			GuardianContact: "555-0104",
-			IsActive:        false,
+			IsActive:        true,
 		},
 	}
 
@@ -234,7 +234,7 @@ func TestStudentRepo_ListByOrg_FilterAndOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list student filter options: %v", err)
 	}
-	if len(options.Grades) != 3 || options.Grades[0] != 3 || options.Grades[1] != 5 || options.Grades[2] != 8 {
+	if len(options.Grades) != 4 || options.Grades[0] != 0 || options.Grades[1] != 3 || options.Grades[2] != 5 || options.Grades[3] != 8 {
 		t.Fatalf("unexpected grade options: %#v", options.Grades)
 	}
 	if len(options.Schools) != 2 || options.Schools[0] != "Maple Elementary" || options.Schools[1] != "Oak Middle" {

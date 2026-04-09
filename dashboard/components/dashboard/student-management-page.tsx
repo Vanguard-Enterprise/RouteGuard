@@ -61,7 +61,6 @@ type FormState = {
 type StudentFilters = {
   gradeRange: [number, number] | null
   schools: string[]
-  guardianSearch: string
 }
 
 const emptyForm: FormState = {
@@ -78,7 +77,6 @@ const emptyForm: FormState = {
 const emptyFilters: StudentFilters = {
   gradeRange: null,
   schools: [],
-  guardianSearch: "",
 }
 
 const SOFT_DELETE_RETENTION_DAYS = 30
@@ -143,6 +141,10 @@ function isFullGradeRange(
   return range[0] === bounds[0] && range[1] === bounds[1]
 }
 
+function formatGradeLabel(grade: number) {
+  return grade === 0 ? "K" : String(grade)
+}
+
 export function StudentManagementPage() {
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -174,11 +176,10 @@ export function StudentManagementPage() {
       grade_min: gradeRange?.[0],
       grade_max: gradeRange?.[1],
       schools: filters.schools.length > 0 ? filters.schools : undefined,
-      guardian_search: filters.guardianSearch.trim() || undefined,
       page,
       per_page: perPage,
     }
-  }, [debouncedQuery, filterOptions, filters.gradeRange, filters.guardianSearch, filters.schools, page, perPage])
+  }, [debouncedQuery, filterOptions, filters.gradeRange, filters.schools, page, perPage])
 
   const key = useMemo(
     () =>
@@ -188,7 +189,6 @@ export function StudentManagementPage() {
         studentListParams.grade_min ?? "",
         studentListParams.grade_max ?? "",
         (studentListParams.schools ?? []).join("|"),
-        studentListParams.guardian_search ?? "",
         page,
         perPage,
       ] as const,
@@ -346,7 +346,6 @@ export function StudentManagementPage() {
     setFilters({
       gradeRange: isFullGradeRange(normalizedGradeRange, gradeBounds) ? null : normalizedGradeRange,
       schools: draftFilters.schools,
-      guardianSearch: draftFilters.guardianSearch.trim(),
     })
     setFiltersOpen(false)
     setPage(1)
@@ -360,8 +359,7 @@ export function StudentManagementPage() {
 
   const hasActiveFilters =
     filters.gradeRange !== null ||
-    filters.schools.length > 0 ||
-    Boolean(filters.guardianSearch.trim())
+    filters.schools.length > 0
 
   const perPageOptions = useMemo(() => {
     const base = [10, 25, 50]
@@ -487,7 +485,7 @@ export function StudentManagementPage() {
           <DialogHeader>
             <DialogTitle>Filter Students</DialogTitle>
             <DialogDescription>
-              Filter by active grade range, school, or guardian.
+              Filter by active grade range and school.
             </DialogDescription>
           </DialogHeader>
 
@@ -497,7 +495,7 @@ export function StudentManagementPage() {
                 <Label>Grade Range</Label>
                 {gradeBounds ? (
                   <span className="text-sm text-muted-foreground">
-                    {sliderValue[0]} to {sliderValue[1]}
+                    {formatGradeLabel(sliderValue[0])} to {formatGradeLabel(sliderValue[1])}
                   </span>
                 ) : (
                   <span className="text-sm text-muted-foreground">No active numeric grades</span>
@@ -521,11 +519,26 @@ export function StudentManagementPage() {
                 />
               ) : null}
               {availableGrades.length > 0 ? (
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <div
+                  className="grid gap-2"
+                  style={{ gridTemplateColumns: `repeat(${availableGrades.length}, minmax(0, 1fr))` }}
+                >
                   {availableGrades.map((grade) => (
-                    <span key={grade} className="rounded-full border px-2 py-1">
-                      {grade}
-                    </span>
+                    <Button
+                      key={grade}
+                      type="button"
+                      variant={sliderValue[0] === grade && sliderValue[1] === grade ? "default" : "outline"}
+                      size="sm"
+                      className="w-full"
+                      onClick={() =>
+                        setDraftFilters((current) => ({
+                          ...current,
+                          gradeRange: [grade, grade],
+                        }))
+                      }
+                    >
+                      {formatGradeLabel(grade)}
+                    </Button>
                   ))}
                 </div>
               ) : null}
@@ -540,21 +553,6 @@ export function StudentManagementPage() {
                 placeholder="Select schools"
                 searchPlaceholder="Search schools"
                 emptyMessage="No schools found."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="filter-guardian">Guardian</Label>
-              <Input
-                id="filter-guardian"
-                value={draftFilters.guardianSearch}
-                onChange={(event) =>
-                  setDraftFilters((current) => ({
-                    ...current,
-                    guardianSearch: event.target.value,
-                  }))
-                }
-                placeholder="Search guardian name"
               />
             </div>
 

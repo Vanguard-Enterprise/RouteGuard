@@ -15,3 +15,6 @@ Enterprise school bus fleet management platform.
 ## Quick Start
 
 See `deploy/README.md` for full setup instructions.
+
+##Server Authentication
+The server running our infrastructure is located at 10.1.40.125. You can login using the deploy/keys and the root user.

@@ -33,6 +33,14 @@ type StudentFilterOptions struct {
 	Schools []string `json:"schools"`
 }
 
+func studentGradeOrderExpression() string {
+	return `CASE
+		WHEN upper(trim(grade)) = 'K' THEN 0
+		WHEN trim(grade) ~ '^[0-9]+$' THEN CAST(trim(grade) AS INTEGER)
+		ELSE NULL
+	END`
+}
+
 func (r *StudentRepo) ListByOrg(ctx context.Context, orgID string, filters StudentListFilters, page, perPage int) ([]domain.Student, int, error) {
 	if page < 1 {
 		page = 1
@@ -125,13 +133,13 @@ func studentListFilter(orgID string, filters StudentListFilters, deleted bool) (
 	}
 
 	if filters.GradeMin != nil {
-		clauses = append(clauses, `grade ~ '^[0-9]+$' AND CAST(grade AS INTEGER) >= $`+strconv.Itoa(next))
+		clauses = append(clauses, studentGradeOrderExpression()+` IS NOT NULL AND `+studentGradeOrderExpression()+` >= $`+strconv.Itoa(next))
 		args = append(args, *filters.GradeMin)
 		next++
 	}
 
 	if filters.GradeMax != nil {
-		clauses = append(clauses, `grade ~ '^[0-9]+$' AND CAST(grade AS INTEGER) <= $`+strconv.Itoa(next))
+		clauses = append(clauses, studentGradeOrderExpression()+` IS NOT NULL AND `+studentGradeOrderExpression()+` <= $`+strconv.Itoa(next))
 		args = append(args, *filters.GradeMax)
 		next++
 	}
@@ -166,8 +174,17 @@ func (r *StudentRepo) ListFilterOptionsByOrg(ctx context.Context, orgID string) 
 		if school != "" {
 			schoolSet[school] = struct{}{}
 		}
-		if gradeInt, err := strconv.Atoi(grade); err == nil {
+		switch {
+		case strings.EqualFold(grade, "K"):
+			gradeSet[0] = struct{}{}
+		case func() bool {
+			gradeInt, err := strconv.Atoi(grade)
+			if err != nil {
+				return false
+			}
 			gradeSet[gradeInt] = struct{}{}
+			return true
+		}():
 		}
 	}
 
