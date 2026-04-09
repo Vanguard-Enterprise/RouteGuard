@@ -6,7 +6,13 @@ import { api } from "@/lib/api"
 import type { Student, StudentFilterOptions, StudentUpsertPayload } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ComboboxMultiSelect } from "@/components/ui/combobox"
 import {
@@ -47,18 +53,33 @@ import {
 } from "@/components/ui/table"
 import {
   ArchiveIcon,
+  BusFrontIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleCheckIcon,
   CircleOffIcon,
+  CircleXIcon,
   FilterIcon,
+  GraduationCapIcon,
   LoaderCircleIcon,
+  SchoolIcon,
   SquarePenIcon,
   Trash2Icon,
   UserRoundIcon,
   UserRoundPlusIcon,
   XIcon,
 } from "lucide-react"
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  XAxis,
+} from "recharts"
 import { toast } from "sonner"
 
 type FormState = {
@@ -94,6 +115,43 @@ const emptyFilters: StudentFilters = {
 }
 
 const SOFT_DELETE_RETENTION_DAYS = 30
+
+const attendanceChartConfig = {
+  riders: {
+    label: "Riders",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig
+
+const gradeDistributionChartConfig = {
+  students: {
+    label: "Students",
+    color: "var(--chart-2)",
+  },
+} satisfies ChartConfig
+
+const schoolShareChartConfig = {
+  value: {
+    label: "Students",
+    color: "var(--chart-3)",
+  },
+  north: {
+    label: "North",
+    color: "var(--chart-1)",
+  },
+  south: {
+    label: "South",
+    color: "var(--chart-2)",
+  },
+  east: {
+    label: "East",
+    color: "var(--chart-3)",
+  },
+  west: {
+    label: "West",
+    color: "var(--chart-4)",
+  },
+} satisfies ChartConfig
 
 function formatTimeUntilDeletion(deletedAt?: string | null) {
   if (!deletedAt) return "Unknown"
@@ -238,7 +296,7 @@ export function StudentManagementPage() {
     })
   )
 
-  const students = data?.items ?? []
+  const students = useMemo(() => data?.items ?? [], [data?.items])
   const availableGrades = useMemo(
     () => Array.from(new Set([0, ...(filterOptions?.grades ?? [])])).sort((a, b) => a - b),
     [filterOptions?.grades]
@@ -266,6 +324,73 @@ export function StudentManagementPage() {
     : [0, 0]
   const selectedCount = selectedIds.size
   const bulkActionPending = bulkStatusSaving || archiving
+  const activeStudentsCount = useMemo(
+    () => students.filter((student) => student.is_active).length,
+    [students]
+  )
+  const inactiveStudentsCount = students.length - activeStudentsCount
+  const guardianCoverageCount = useMemo(
+    () =>
+      students.filter(
+        (student) => student.guardian_name.trim().length > 0 || student.guardian_contact.trim().length > 0
+      ).length,
+    [students]
+  )
+  const coveragePercent = students.length > 0 ? Math.round((guardianCoverageCount / students.length) * 100) : 0
+  const attendanceTrend = useMemo(() => {
+    const base = Math.max(activeStudentsCount, 1)
+    const offsets = [-0.08, 0.03, -0.02, 0.06, 0.12]
+
+    return ["Mon", "Tue", "Wed", "Thu", "Fri"].map((day, index) => ({
+      day,
+      riders: Math.max(0, Math.round(base * (0.74 + offsets[index]))),
+    }))
+  }, [activeStudentsCount])
+  const gradeDistribution = useMemo(() => {
+    const counts = new Map<string, number>()
+
+    for (const student of students) {
+      const gradeKey = student.grade.trim() || "Unassigned"
+      counts.set(gradeKey, (counts.get(gradeKey) ?? 0) + 1)
+    }
+
+    return [...counts.entries()]
+      .sort((a, b) => {
+        const aNumber = Number(a[0] === "K" ? 0 : a[0])
+        const bNumber = Number(b[0] === "K" ? 0 : b[0])
+        const aIsNumber = !Number.isNaN(aNumber)
+        const bIsNumber = !Number.isNaN(bNumber)
+
+        if (aIsNumber && bIsNumber) return aNumber - bNumber
+        if (aIsNumber) return -1
+        if (bIsNumber) return 1
+        return a[0].localeCompare(b[0])
+      })
+      .slice(0, 5)
+      .map(([grade, students]) => ({
+        grade,
+        students,
+      }))
+  }, [students])
+  const schoolShare = useMemo(() => {
+    const counts = new Map<string, number>()
+    const palette = ["north", "south", "east", "west"] as const
+
+    for (const student of students) {
+      const schoolKey = student.school.trim() || "Unassigned"
+      counts.set(schoolKey, (counts.get(schoolKey) ?? 0) + 1)
+    }
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([school, value], index) => ({
+        school,
+        value,
+        fill: `var(--color-${palette[index] ?? "north"})`,
+      }))
+  }, [students])
+  const projectedAttendance = attendanceTrend[attendanceTrend.length - 1]?.riders ?? 0
 
   function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -479,11 +604,142 @@ export function StudentManagementPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-6">
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Student Management</h1>
         <p className="text-sm text-muted-foreground">
           Manage core student roster records for your organization.
         </p>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card>
+          <CardHeader className="gap-2 pb-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-base">Bus Attendance</CardTitle>
+                <CardDescription>Projected riders across this roster slice</CardDescription>
+              </div>
+              <BusFrontIcon className="text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="text-2xl font-semibold">{projectedAttendance}</div>
+              <Badge variant="secondary">{activeStudentsCount} active</Badge>
+            </div>
+            <ChartContainer config={attendanceChartConfig} className="h-28 w-full">
+              <AreaChart accessibilityLayer data={attendanceTrend} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="student-attendance-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-riders)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--color-riders)" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                <ChartTooltip content={<ChartTooltipContent hideIndicator />} />
+                <Area
+                  dataKey="riders"
+                  type="monotone"
+                  fill="url(#student-attendance-fill)"
+                  fillOpacity={1}
+                  stroke="var(--color-riders)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="gap-2 pb-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-base">Grade Mix</CardTitle>
+                <CardDescription>Current page distribution by grade</CardDescription>
+              </div>
+              <GraduationCapIcon className="text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="text-2xl font-semibold">{data?.total ?? students.length}</div>
+              <Badge variant="outline">{inactiveStudentsCount} inactive</Badge>
+            </div>
+            <ChartContainer config={gradeDistributionChartConfig} className="h-28 w-full">
+              <BarChart accessibilityLayer data={gradeDistribution} margin={{ left: -12, right: 0, top: 4, bottom: 0 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="grade"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="students" fill="var(--color-students)" radius={6} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="gap-2 pb-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-base">School Coverage</CardTitle>
+                <CardDescription>Guardian and campus concentration</CardDescription>
+              </div>
+              <SchoolIcon className="text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="text-2xl font-semibold">{coveragePercent}%</div>
+              <Badge variant="secondary">{guardianCoverageCount} with contacts</Badge>
+            </div>
+            <div className="flex items-center gap-4">
+              <ChartContainer config={schoolShareChartConfig} className="h-28 w-28 shrink-0">
+                <PieChart accessibilityLayer>
+                  <ChartTooltip
+                    content={<ChartTooltipContent nameKey="school" labelKey="school" />}
+                  />
+                  <Pie
+                    data={schoolShare}
+                    dataKey="value"
+                    nameKey="school"
+                    innerRadius={24}
+                    outerRadius={42}
+                    strokeWidth={2}
+                  >
+                    {schoolShare.map((entry) => (
+                      <Cell key={entry.school} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ChartContainer>
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                {schoolShare.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No school data on this page.</p>
+                ) : (
+                  schoolShare.map((entry) => (
+                    <div key={entry.school} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="size-2 rounded-full" style={{ backgroundColor: entry.fill }} />
+                        <span className="truncate">{entry.school}</span>
+                      </div>
+                      <span className="font-medium tabular-nums">{entry.value}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog
@@ -854,7 +1110,12 @@ export function StudentManagementPage() {
                         <div className="text-xs text-muted-foreground">{student.guardian_contact || "-"}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={student.is_active ? "default" : "secondary"}>
+                        <Badge variant="outline" className="px-1.5 text-muted-foreground">
+                          {student.is_active ? (
+                            <CircleCheckIcon className="fill-green-500 dark:fill-green-400" />
+                          ) : (
+                            <CircleXIcon className="fill-muted-foreground/30" />
+                          )}
                           {student.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
