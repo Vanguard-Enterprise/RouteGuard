@@ -44,7 +44,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ChevronLeftIcon, ChevronRightIcon, FilterIcon, Trash2Icon, UserRoundIcon } from "lucide-react"
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FilterIcon,
+  Trash2Icon,
+  UserRoundIcon,
+  XIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 type FormState = {
@@ -580,7 +587,6 @@ export function StudentManagementPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={clearFilters}>Clear</Button>
             <Button onClick={applyFilters}>Apply</Button>
           </DialogFooter>
         </DialogContent>
@@ -598,10 +604,24 @@ export function StudentManagementPage() {
                 setPage(1)
               }}
             />
-            <Button variant="outline" className="w-auto gap-2" onClick={() => setFiltersOpen(true)}>
-              <FilterIcon className="size-4" />
-              <span>{hasActiveFilters ? "Filters Applied" : "Filter"}</span>
-            </Button>
+            <div className="flex w-auto items-center gap-2">
+              <Button variant="outline" className="w-auto gap-2" onClick={() => setFiltersOpen(true)}>
+                <FilterIcon className="size-4" />
+                <span>Filter</span>
+              </Button>
+              {hasActiveFilters ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9"
+                  onClick={clearFilters}
+                  title="Remove filters"
+                  aria-label="Remove filters"
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              ) : null}
+            </div>
             <Button size="sm" className="w-auto" onClick={openCreateModal}>
               Add Student
             </Button>
