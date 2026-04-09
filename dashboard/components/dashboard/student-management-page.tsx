@@ -49,6 +49,8 @@ import {
   ArchiveIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CircleCheckIcon,
+  CircleOffIcon,
   FilterIcon,
   LoaderCircleIcon,
   SquarePenIcon,
@@ -298,10 +300,6 @@ export function StudentManagementPage() {
       }
       return next
     })
-  }
-
-  function clearSelection() {
-    setSelectedIds(new Set())
   }
 
   function removeSelection(studentIds: string[]) {
@@ -734,6 +732,43 @@ export function StudentManagementPage() {
                 </span>
               ) : null}
             </Button>
+            {selectedCount > 0 ? (
+              <>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-9"
+                  onClick={() => handleBulkStatusUpdate(true)}
+                  disabled={bulkActionPending}
+                  aria-label={`Set ${selectedCount} selected students active`}
+                  title={`Set ${selectedCount} selected students active`}
+                >
+                  {bulkStatusSaving ? <LoaderCircleIcon className="animate-spin" /> : <CircleCheckIcon />}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-9"
+                  onClick={() => handleBulkStatusUpdate(false)}
+                  disabled={bulkActionPending}
+                  aria-label={`Set ${selectedCount} selected students inactive`}
+                  title={`Set ${selectedCount} selected students inactive`}
+                >
+                  {bulkStatusSaving ? <LoaderCircleIcon className="animate-spin" /> : <CircleOffIcon />}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  className="size-9"
+                  onClick={() => setBulkArchiveTargetIds(Array.from(selectedIds))}
+                  disabled={bulkActionPending}
+                  aria-label={`Archive ${selectedCount} selected students`}
+                  title={`Archive ${selectedCount} selected students`}
+                >
+                  {archiving ? <LoaderCircleIcon className="animate-spin" /> : <ArchiveIcon />}
+                </Button>
+              </>
+            ) : null}
             <Button
               size="icon"
               className="size-9"
@@ -759,53 +794,6 @@ export function StudentManagementPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {selectedCount > 0 ? (
-            <div className="mb-4 flex flex-col gap-3 rounded-md border bg-muted/30 p-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{selectedCount} selected</Badge>
-                <span className="text-sm text-muted-foreground">
-                  Selection persists across pages and filters until cleared.
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkStatusUpdate(true)}
-                  disabled={bulkActionPending}
-                >
-                  {bulkStatusSaving ? <LoaderCircleIcon className="animate-spin" /> : null}
-                  Set Active
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkStatusUpdate(false)}
-                  disabled={bulkActionPending}
-                >
-                  {bulkStatusSaving ? <LoaderCircleIcon className="animate-spin" /> : null}
-                  Set Inactive
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => setBulkArchiveTargetIds(Array.from(selectedIds))}
-                  disabled={bulkActionPending}
-                >
-                  {archiving ? <LoaderCircleIcon className="animate-spin" /> : null}
-                  Archive
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={clearSelection}
-                  disabled={bulkActionPending}
-                >
-                  Clear Selection
-                </Button>
-              </div>
-            </div>
-          ) : null}
           {error && (
             <p className="mb-4 text-sm text-destructive">
               {error instanceof Error ? error.message : "Failed to load students"}
