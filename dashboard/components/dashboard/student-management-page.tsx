@@ -377,7 +377,8 @@ export function StudentManagementPage() {
 
   const perPageOptions = useMemo(() => {
     const base = [10, 25, 50]
-    return Array.from(new Set([...base, perPage])).sort((a, b) => a - b)
+    const options = userSetPerPageRef.current ? [...base, perPage] : base
+    return Array.from(new Set(options)).sort((a, b) => a - b)
   }, [perPage])
 
   return (
