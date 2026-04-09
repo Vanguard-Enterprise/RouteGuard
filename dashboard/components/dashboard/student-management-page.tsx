@@ -45,9 +45,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  ArchiveIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   FilterIcon,
+  SquarePenIcon,
   Trash2Icon,
   UserRoundIcon,
   UserRoundPlusIcon,
@@ -606,14 +608,20 @@ export function StudentManagementPage() {
                 setPage(1)
               }}
             />
-            <Button variant="outline" className="w-auto gap-2" onClick={() => setFiltersOpen(true)}>
-              <FilterIcon className="size-4" />
-              <span>Filter</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-9"
+              onClick={() => setFiltersOpen(true)}
+              aria-label={hasActiveFilters ? "Filters applied" : "Filter students"}
+              title={hasActiveFilters ? "Filters applied" : "Filter students"}
+            >
+              <FilterIcon />
               {hasActiveFilters ? (
                 <span
                   role="button"
                   tabIndex={0}
-                  className="ml-1 inline-flex size-5 items-center justify-center rounded-sm hover:bg-muted"
+                  className="absolute -top-1 -right-1 inline-flex size-4 items-center justify-center rounded-full border bg-background hover:bg-muted"
                   onClick={(event) => {
                     event.stopPropagation()
                     clearFilters()
@@ -627,12 +635,13 @@ export function StudentManagementPage() {
                   title="Remove filters"
                   aria-label="Remove filters"
                 >
-                  <XIcon className="size-3.5" />
+                  <XIcon className="size-3" />
                 </span>
               ) : null}
             </Button>
             <Button
               size="icon"
+              className="size-9"
               onClick={openCreateModal}
               aria-label="Add student"
               title="Add student"
@@ -641,15 +650,16 @@ export function StudentManagementPage() {
             </Button>
             <Button
               variant="outline"
-              size="sm"
-              className="w-12"
+              size="icon"
+              className="size-9"
               onClick={() => {
                 setDeletedPage(1)
                 setTrashOpen(true)
               }}
               title="View archived students"
+              aria-label="View archived students"
             >
-              <Trash2Icon className="size-4" />
+              <Trash2Icon />
             </Button>
           </div>
         </CardHeader>
@@ -706,11 +716,23 @@ export function StudentManagementPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openEditModal(student)}>
-                            Edit
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => openEditModal(student)}
+                            aria-label={`Edit ${student.first_name} ${student.last_name}`}
+                            title="Edit"
+                          >
+                            <SquarePenIcon className="size-4" />
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => setArchiveTarget(student)}>
-                            Archive
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            onClick={() => setArchiveTarget(student)}
+                            aria-label={`Archive ${student.first_name} ${student.last_name}`}
+                            title="Archive"
+                          >
+                            <ArchiveIcon className="size-4" />
                           </Button>
                         </div>
                       </TableCell>
