@@ -9,22 +9,55 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/middleware"
+	"github.com/routeguard/api/internal/repository"
 )
 
 func normalizeStudentText(v string) string {
 	return strings.TrimSpace(v)
 }
 
+func studentListFiltersFromRequest(r *http.Request) repository.StudentListFilters {
+	query := r.URL.Query()
+	var gradeMin *int
+	var gradeMax *int
+
+	if value, err := strconv.Atoi(query.Get("grade_min")); err == nil {
+		gradeMin = &value
+	}
+	if value, err := strconv.Atoi(query.Get("grade_max")); err == nil {
+		gradeMax = &value
+	}
+
+	rawSchools := strings.TrimSpace(query.Get("schools"))
+	schools := make([]string, 0)
+	if rawSchools != "" {
+		for _, school := range strings.Split(rawSchools, ",") {
+			school = normalizeStudentText(school)
+			if school != "" {
+				schools = append(schools, school)
+			}
+		}
+	}
+
+	return repository.StudentListFilters{
+		Search:         normalizeStudentText(query.Get("search")),
+		Status:         normalizeStudentText(strings.ToLower(query.Get("status"))),
+		GradeMin:       gradeMin,
+		GradeMax:       gradeMax,
+		Schools:        schools,
+		GuardianSearch: normalizeStudentText(query.Get("guardian_search")),
+	}
+}
+
 func (h *Handler) OrgListStudents(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	session := middleware.SessionFromContext(ctx)
 
-	search := normalizeStudentText(r.URL.Query().Get("search"))
-	status := normalizeStudentText(strings.ToLower(r.URL.Query().Get("status")))
+	filters := studentListFiltersFromRequest(r)
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
 
-	items, total, err := h.students.ListByOrg(ctx, session.OrgID, search, status, page, perPage)
+	items, total, err := h.students.ListByOrg(ctx, session.OrgID, filters, page, perPage)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "failed to list students")
 		return
@@ -45,6 +78,19 @@ func (h *Handler) OrgListStudents(w http.ResponseWriter, r *http.Request) {
 		PerPage:    perPage,
 		TotalPages: totalPages,
 	})
+}
+
+func (h *Handler) OrgListStudentFilterOptions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	session := middleware.SessionFromContext(ctx)
+
+	options, err := h.students.ListFilterOptionsByOrg(ctx, session.OrgID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to list student filter options")
+		return
+	}
+
+	JSON(w, http.StatusOK, options)
 }
 
 func (h *Handler) OrgGetStudent(w http.ResponseWriter, r *http.Request) {
@@ -249,12 +295,11 @@ func (h *Handler) OrgListDeletedStudents(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	session := middleware.SessionFromContext(ctx)
 
-	search := normalizeStudentText(r.URL.Query().Get("search"))
-	status := normalizeStudentText(strings.ToLower(r.URL.Query().Get("status")))
+	filters := studentListFiltersFromRequest(r)
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
 
-	items, total, err := h.students.ListDeletedByOrg(ctx, session.OrgID, search, status, page, perPage)
+	items, total, err := h.students.ListDeletedByOrg(ctx, session.OrgID, filters, page, perPage)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "failed to list deleted students")
 		return

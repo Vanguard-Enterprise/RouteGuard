@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -18,7 +19,21 @@ func NewStudentRepo(pool *pgxpool.Pool) *StudentRepo {
 	return &StudentRepo{pool: pool}
 }
 
-func (r *StudentRepo) ListByOrg(ctx context.Context, orgID, search, status string, page, perPage int) ([]domain.Student, int, error) {
+type StudentListFilters struct {
+	Search         string
+	Status         string
+	GradeMin       *int
+	GradeMax       *int
+	Schools        []string
+	GuardianSearch string
+}
+
+type StudentFilterOptions struct {
+	Grades  []int    `json:"grades"`
+	Schools []string `json:"schools"`
+}
+
+func (r *StudentRepo) ListByOrg(ctx context.Context, orgID string, filters StudentListFilters, page, perPage int) ([]domain.Student, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -27,7 +42,7 @@ func (r *StudentRepo) ListByOrg(ctx context.Context, orgID, search, status strin
 	}
 	offset := (page - 1) * perPage
 
-	where, args, next := studentListFilter(orgID, search, status)
+	where, args, next := studentListFilter(orgID, filters, false)
 
 	countQuery := "SELECT COUNT(*) FROM students" + where
 	var total int
@@ -62,26 +77,116 @@ func (r *StudentRepo) ListByOrg(ctx context.Context, orgID, search, status strin
 	return items, total, nil
 }
 
-func studentListFilter(orgID, search, status string) (string, []any, int) {
-	clauses := []string{"org_id = $1", "deleted_at IS NULL"}
+func studentListFilter(orgID string, filters StudentListFilters, deleted bool) (string, []any, int) {
+	clauses := []string{"org_id = $1"}
 	args := []any{orgID}
 	next := 2
 
-	search = strings.TrimSpace(search)
+	if deleted {
+		clauses = append(clauses, "deleted_at IS NOT NULL")
+	} else {
+		clauses = append(clauses, "deleted_at IS NULL")
+	}
+
+	search := strings.TrimSpace(filters.Search)
 	if search != "" {
-		clauses = append(clauses, `(student_id ILIKE $`+strconv.Itoa(next)+` OR first_name ILIKE $`+strconv.Itoa(next)+` OR last_name ILIKE $`+strconv.Itoa(next)+` OR school ILIKE $`+strconv.Itoa(next)+`)`)
+		clauses = append(clauses, `(student_id ILIKE $`+strconv.Itoa(next)+` OR first_name ILIKE $`+strconv.Itoa(next)+` OR last_name ILIKE $`+strconv.Itoa(next)+` OR school ILIKE $`+strconv.Itoa(next)+` OR guardian_name ILIKE $`+strconv.Itoa(next)+`)`)
 		args = append(args, "%"+search+"%")
 		next++
 	}
 
-	switch status {
+	switch filters.Status {
 	case "active":
 		clauses = append(clauses, "is_active = true")
 	case "inactive":
 		clauses = append(clauses, "is_active = false")
 	}
 
+	if filters.GuardianSearch != "" {
+		clauses = append(clauses, `guardian_name ILIKE $`+strconv.Itoa(next))
+		args = append(args, "%"+strings.TrimSpace(filters.GuardianSearch)+"%")
+		next++
+	}
+
+	if len(filters.Schools) > 0 {
+		schoolClauses := make([]string, 0, len(filters.Schools))
+		for _, school := range filters.Schools {
+			school = strings.TrimSpace(school)
+			if school == "" {
+				continue
+			}
+			schoolClauses = append(schoolClauses, `school = $`+strconv.Itoa(next))
+			args = append(args, school)
+			next++
+		}
+		if len(schoolClauses) > 0 {
+			clauses = append(clauses, "("+strings.Join(schoolClauses, " OR ")+")")
+		}
+	}
+
+	if filters.GradeMin != nil {
+		clauses = append(clauses, `grade ~ '^[0-9]+$' AND CAST(grade AS INTEGER) >= $`+strconv.Itoa(next))
+		args = append(args, *filters.GradeMin)
+		next++
+	}
+
+	if filters.GradeMax != nil {
+		clauses = append(clauses, `grade ~ '^[0-9]+$' AND CAST(grade AS INTEGER) <= $`+strconv.Itoa(next))
+		args = append(args, *filters.GradeMax)
+		next++
+	}
+
 	return " WHERE " + strings.Join(clauses, " AND "), args, next
+}
+
+func (r *StudentRepo) ListFilterOptionsByOrg(ctx context.Context, orgID string) (*StudentFilterOptions, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT DISTINCT grade, school
+		 FROM students
+		 WHERE org_id = $1
+		   AND deleted_at IS NULL
+		   AND is_active = true`,
+		orgID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list student filter options: %w", err)
+	}
+	defer rows.Close()
+
+	gradeSet := make(map[int]struct{})
+	schoolSet := make(map[string]struct{})
+	for rows.Next() {
+		var grade string
+		var school string
+		if err := rows.Scan(&grade, &school); err != nil {
+			return nil, fmt.Errorf("scan student filter options: %w", err)
+		}
+		grade = strings.TrimSpace(grade)
+		school = strings.TrimSpace(school)
+		if school != "" {
+			schoolSet[school] = struct{}{}
+		}
+		if gradeInt, err := strconv.Atoi(grade); err == nil {
+			gradeSet[gradeInt] = struct{}{}
+		}
+	}
+
+	grades := make([]int, 0, len(gradeSet))
+	for grade := range gradeSet {
+		grades = append(grades, grade)
+	}
+	sort.Ints(grades)
+
+	schools := make([]string, 0, len(schoolSet))
+	for school := range schoolSet {
+		schools = append(schools, school)
+	}
+	sort.Strings(schools)
+
+	return &StudentFilterOptions{
+		Grades:  grades,
+		Schools: schools,
+	}, nil
 }
 
 func (r *StudentRepo) GetByID(ctx context.Context, orgID, id string) (*domain.Student, error) {
@@ -154,7 +259,7 @@ func (r *StudentRepo) SoftDelete(ctx context.Context, orgID, id string) error {
 	return nil
 }
 
-func (r *StudentRepo) ListDeletedByOrg(ctx context.Context, orgID, search, status string, page, perPage int) ([]domain.Student, int, error) {
+func (r *StudentRepo) ListDeletedByOrg(ctx context.Context, orgID string, filters StudentListFilters, page, perPage int) ([]domain.Student, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -163,25 +268,7 @@ func (r *StudentRepo) ListDeletedByOrg(ctx context.Context, orgID, search, statu
 	}
 	offset := (page - 1) * perPage
 
-	clauses := []string{"org_id = $1", "deleted_at IS NOT NULL"}
-	args := []any{orgID}
-	next := 2
-
-	search = strings.TrimSpace(search)
-	if search != "" {
-		clauses = append(clauses, `(student_id ILIKE $`+strconv.Itoa(next)+` OR first_name ILIKE $`+strconv.Itoa(next)+` OR last_name ILIKE $`+strconv.Itoa(next)+` OR school ILIKE $`+strconv.Itoa(next)+`)`)
-		args = append(args, "%"+search+"%")
-		next++
-	}
-
-	switch status {
-	case "active":
-		clauses = append(clauses, "is_active = true")
-	case "inactive":
-		clauses = append(clauses, "is_active = false")
-	}
-
-	where := " WHERE " + strings.Join(clauses, " AND ")
+	where, args, next := studentListFilter(orgID, filters, true)
 	countQuery := "SELECT COUNT(*) FROM students" + where
 
 	var total int

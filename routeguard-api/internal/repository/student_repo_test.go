@@ -135,3 +135,109 @@ func TestStudentRepo_UniqueStudentIDWithSoftDelete(t *testing.T) {
 		t.Fatalf("expected student_id reuse after soft delete, got error: %v", err)
 	}
 }
+
+func TestStudentRepo_ListByOrg_FilterAndOptions(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+
+	orgRepo := repository.NewOrgRepo(pool)
+	studentRepo := repository.NewStudentRepo(pool)
+
+	org, err := orgRepo.Create(ctx, "enc-org-d", testOrgSlug("students-d"))
+	if err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+
+	students := []domain.Student{
+		{
+			OrgID:           org.ID,
+			StudentID:       "STU-001",
+			FirstName:       "Avery",
+			LastName:        "North",
+			Grade:           "3",
+			School:          "Maple Elementary",
+			GuardianName:    "Jordan North",
+			GuardianContact: "555-0101",
+			IsActive:        true,
+		},
+		{
+			OrgID:           org.ID,
+			StudentID:       "STU-002",
+			FirstName:       "Bailey",
+			LastName:        "River",
+			Grade:           "5",
+			School:          "Maple Elementary",
+			GuardianName:    "Taylor River",
+			GuardianContact: "555-0102",
+			IsActive:        true,
+		},
+		{
+			OrgID:           org.ID,
+			StudentID:       "STU-003",
+			FirstName:       "Casey",
+			LastName:        "Lake",
+			Grade:           "8",
+			School:          "Oak Middle",
+			GuardianName:    "Morgan Lake",
+			GuardianContact: "555-0103",
+			IsActive:        true,
+		},
+		{
+			OrgID:           org.ID,
+			StudentID:       "STU-004",
+			FirstName:       "Devon",
+			LastName:        "Hill",
+			Grade:           "K",
+			School:          "Oak Middle",
+			GuardianName:    "Jordan Hill",
+			GuardianContact: "555-0104",
+			IsActive:        false,
+		},
+	}
+
+	for _, student := range students {
+		if _, err := studentRepo.Create(ctx, &student); err != nil {
+			t.Fatalf("create student %s: %v", student.StudentID, err)
+		}
+	}
+
+	gradeMin := 4
+	gradeMax := 8
+	filtered, total, err := studentRepo.ListByOrg(ctx, org.ID, repository.StudentListFilters{
+		GradeMin:       &gradeMin,
+		GradeMax:       &gradeMax,
+		Schools:        []string{"Maple Elementary", "Oak Middle"},
+		GuardianSearch: "river",
+		Status:         "active",
+	}, 1, 20)
+	if err != nil {
+		t.Fatalf("list filtered students: %v", err)
+	}
+	if total != 1 || len(filtered) != 1 {
+		t.Fatalf("expected 1 filtered student, got total=%d len=%d", total, len(filtered))
+	}
+	if filtered[0].StudentID != "STU-002" {
+		t.Fatalf("expected STU-002, got %s", filtered[0].StudentID)
+	}
+
+	searchFiltered, total, err := studentRepo.ListByOrg(ctx, org.ID, repository.StudentListFilters{
+		Search: "jordan",
+	}, 1, 20)
+	if err != nil {
+		t.Fatalf("list search filtered students: %v", err)
+	}
+	if total != 2 || len(searchFiltered) != 2 {
+		t.Fatalf("expected search to match 2 students by guardian name, got total=%d len=%d", total, len(searchFiltered))
+	}
+
+	options, err := studentRepo.ListFilterOptionsByOrg(ctx, org.ID)
+	if err != nil {
+		t.Fatalf("list student filter options: %v", err)
+	}
+	if len(options.Grades) != 3 || options.Grades[0] != 3 || options.Grades[1] != 5 || options.Grades[2] != 8 {
+		t.Fatalf("unexpected grade options: %#v", options.Grades)
+	}
+	if len(options.Schools) != 2 || options.Schools[0] != "Maple Elementary" || options.Schools[1] != "Oak Middle" {
+		t.Fatalf("unexpected school options: %#v", options.Schools)
+	}
+}

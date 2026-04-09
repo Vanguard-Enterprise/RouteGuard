@@ -84,7 +84,7 @@ function qs(params?: Record<string, unknown>): string {
   const filtered: Record<string, string> = {}
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== '') {
-      filtered[k] = String(v)
+      filtered[k] = Array.isArray(v) ? v.join(',') : String(v)
     }
   }
   const s = new URLSearchParams(filtered).toString()
@@ -302,8 +302,17 @@ export interface Student {
 export interface StudentListParams extends Record<string, unknown> {
   search?: string
   status?: "active" | "inactive" | "all"
+  grade_min?: number
+  grade_max?: number
+  schools?: string[]
+  guardian_search?: string
   page?: number
   per_page?: number
+}
+
+export interface StudentFilterOptions {
+  grades: number[]
+  schools: string[]
 }
 
 export interface StudentUpsertPayload {
@@ -671,6 +680,8 @@ export const api = {
     students: {
       list: (params?: StudentListParams) =>
         orgRequest<PageResponse<Student>>(`/org/students${qs(params)}`),
+      filterOptions: () =>
+        orgRequest<StudentFilterOptions>('/org/students/filter-options'),
       listDeleted: (params?: StudentListParams) =>
         orgRequest<PageResponse<Student>>(`/org/students/deleted${qs(params)}`),
       get: (id: string) =>

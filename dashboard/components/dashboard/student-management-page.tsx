@@ -3,19 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import useSWR from "swr"
 import { api } from "@/lib/api"
-import type { Student, StudentUpsertPayload } from "@/lib/api"
+import type { Student, StudentFilterOptions, StudentUpsertPayload } from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { ComboboxMultiSelect } from "@/components/ui/combobox"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +26,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 import {
   Table,
   TableBody,
@@ -42,7 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ChevronLeftIcon, ChevronRightIcon, FilterIcon, RotateCcwIcon, Trash2Icon, UserRoundIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, FilterIcon, Trash2Icon, UserRoundIcon } from "lucide-react"
 import { toast } from "sonner"
 
 type FormState = {
@@ -57,9 +59,9 @@ type FormState = {
 }
 
 type StudentFilters = {
-  grade: string
-  school: string
-  guardian: string
+  gradeRange: [number, number] | null
+  schools: string[]
+  guardianSearch: string
 }
 
 const emptyForm: FormState = {
@@ -74,9 +76,9 @@ const emptyForm: FormState = {
 }
 
 const emptyFilters: StudentFilters = {
-  grade: "",
-  school: "",
-  guardian: "",
+  gradeRange: null,
+  schools: [],
+  guardianSearch: "",
 }
 
 const SOFT_DELETE_RETENTION_DAYS = 30
@@ -112,6 +114,35 @@ function toPayload(form: FormState): StudentUpsertPayload {
   }
 }
 
+function normalizeGradeRange(
+  range: [number, number] | null,
+  options: StudentFilterOptions | undefined
+): [number, number] | null {
+  if (!range) {
+    return null
+  }
+
+  const grades = options?.grades ?? []
+  if (grades.length === 0) {
+    return null
+  }
+
+  const minGrade = grades[0]
+  const maxGrade = grades[grades.length - 1]
+  return [Math.max(minGrade, range[0]), Math.min(maxGrade, range[1])]
+}
+
+function isFullGradeRange(
+  range: [number, number] | null,
+  bounds: [number, number] | null
+) {
+  if (!range || !bounds) {
+    return false
+  }
+
+  return range[0] === bounds[0] && range[1] === bounds[1]
+}
+
 export function StudentManagementPage() {
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -131,18 +162,40 @@ export function StudentManagementPage() {
   const [deletedPage, setDeletedPage] = useState(1)
   const [recoveringId, setRecoveringId] = useState<string | null>(null)
 
-  const key = useMemo(
-    () => ["org-students", debouncedQuery, page, perPage] as const,
-    [debouncedQuery, page, perPage]
+  const { data: filterOptions, error: filterOptionsError } = useSWR(
+    ["org-student-filter-options"],
+    () => api.org.students.filterOptions()
   )
 
-  const { data, error, isLoading, mutate } = useSWR(key, () =>
-    api.org.students.list({
+  const studentListParams = useMemo(() => {
+    const gradeRange = normalizeGradeRange(filters.gradeRange, filterOptions)
+    return {
       search: debouncedQuery || undefined,
+      grade_min: gradeRange?.[0],
+      grade_max: gradeRange?.[1],
+      schools: filters.schools.length > 0 ? filters.schools : undefined,
+      guardian_search: filters.guardianSearch.trim() || undefined,
       page,
       per_page: perPage,
-    })
+    }
+  }, [debouncedQuery, filterOptions, filters.gradeRange, filters.guardianSearch, filters.schools, page, perPage])
+
+  const key = useMemo(
+    () =>
+      [
+        "org-students",
+        studentListParams.search ?? "",
+        studentListParams.grade_min ?? "",
+        studentListParams.grade_max ?? "",
+        (studentListParams.schools ?? []).join("|"),
+        studentListParams.guardian_search ?? "",
+        page,
+        perPage,
+      ] as const,
+    [studentListParams, page, perPage]
   )
+
+  const { data, error, isLoading, mutate } = useSWR(key, () => api.org.students.list(studentListParams))
 
   const deletedKey = useMemo(
     () => (trashOpen ? (["org-students-deleted", deletedPage] as const) : null),
@@ -160,25 +213,22 @@ export function StudentManagementPage() {
     })
   )
 
-  const students = useMemo(() => {
-    const items = data?.items ?? []
-    const grade = filters.grade.trim().toLowerCase()
-    const school = filters.school.trim().toLowerCase()
-    const guardian = filters.guardian.trim().toLowerCase()
-
-    return items.filter((student) => {
-      if (grade && !student.grade.toLowerCase().includes(grade)) {
-        return false
-      }
-      if (school && !student.school.toLowerCase().includes(school)) {
-        return false
-      }
-      if (guardian && !student.guardian_name.toLowerCase().includes(guardian)) {
-        return false
-      }
-      return true
-    })
-  }, [data?.items, filters.grade, filters.guardian, filters.school])
+  const students = data?.items ?? []
+  const availableGrades = filterOptions?.grades ?? []
+  const gradeBounds = useMemo<[number, number] | null>(() => {
+    if (availableGrades.length === 0) {
+      return null
+    }
+    return [availableGrades[0], availableGrades[availableGrades.length - 1]]
+  }, [availableGrades])
+  const schoolOptions = useMemo(
+    () => (filterOptions?.schools ?? []).map((school) => ({ label: school, value: school })),
+    [filterOptions?.schools]
+  )
+  const normalizedDraftGradeRange = normalizeGradeRange(draftFilters.gradeRange, filterOptions)
+  const sliderValue = gradeBounds
+    ? normalizedDraftGradeRange ?? gradeBounds
+    : [0, 0]
 
   function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -279,7 +329,6 @@ export function StudentManagementPage() {
     const updatePerPageForViewport = () => {
       if (userSetPerPageRef.current) return
       const viewportHeight = window.innerHeight
-      // Header, page title, filter/search controls, pagination/footer, and card padding.
       const reservedVerticalSpacePx = 390
       const estimatedRowHeightPx = 54
       const estimatedVisibleRows = Math.floor((viewportHeight - reservedVerticalSpacePx) / estimatedRowHeightPx)
@@ -293,7 +342,12 @@ export function StudentManagementPage() {
   }, [])
 
   function applyFilters() {
-    setFilters(draftFilters)
+    const normalizedGradeRange = normalizeGradeRange(draftFilters.gradeRange, filterOptions)
+    setFilters({
+      gradeRange: isFullGradeRange(normalizedGradeRange, gradeBounds) ? null : normalizedGradeRange,
+      schools: draftFilters.schools,
+      guardianSearch: draftFilters.guardianSearch.trim(),
+    })
     setFiltersOpen(false)
     setPage(1)
   }
@@ -305,9 +359,9 @@ export function StudentManagementPage() {
   }
 
   const hasActiveFilters =
-    Boolean(filters.grade.trim()) ||
-    Boolean(filters.school.trim()) ||
-    Boolean(filters.guardian.trim())
+    filters.gradeRange !== null ||
+    filters.schools.length > 0 ||
+    Boolean(filters.guardianSearch.trim())
 
   const perPageOptions = useMemo(() => {
     const base = [10, 25, 50]
@@ -429,42 +483,90 @@ export function StudentManagementPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Filter Students</DialogTitle>
             <DialogDescription>
-              Filter by grade, school, or guardian.
+              Filter by active grade range, school, or guardian.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-2">
+
+          <div className="grid gap-5 py-2">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label>Grade Range</Label>
+                {gradeBounds ? (
+                  <span className="text-sm text-muted-foreground">
+                    {sliderValue[0]} to {sliderValue[1]}
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No active numeric grades</span>
+                )}
+              </div>
+              {gradeBounds ? (
+                <Slider
+                  value={sliderValue}
+                  min={gradeBounds[0]}
+                  max={gradeBounds[1]}
+                  step={1}
+                  minStepsBetweenThumbs={0}
+                  disabled={availableGrades.length <= 1}
+                  onValueChange={(value) => {
+                    if (value.length < 2) return
+                    setDraftFilters((current) => ({
+                      ...current,
+                      gradeRange: [value[0] ?? gradeBounds[0], value[1] ?? gradeBounds[1]],
+                    }))
+                  }}
+                />
+              ) : null}
+              {availableGrades.length > 0 ? (
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {availableGrades.map((grade) => (
+                    <span key={grade} className="rounded-full border px-2 py-1">
+                      {grade}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="filter-grade">Grade</Label>
-              <Input
-                id="filter-grade"
-                value={draftFilters.grade}
-                onChange={(e) => setDraftFilters((current) => ({ ...current, grade: e.target.value }))}
-                placeholder="e.g. 5"
+              <Label>School</Label>
+              <ComboboxMultiSelect
+                options={schoolOptions}
+                value={draftFilters.schools}
+                onValueChange={(schools) => setDraftFilters((current) => ({ ...current, schools }))}
+                placeholder="Select schools"
+                searchPlaceholder="Search schools"
+                emptyMessage="No schools found."
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="filter-school">School</Label>
-              <Input
-                id="filter-school"
-                value={draftFilters.school}
-                onChange={(e) => setDraftFilters((current) => ({ ...current, school: e.target.value }))}
-                placeholder="School name"
-              />
-            </div>
+
             <div className="space-y-2">
               <Label htmlFor="filter-guardian">Guardian</Label>
               <Input
                 id="filter-guardian"
-                value={draftFilters.guardian}
-                onChange={(e) => setDraftFilters((current) => ({ ...current, guardian: e.target.value }))}
-                placeholder="Guardian name"
+                value={draftFilters.guardianSearch}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    guardianSearch: event.target.value,
+                  }))
+                }
+                placeholder="Search guardian name"
               />
             </div>
+
+            {filterOptionsError ? (
+              <p className="text-sm text-destructive">
+                {filterOptionsError instanceof Error
+                  ? filterOptionsError.message
+                  : "Failed to load filter options"}
+              </p>
+            ) : null}
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={clearFilters}>Clear</Button>
             <Button onClick={applyFilters}>Apply</Button>
@@ -477,7 +579,7 @@ export function StudentManagementPage() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <Input
               className="md:flex-1"
-              placeholder="Search by ID, name, or school"
+              placeholder="Search by ID, name, school, or guardian"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value)
@@ -574,7 +676,7 @@ export function StudentManagementPage() {
           </div>
           <div className="mt-4 grid grid-cols-3 items-center">
             <div className="justify-self-start">
-                <Select
+              <Select
                 value={String(perPage)}
                 onValueChange={(value) => {
                   userSetPerPageRef.current = true
@@ -701,7 +803,6 @@ export function StudentManagementPage() {
                           onClick={() => handleRecoverStudent(student)}
                           disabled={recoveringId === student.id}
                         >
-                          <RotateCcwIcon className="size-4" />
                           {recoveringId === student.id ? "Recovering..." : "Recover"}
                         </Button>
                       </TableCell>
