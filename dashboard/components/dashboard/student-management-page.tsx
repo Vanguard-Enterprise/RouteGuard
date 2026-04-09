@@ -50,6 +50,7 @@ import {
   FilterIcon,
   Trash2Icon,
   UserRoundIcon,
+  UserRoundPlusIcon,
   XIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -630,8 +631,13 @@ export function StudentManagementPage() {
                 </span>
               ) : null}
             </Button>
-            <Button size="sm" className="w-auto" onClick={openCreateModal}>
-              Add Student
+            <Button
+              size="icon"
+              onClick={openCreateModal}
+              aria-label="Add student"
+              title="Add student"
+            >
+              <UserRoundPlusIcon />
             </Button>
             <Button
               variant="outline"
