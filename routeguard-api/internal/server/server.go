@@ -142,6 +142,8 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("org:manage")).Get("/students/filter-options", h.OrgListStudentFilterOptions)
 		r.With(middleware.RequirePermission("org:manage")).Get("/students/deleted", h.OrgListDeletedStudents)
 		r.With(middleware.RequirePermission("org:manage")).Post("/students", h.OrgCreateStudent)
+		r.With(middleware.RequirePermission("org:manage")).Put("/students/status", h.OrgBulkUpdateStudentStatus)
+		r.With(middleware.RequirePermission("org:manage")).Delete("/students", h.OrgBulkDeleteStudents)
 		r.With(middleware.RequirePermission("org:manage")).Get("/students/{id}", h.OrgGetStudent)
 		r.With(middleware.RequirePermission("org:manage")).Put("/students/{id}", h.OrgUpdateStudent)
 		r.With(middleware.RequirePermission("org:manage")).Delete("/students/{id}", h.OrgDeleteStudent)

@@ -326,6 +326,11 @@ export interface StudentUpsertPayload {
   is_active?: boolean
 }
 
+export interface BulkStudentsResult {
+  processed_count: number
+  student_ids: string[]
+}
+
 export interface Vehicle {
   id: string
   org_id: string
@@ -688,6 +693,16 @@ export const api = {
         orgRequest<Student>(`/org/students/${id}`),
       create: (data: StudentUpsertPayload) =>
         orgRequest<Student>('/org/students', { method: 'POST', body: JSON.stringify(data) }),
+      bulkUpdateStatus: (studentIds: string[], isActive: boolean) =>
+        orgRequest<BulkStudentsResult>('/org/students/status', {
+          method: 'PUT',
+          body: JSON.stringify({ student_ids: studentIds, is_active: isActive }),
+        }),
+      bulkRemove: (studentIds: string[]) =>
+        orgRequest<BulkStudentsResult>('/org/students', {
+          method: 'DELETE',
+          body: JSON.stringify({ student_ids: studentIds }),
+        }),
       update: (id: string, data: StudentUpsertPayload) =>
         orgRequest<Student>(`/org/students/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
       remove: (id: string) =>

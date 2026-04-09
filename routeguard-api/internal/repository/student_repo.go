@@ -338,3 +338,113 @@ func (r *StudentRepo) Restore(ctx context.Context, orgID, id string) (*domain.St
 	}
 	return &s, nil
 }
+
+func (r *StudentRepo) CountActiveByIDs(ctx context.Context, orgID string, ids []string) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	args := []any{orgID}
+	placeholders := make([]string, 0, len(ids))
+	for i, id := range ids {
+		args = append(args, id)
+		placeholders = append(placeholders, "$"+strconv.Itoa(i+2))
+	}
+
+	query := `SELECT COUNT(*)
+		FROM students
+		WHERE org_id = $1
+		  AND deleted_at IS NULL
+		  AND id IN (` + strings.Join(placeholders, ", ") + `)`
+
+	var count int
+	if err := r.pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count active students by ids: %w", err)
+	}
+
+	return count, nil
+}
+
+func (r *StudentRepo) BulkUpdateStatus(ctx context.Context, orgID string, ids []string, isActive bool) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	args := []any{orgID, isActive}
+	placeholders := make([]string, 0, len(ids))
+	for i, id := range ids {
+		args = append(args, id)
+		placeholders = append(placeholders, "$"+strconv.Itoa(i+3))
+	}
+
+	query := `UPDATE students
+		SET is_active = $2, updated_at = now()
+		WHERE org_id = $1
+		  AND deleted_at IS NULL
+		  AND id IN (` + strings.Join(placeholders, ", ") + `)
+		RETURNING id`
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("bulk update student status: %w", err)
+	}
+	defer rows.Close()
+
+	updatedIDs := make([]string, 0, len(ids))
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan updated student id: %w", err)
+		}
+		updatedIDs = append(updatedIDs, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate updated student ids: %w", err)
+	}
+
+	sort.Strings(updatedIDs)
+	return updatedIDs, nil
+}
+
+func (r *StudentRepo) BulkSoftDelete(ctx context.Context, orgID string, ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	args := []any{orgID}
+	placeholders := make([]string, 0, len(ids))
+	for i, id := range ids {
+		args = append(args, id)
+		placeholders = append(placeholders, "$"+strconv.Itoa(i+2))
+	}
+
+	query := `UPDATE students
+		SET deleted_at = now(), updated_at = now()
+		WHERE org_id = $1
+		  AND deleted_at IS NULL
+		  AND id IN (` + strings.Join(placeholders, ", ") + `)
+		RETURNING id`
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("bulk delete students: %w", err)
+	}
+	defer rows.Close()
+
+	deletedIDs := make([]string, 0, len(ids))
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan deleted student id: %w", err)
+		}
+		deletedIDs = append(deletedIDs, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate deleted student ids: %w", err)
+	}
+
+	sort.Strings(deletedIDs)
+	return deletedIDs, nil
+}

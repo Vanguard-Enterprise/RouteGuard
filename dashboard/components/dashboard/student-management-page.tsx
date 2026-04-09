@@ -7,6 +7,7 @@ import type { Student, StudentFilterOptions, StudentUpsertPayload } from "@/lib/
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ComboboxMultiSelect } from "@/components/ui/combobox"
 import {
   Dialog,
@@ -49,6 +50,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FilterIcon,
+  LoaderCircleIcon,
   SquarePenIcon,
   Trash2Icon,
   UserRoundIcon,
@@ -178,6 +180,9 @@ export function StudentManagementPage() {
   const [saving, setSaving] = useState(false)
   const [archiveTarget, setArchiveTarget] = useState<Student | null>(null)
   const [archiving, setArchiving] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkStatusSaving, setBulkStatusSaving] = useState(false)
+  const [bulkArchiveTargetIds, setBulkArchiveTargetIds] = useState<string[]>([])
   const [trashOpen, setTrashOpen] = useState(false)
   const [deletedPage, setDeletedPage] = useState(1)
   const [recoveringId, setRecoveringId] = useState<string | null>(null)
@@ -246,10 +251,19 @@ export function StudentManagementPage() {
     () => (filterOptions?.schools ?? []).map((school) => ({ label: school, value: school })),
     [filterOptions?.schools]
   )
+  const visibleStudentIds = useMemo(() => students.map((student) => student.id), [students])
+  const visibleSelectedCount = useMemo(
+    () => visibleStudentIds.filter((id) => selectedIds.has(id)).length,
+    [selectedIds, visibleStudentIds]
+  )
+  const allVisibleSelected = visibleStudentIds.length > 0 && visibleSelectedCount === visibleStudentIds.length
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected
   const normalizedDraftGradeRange = normalizeGradeRange(draftFilters.gradeRange, filterOptions)
   const sliderValue = gradeBounds
     ? normalizedDraftGradeRange ?? gradeBounds
     : [0, 0]
+  const selectedCount = selectedIds.size
+  const bulkActionPending = bulkStatusSaving || archiving
 
   function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -258,6 +272,46 @@ export function StudentManagementPage() {
   function resetForm() {
     setForm(emptyForm)
     setEditingId(null)
+  }
+
+  function toggleStudentSelection(studentId: string, checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (checked) {
+        next.add(studentId)
+      } else {
+        next.delete(studentId)
+      }
+      return next
+    })
+  }
+
+  function setVisibleSelection(checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      for (const studentId of visibleStudentIds) {
+        if (checked) {
+          next.add(studentId)
+        } else {
+          next.delete(studentId)
+        }
+      }
+      return next
+    })
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  function removeSelection(studentIds: string[]) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      for (const id of studentIds) {
+        next.delete(id)
+      }
+      return next
+    })
   }
 
   function openCreateModal() {
@@ -303,24 +357,65 @@ export function StudentManagementPage() {
   }
 
   async function handleArchiveConfirmed() {
-    if (!archiveTarget) {
+    const archiveIds = bulkArchiveTargetIds.length > 0
+      ? bulkArchiveTargetIds
+      : archiveTarget
+        ? [archiveTarget.id]
+        : []
+    if (archiveIds.length === 0) {
       return
     }
     setArchiving(true)
     try {
-      await api.org.students.remove(archiveTarget.id)
-      toast.success("Student archived")
-      if (editingId === archiveTarget.id) {
-        setModalOpen(false)
-        resetForm()
+      if (bulkArchiveTargetIds.length > 0) {
+        const result = await api.org.students.bulkRemove(bulkArchiveTargetIds)
+        removeSelection(result.student_ids)
+        toast.success(
+          result.processed_count === 1
+            ? "Student archived"
+            : `${result.processed_count} students archived`
+        )
+      } else if (archiveTarget) {
+        await api.org.students.remove(archiveTarget.id)
+        removeSelection([archiveTarget.id])
+        toast.success("Student archived")
+        if (editingId === archiveTarget.id) {
+          setModalOpen(false)
+          resetForm()
+        }
       }
       setArchiveTarget(null)
+      setBulkArchiveTargetIds([])
       mutate()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive student"
       toast.error(message)
     } finally {
       setArchiving(false)
+    }
+  }
+
+  async function handleBulkStatusUpdate(isActive: boolean) {
+    const studentIds = Array.from(selectedIds)
+    if (studentIds.length === 0) {
+      return
+    }
+
+    setBulkStatusSaving(true)
+    try {
+      const result = await api.org.students.bulkUpdateStatus(studentIds, isActive)
+      removeSelection(result.student_ids)
+      toast.success(
+        result.processed_count === 1
+          ? `Student marked ${isActive ? "active" : "inactive"}`
+          : `${result.processed_count} students marked ${isActive ? "active" : "inactive"}`
+      )
+      mutate()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update students"
+      toast.error(message)
+    } finally {
+      setBulkStatusSaving(false)
     }
   }
 
@@ -664,6 +759,53 @@ export function StudentManagementPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {selectedCount > 0 ? (
+            <div className="mb-4 flex flex-col gap-3 rounded-md border bg-muted/30 p-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">{selectedCount} selected</Badge>
+                <span className="text-sm text-muted-foreground">
+                  Selection persists across pages and filters until cleared.
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBulkStatusUpdate(true)}
+                  disabled={bulkActionPending}
+                >
+                  {bulkStatusSaving ? <LoaderCircleIcon className="animate-spin" /> : null}
+                  Set Active
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBulkStatusUpdate(false)}
+                  disabled={bulkActionPending}
+                >
+                  {bulkStatusSaving ? <LoaderCircleIcon className="animate-spin" /> : null}
+                  Set Inactive
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setBulkArchiveTargetIds(Array.from(selectedIds))}
+                  disabled={bulkActionPending}
+                >
+                  {archiving ? <LoaderCircleIcon className="animate-spin" /> : null}
+                  Archive
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearSelection}
+                  disabled={bulkActionPending}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {error && (
             <p className="mb-4 text-sm text-destructive">
               {error instanceof Error ? error.message : "Failed to load students"}
@@ -673,6 +815,13 @@ export function StudentManagementPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      aria-label={allVisibleSelected ? "Clear visible students" : "Select visible students"}
+                      checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                      onCheckedChange={(checked) => setVisibleSelection(checked === true)}
+                    />
+                  </TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead>School</TableHead>
@@ -684,19 +833,26 @@ export function StudentManagementPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : students.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                       No students found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   students.map((student) => (
-                    <TableRow key={student.id}>
+                    <TableRow key={student.id} data-state={selectedIds.has(student.id) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          aria-label={`Select ${student.first_name} ${student.last_name}`}
+                          checked={selectedIds.has(student.id)}
+                          onCheckedChange={(checked) => toggleStudentSelection(student.id, checked === true)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium">
                           {student.first_name} {student.last_name}
@@ -803,18 +959,34 @@ export function StudentManagementPage() {
         </CardContent>
       </Card>
 
-      <AlertDialog open={Boolean(archiveTarget)} onOpenChange={(open) => !open && setArchiveTarget(null)}>
+      <AlertDialog
+        open={Boolean(archiveTarget) || bulkArchiveTargetIds.length > 0}
+        onOpenChange={(open) => {
+          if (!open) {
+            setArchiveTarget(null)
+            setBulkArchiveTargetIds([])
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Archive Student?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {bulkArchiveTargetIds.length > 0 ? "Archive Selected Students?" : "Archive Student?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will archive {archiveTarget?.first_name} {archiveTarget?.last_name}. You can no longer manage this student in this list.
+              {bulkArchiveTargetIds.length > 0
+                ? `This will archive ${bulkArchiveTargetIds.length} selected students. They will no longer appear in this list.`
+                : `This will archive ${archiveTarget?.first_name} ${archiveTarget?.last_name}. You can no longer manage this student in this list.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={archiving}>Cancel</AlertDialogCancel>
             <AlertDialogAction variant="destructive" disabled={archiving} onClick={handleArchiveConfirmed}>
-              {archiving ? "Archiving..." : "Archive"}
+              {archiving
+                ? "Archiving..."
+                : bulkArchiveTargetIds.length > 0
+                  ? `Archive ${bulkArchiveTargetIds.length} Students`
+                  : "Archive"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

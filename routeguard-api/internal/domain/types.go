@@ -181,6 +181,11 @@ type Student struct {
 	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
 }
 
+type BulkStudentsResult struct {
+	ProcessedCount int      `json:"processed_count"`
+	StudentIDs     []string `json:"student_ids"`
+}
+
 type School struct {
 	ID           string     `json:"id"`
 	OrgID        string     `json:"org_id"`

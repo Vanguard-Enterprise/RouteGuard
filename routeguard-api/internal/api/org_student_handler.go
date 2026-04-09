@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,45 @@ import (
 
 func normalizeStudentText(v string) string {
 	return strings.TrimSpace(v)
+}
+
+func normalizeStudentIDs(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	normalized := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	sort.Strings(normalized)
+	return normalized
+}
+
+func (h *Handler) validateBulkStudentSelection(w http.ResponseWriter, r *http.Request, studentIDs []string) ([]string, bool) {
+	session := middleware.SessionFromContext(r.Context())
+	normalized := normalizeStudentIDs(studentIDs)
+	if len(normalized) == 0 {
+		Error(w, http.StatusBadRequest, "student_ids must contain at least one student")
+		return nil, false
+	}
+
+	count, err := h.students.CountActiveByIDs(r.Context(), session.OrgID, normalized)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to validate selected students")
+		return nil, false
+	}
+	if count != len(normalized) {
+		Error(w, http.StatusBadRequest, "one or more selected students are invalid")
+		return nil, false
+	}
+
+	return normalized, true
 }
 
 func studentListFiltersFromRequest(r *http.Request) repository.StudentListFilters {
@@ -201,6 +241,15 @@ type updateStudentRequest struct {
 	IsActive        *bool  `json:"is_active"`
 }
 
+type bulkStudentStatusRequest struct {
+	StudentIDs []string `json:"student_ids"`
+	IsActive   *bool    `json:"is_active"`
+}
+
+type bulkStudentArchiveRequest struct {
+	StudentIDs []string `json:"student_ids"`
+}
+
 func (h *Handler) OrgUpdateStudent(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	session := middleware.SessionFromContext(ctx)
@@ -269,6 +318,37 @@ func (h *Handler) OrgUpdateStudent(w http.ResponseWriter, r *http.Request) {
 	JSON(w, http.StatusOK, student)
 }
 
+func (h *Handler) OrgBulkUpdateStudentStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	session := middleware.SessionFromContext(ctx)
+
+	var body bulkStudentStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if body.IsActive == nil {
+		Error(w, http.StatusBadRequest, "is_active is required")
+		return
+	}
+
+	studentIDs, ok := h.validateBulkStudentSelection(w, r, body.StudentIDs)
+	if !ok {
+		return
+	}
+
+	updatedIDs, err := h.students.BulkUpdateStatus(ctx, session.OrgID, studentIDs, *body.IsActive)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to update students")
+		return
+	}
+
+	JSON(w, http.StatusOK, domain.BulkStudentsResult{
+		ProcessedCount: len(updatedIDs),
+		StudentIDs:     updatedIDs,
+	})
+}
+
 func (h *Handler) OrgDeleteStudent(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	session := middleware.SessionFromContext(ctx)
@@ -289,6 +369,33 @@ func (h *Handler) OrgDeleteStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	NoContent(w)
+}
+
+func (h *Handler) OrgBulkDeleteStudents(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	session := middleware.SessionFromContext(ctx)
+
+	var body bulkStudentArchiveRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	studentIDs, ok := h.validateBulkStudentSelection(w, r, body.StudentIDs)
+	if !ok {
+		return
+	}
+
+	deletedIDs, err := h.students.BulkSoftDelete(ctx, session.OrgID, studentIDs)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to delete students")
+		return
+	}
+
+	JSON(w, http.StatusOK, domain.BulkStudentsResult{
+		ProcessedCount: len(deletedIDs),
+		StudentIDs:     deletedIDs,
+	})
 }
 
 func (h *Handler) OrgListDeletedStudents(w http.ResponseWriter, r *http.Request) {
