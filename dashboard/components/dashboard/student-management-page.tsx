@@ -604,24 +604,31 @@ export function StudentManagementPage() {
                 setPage(1)
               }}
             />
-            <div className="flex w-auto items-center gap-2">
-              <Button variant="outline" className="w-auto gap-2" onClick={() => setFiltersOpen(true)}>
-                <FilterIcon className="size-4" />
-                <span>Filter</span>
-              </Button>
+            <Button variant="outline" className="w-auto gap-2" onClick={() => setFiltersOpen(true)}>
+              <FilterIcon className="size-4" />
+              <span>Filter</span>
               {hasActiveFilters ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-9"
-                  onClick={clearFilters}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="ml-1 inline-flex size-5 items-center justify-center rounded-sm hover:bg-muted"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    clearFilters()
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return
+                    event.preventDefault()
+                    event.stopPropagation()
+                    clearFilters()
+                  }}
                   title="Remove filters"
                   aria-label="Remove filters"
                 >
-                  <XIcon className="size-4" />
-                </Button>
+                  <XIcon className="size-3.5" />
+                </span>
               ) : null}
-            </div>
+            </Button>
             <Button size="sm" className="w-auto" onClick={openCreateModal}>
               Add Student
             </Button>
