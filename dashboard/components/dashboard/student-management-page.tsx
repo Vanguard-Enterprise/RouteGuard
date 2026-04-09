@@ -145,6 +145,14 @@ function formatGradeLabel(grade: number) {
   return grade === 0 ? "K" : String(grade)
 }
 
+function getAutoPerPage(viewportHeight: number) {
+  const reservedVerticalSpacePx = 390
+  const estimatedRowHeightPx = 54
+  const estimatedVisibleRows = Math.floor((viewportHeight - reservedVerticalSpacePx) / estimatedRowHeightPx)
+
+  return Math.max(10, Math.min(24, estimatedVisibleRows))
+}
+
 export function StudentManagementPage() {
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -331,11 +339,7 @@ export function StudentManagementPage() {
   useEffect(() => {
     const updatePerPageForViewport = () => {
       if (userSetPerPageRef.current) return
-      const viewportHeight = window.innerHeight
-      const reservedVerticalSpacePx = 390
-      const estimatedRowHeightPx = 54
-      const estimatedVisibleRows = Math.floor((viewportHeight - reservedVerticalSpacePx) / estimatedRowHeightPx)
-      const clampedRows = Math.max(10, Math.min(24, estimatedVisibleRows))
+      const clampedRows = getAutoPerPage(window.innerHeight)
       setPerPage((current) => (current === clampedRows ? current : clampedRows))
     }
 
@@ -679,8 +683,15 @@ export function StudentManagementPage() {
           <div className="mt-4 grid grid-cols-3 items-center">
             <div className="justify-self-start">
               <Select
-                value={String(perPage)}
+                value={userSetPerPageRef.current ? String(perPage) : "auto"}
                 onValueChange={(value) => {
+                  if (value === "auto") {
+                    userSetPerPageRef.current = false
+                    setPerPage(getAutoPerPage(window.innerHeight))
+                    setPage(1)
+                    return
+                  }
+
                   userSetPerPageRef.current = true
                   setPerPage(Number(value))
                   setPage(1)
@@ -693,6 +704,7 @@ export function StudentManagementPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="auto">Auto</SelectItem>
                   {perPageOptions.map((option) => (
                     <SelectItem key={option} value={String(option)}>
                       {option}
