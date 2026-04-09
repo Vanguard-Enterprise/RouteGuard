@@ -703,7 +703,7 @@ export function StudentManagementPage() {
                   setPage(1)
                 }}
               >
-                <SelectTrigger className="w-[88px]">
+                <SelectTrigger className="min-w-[76px]">
                   <div className="flex items-center gap-2">
                     <UserRoundIcon className="size-4" />
                     <SelectValue />
