@@ -214,7 +214,10 @@ export function StudentManagementPage() {
   )
 
   const students = data?.items ?? []
-  const availableGrades = filterOptions?.grades ?? []
+  const availableGrades = useMemo(
+    () => Array.from(new Set([0, ...(filterOptions?.grades ?? [])])).sort((a, b) => a - b),
+    [filterOptions?.grades]
+  )
   const gradeBounds = useMemo<[number, number] | null>(() => {
     if (availableGrades.length === 0) {
       return null
@@ -530,6 +533,7 @@ export function StudentManagementPage() {
                       variant={sliderValue[0] === grade && sliderValue[1] === grade ? "default" : "outline"}
                       size="sm"
                       className="w-full"
+                      aria-pressed={sliderValue[0] === grade && sliderValue[1] === grade}
                       onClick={() =>
                         setDraftFilters((current) => ({
                           ...current,
