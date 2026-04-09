@@ -531,22 +531,28 @@ export function StudentManagementPage() {
                   style={{ gridTemplateColumns: `repeat(${availableGrades.length}, minmax(0, 1fr))` }}
                 >
                   {availableGrades.map((grade) => (
-                    <Button
-                      key={grade}
-                      type="button"
-                      variant={sliderValue[0] === grade && sliderValue[1] === grade ? "default" : "outline"}
-                      size="sm"
-                      className="w-full"
-                      aria-pressed={sliderValue[0] === grade && sliderValue[1] === grade}
-                      onClick={() =>
-                        setDraftFilters((current) => ({
-                          ...current,
-                          gradeRange: [grade, grade],
-                        }))
-                      }
-                    >
-                      {formatGradeLabel(grade)}
-                    </Button>
+                    (() => {
+                      const isSingleGradeSelected = sliderValue[0] === grade && sliderValue[1] === grade
+
+                      return (
+                        <Button
+                          key={grade}
+                          type="button"
+                          variant={isSingleGradeSelected ? "default" : "outline"}
+                          size="sm"
+                          className="w-full"
+                          aria-pressed={isSingleGradeSelected}
+                          onClick={() =>
+                            setDraftFilters((current) => ({
+                              ...current,
+                              gradeRange: isSingleGradeSelected ? null : [grade, grade],
+                            }))
+                          }
+                        >
+                          {formatGradeLabel(grade)}
+                        </Button>
+                      )
+                    })()
                   ))}
                 </div>
               ) : null}
