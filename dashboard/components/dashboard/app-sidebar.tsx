@@ -92,6 +92,11 @@ const districtManagementNavItems = [
     icon: <UsersIcon />,
   },
   {
+    title: "Guardian",
+    url: "/dashboard/management/guardian",
+    icon: <UsersIcon />,
+  },
+  {
     title: "School",
     url: "/dashboard/management/school",
     icon: <BuildingIcon />,
@@ -165,6 +170,9 @@ export function AppSidebar({
   const showTesting = !isPlatform || isImpersonating
   const managementItems = districtManagementNavItems.filter((item) => {
     if (item.url === "/dashboard/management/student") {
+      return me.permissions.includes("org:manage")
+    }
+    if (item.url === "/dashboard/management/guardian") {
       return me.permissions.includes("org:manage")
     }
     if (item.url === "/dashboard/management/school") {
