@@ -9,7 +9,7 @@ Enterprise school bus fleet management platform.
 | `dashboard/` | Next.js frontend (route-guard.com) |
 | `routeguard-api/` | Go API backend (api.route-guard.com) |
 | `deploy/` | Docker Compose, Traefik, deployment scripts |
-| `device/` | Raspberry Pi OS image build (pi-gen) |
+| `device/` | Native Linux bus device app and appliance support files |
 | `docs/` | Architecture and implementation plans |
 
 ## Quick Start

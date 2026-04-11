@@ -54,6 +54,14 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/login", h.Login)
 	r.With(middleware.RateLimit(s.cache, 20)).Post("/auth/magic-link/consume", h.ConsumeMagicLink)
 
+	// Device routes
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/bootstrap", h.DeviceBootstrap)
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/enrollment-code", h.DeviceEnrollmentCode)
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/enrollment-status", h.DeviceEnrollmentStatus)
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/check-in", h.DeviceCheckIn)
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/rfid-events", h.DeviceRFIDEvents)
+	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/releases/latest", h.DeviceLatestRelease)
+
 	// Authenticated auth
 	r.With(middleware.Authenticate(s.cache, s.pool), auditEvents).Post("/auth/logout", h.Logout)
 	r.With(middleware.Authenticate(s.cache, s.pool), auditEvents).Get("/auth/me", h.Me)
@@ -101,6 +109,11 @@ func (s *Server) buildRouter() chi.Router {
 		// Stats
 		r.Get("/stats", h.PlatformStats)
 
+		// Updates
+		r.Get("/updates/releases", h.PlatformListSoftwareReleases)
+		r.Post("/updates/releases", h.PlatformCreateSoftwareRelease)
+		r.Get("/updates/rollout", h.PlatformGetRollout)
+
 		// Support
 		r.Get("/support/tickets", h.PlatformListSupportTickets)
 		r.Get("/support/tickets/{id}", h.PlatformGetSupportTicket)
@@ -137,6 +150,11 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("org:manage")).Post("/integrations", h.OrgCreateIntegration)
 		r.With(middleware.RequirePermission("org:manage")).Put("/integrations/{id}", h.OrgUpdateIntegration)
 		r.With(middleware.RequirePermission("org:manage")).Delete("/integrations/{id}", h.OrgDeleteIntegration)
+
+		r.With(middleware.RequirePermission("org:manage")).Get("/devices", h.OrgListDevices)
+		r.With(middleware.RequirePermission("org:manage")).Post("/devices/claim", h.OrgClaimDevice)
+		r.With(middleware.RequirePermission("org:manage")).Put("/devices/{id}", h.OrgUpdateDevice)
+		r.With(middleware.RequirePermission("org:manage")).Post("/devices/{id}/reset", h.OrgResetDevice)
 
 		r.With(middleware.RequirePermission("org:manage")).Get("/students", h.OrgListStudents)
 		r.With(middleware.RequirePermission("org:manage")).Get("/students/filter-options", h.OrgListStudentFilterOptions)

@@ -5,6 +5,7 @@ import useSWR from "swr"
 import { api } from "@/lib/api"
 import type {
   Organization,
+  OrgDevice,
   OrgMember,
   OrgRole,
   OrgBilling,
@@ -759,6 +760,209 @@ function SSOTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Devices Tab
+// ---------------------------------------------------------------------------
+function DevicesTab() {
+  const { data: devices, mutate } = useSWR<OrgDevice[]>("org-devices", () =>
+    api.org.devices.list()
+  )
+  const { data: vehiclesData } = useSWR(["org-devices-vehicles"], () =>
+    api.org.vehicles.list({ status: "active", page: 1, per_page: 200 })
+  )
+
+  const vehicles = vehiclesData?.items ?? []
+  const [claimCode, setClaimCode] = useState("")
+  const [claimVehicleId, setClaimVehicleId] = useState("")
+  const [claiming, setClaiming] = useState(false)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
+  const [selectedVehicleId, setSelectedVehicleId] = useState("")
+  const [resettingId, setResettingId] = useState<string | null>(null)
+
+  async function handleClaim() {
+    if (!claimCode.trim()) return
+    setClaiming(true)
+    try {
+      await api.org.devices.claim({
+        enrollment_code: claimCode.trim().toUpperCase(),
+        vehicle_id: claimVehicleId || undefined,
+      })
+      toast.success("Device claimed")
+      setClaimCode("")
+      setClaimVehicleId("")
+      mutate()
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to claim device"))
+    } finally {
+      setClaiming(false)
+    }
+  }
+
+  async function handleAssign(device: OrgDevice) {
+    setAssigningId(device.id)
+    try {
+      await api.org.devices.update(device.id, {
+        vehicle_id: selectedVehicleId || null,
+      })
+      toast.success("Device updated")
+      setSelectedVehicleId("")
+      mutate()
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update device"))
+    } finally {
+      setAssigningId(null)
+    }
+  }
+
+  async function handleReset(device: OrgDevice) {
+    if (!window.confirm(`Reset ${device.name || device.device_key} back to enrollment mode?`)) {
+      return
+    }
+    setResettingId(device.id)
+    try {
+      await api.org.devices.reset(device.id)
+      toast.success("Device reset")
+      mutate()
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to reset device"))
+    } finally {
+      setResettingId(null)
+    }
+  }
+
+  const vehicleLabel = (vehicleId?: string | null) =>
+    vehicles.find((vehicle) => vehicle.id === vehicleId)?.vehicle_id ?? "Unassigned"
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Claim Device</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Enter the enrollment code shown on the bus computer. Vehicle assignment is optional and can be changed later.
+          </p>
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Enrollment Code</label>
+              <Input
+                value={claimCode}
+                onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
+                placeholder="AB12CD34"
+                className="w-48"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Vehicle</label>
+              <Select value={claimVehicleId} onValueChange={setClaimVehicleId}>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Assign later" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((vehicle) => (
+                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                      {vehicle.vehicle_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleClaim} disabled={claiming || !claimCode.trim()}>
+              {claiming ? "Claiming..." : "Claim Device"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Claimed Devices</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Device</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Seen</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!devices || devices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                      No devices claimed yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  devices.map((device) => (
+                    <TableRow key={device.id}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">{device.name || device.device_key}</div>
+                          <div className="text-xs text-muted-foreground">{device.device_key}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{vehicleLabel(device.vehicle_id)}</TableCell>
+                      <TableCell>{device.software_version || "unknown"}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1 text-sm">
+                          <div>{device.connectivity_state}</div>
+                          <div className="text-muted-foreground">{device.app_health}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : "Never"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                            <SelectTrigger className="w-44">
+                              <SelectValue placeholder="Assign vehicle" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {vehicles.map((vehicle) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id}>
+                                  {vehicle.vehicle_id}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAssign(device)}
+                            disabled={assigningId === device.id}
+                          >
+                            {assigningId === device.id ? "Saving..." : "Save"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReset(device)}
+                            disabled={resettingId === device.id}
+                          >
+                            {resettingId === device.id ? "Resetting..." : "Reset"}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Billing Tab
 // ---------------------------------------------------------------------------
 function BillingTab() {
@@ -1129,6 +1333,7 @@ export default function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="sso">SSO</TabsTrigger>
+          <TabsTrigger value="devices">Devices</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
@@ -1143,6 +1348,10 @@ export default function SettingsPage() {
 
         <TabsContent value="sso" className="mt-4">
           <SSOTab />
+        </TabsContent>
+
+        <TabsContent value="devices" className="mt-4">
+          <DevicesTab />
         </TabsContent>
 
         <TabsContent value="billing" className="mt-4">
