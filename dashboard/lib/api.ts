@@ -215,6 +215,66 @@ export interface PlatformStats {
   active_trips: number
 }
 
+export interface SoftwareRelease {
+  id: string
+  version: string
+  release_date: string
+  release_notes: string
+  created_at: string
+}
+
+export interface DeviceRolloutStatus {
+  id: string
+  org_id: string
+  org_name: string
+  vehicle_id?: string | null
+  vehicle_label?: string | null
+  device_key: string
+  name: string
+  software_version: string
+  connectivity_state: string
+  app_health: string
+  last_seen_at: string | null
+}
+
+export interface RolloutOrgSummary {
+  org_id: string
+  org_name: string
+  total_devices: number
+  on_latest: number
+  behind_latest: number
+  percent_up_to_date: number
+  devices: DeviceRolloutStatus[]
+}
+
+export interface RolloutSummary {
+  latest_release: SoftwareRelease | null
+  total_devices: number
+  on_latest: number
+  behind_latest: number
+  percent_up_to_date: number
+  organizations: RolloutOrgSummary[]
+}
+
+export interface OrgDevice {
+  id: string
+  org_id?: string | null
+  vehicle_id?: string | null
+  device_key: string
+  name: string
+  software_version: string
+  connectivity_state: string
+  app_health: string
+  enrollment_code?: string | null
+  enrollment_expires_at?: string | null
+  enrolled_at?: string | null
+  token_issued_at?: string | null
+  revoked_at?: string | null
+  last_seen_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface PlatformUser {
   id: string
   email: string
@@ -638,6 +698,12 @@ export const api = {
           body: JSON.stringify({ body }),
         }),
     },
+    updates: {
+      releases: () => platformRequest<SoftwareRelease[]>('/platform/updates/releases'),
+      createRelease: (data: { version: string; release_date: string; release_notes?: string }) =>
+        platformRequest<SoftwareRelease>('/platform/updates/releases', { method: 'POST', body: JSON.stringify(data) }),
+      rollout: () => platformRequest<RolloutSummary>('/platform/updates/rollout'),
+    },
   },
   org: {
     settings: {
@@ -681,6 +747,15 @@ export const api = {
         orgRequest<Integration>(`/org/integrations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
       delete: (id: string) =>
         orgRequest<void>(`/org/integrations/${id}`, { method: 'DELETE' }),
+    },
+    devices: {
+      list: () => orgRequest<OrgDevice[]>('/org/devices'),
+      claim: (data: { enrollment_code: string; vehicle_id?: string }) =>
+        orgRequest<OrgDevice>('/org/devices/claim', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: { vehicle_id?: string | null; name?: string }) =>
+        orgRequest<OrgDevice>(`/org/devices/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      reset: (id: string) =>
+        orgRequest<OrgDevice>(`/org/devices/${id}/reset`, { method: 'POST' }),
     },
     students: {
       list: (params?: StudentListParams) =>

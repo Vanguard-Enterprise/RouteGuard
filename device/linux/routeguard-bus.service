@@ -1,0 +1,16 @@
+[Unit]
+Description=RouteGuard Bus Device
+After=network-online.target graphical.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/routeguard-bus.env
+ExecStart=/opt/routeguard-bus/routeguard-bus
+Restart=always
+RestartSec=3
+User=routeguard
+WorkingDirectory=/opt/routeguard-bus
+
+[Install]
+WantedBy=graphical.target

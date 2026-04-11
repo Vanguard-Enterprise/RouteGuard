@@ -211,6 +211,40 @@ type Vehicle struct {
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
 }
 
+type Device struct {
+	ID                string          `json:"id"`
+	OrgID             *string         `json:"org_id,omitempty"`
+	VehicleID         *string         `json:"vehicle_id,omitempty"`
+	DeviceKey         string          `json:"device_key"`
+	Name              string          `json:"name"`
+	SoftwareVersion   string          `json:"software_version"`
+	ConnectivityState string          `json:"connectivity_state"`
+	AppHealth         string          `json:"app_health"`
+	EnrollmentCode    *string         `json:"enrollment_code,omitempty"`
+	EnrollmentExpires *time.Time      `json:"enrollment_expires_at,omitempty"`
+	EnrolledAt        *time.Time      `json:"enrolled_at,omitempty"`
+	TokenIssuedAt     *time.Time      `json:"token_issued_at,omitempty"`
+	RevokedAt         *time.Time      `json:"revoked_at,omitempty"`
+	LastSeenAt        *time.Time      `json:"last_seen_at"`
+	Metadata          json.RawMessage `json:"metadata"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+	DeletedAt         *time.Time      `json:"deleted_at,omitempty"`
+}
+
+type RiderScanEvent struct {
+	ID         string          `json:"id"`
+	OrgID      string          `json:"org_id"`
+	DeviceID   string          `json:"device_id"`
+	RouteID    *string         `json:"route_id,omitempty"`
+	EventUID   string          `json:"event_uid"`
+	StudentTag string          `json:"student_tag"`
+	ScannedAt  time.Time       `json:"scanned_at"`
+	SyncStatus string          `json:"sync_status"`
+	Metadata   json.RawMessage `json:"metadata"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
 type Driver struct {
 	ID          string     `json:"id"`
 	OrgID       string     `json:"org_id"`
@@ -305,6 +339,48 @@ type SoftwareRelease struct {
 	ReleaseDate  string    `json:"release_date"`
 	ReleaseNotes string    `json:"release_notes"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type DeviceRolloutStatus struct {
+	ID                string     `json:"id"`
+	OrgID             string     `json:"org_id"`
+	OrgName           string     `json:"org_name"`
+	VehicleID         *string    `json:"vehicle_id,omitempty"`
+	VehicleLabel      *string    `json:"vehicle_label,omitempty"`
+	DeviceKey         string     `json:"device_key"`
+	Name              string     `json:"name"`
+	SoftwareVersion   string     `json:"software_version"`
+	ConnectivityState string     `json:"connectivity_state"`
+	AppHealth         string     `json:"app_health"`
+	LastSeenAt        *time.Time `json:"last_seen_at"`
+}
+
+type RolloutOrgSummary struct {
+	OrgID           string                `json:"org_id"`
+	OrgName         string                `json:"org_name"`
+	TotalDevices    int                   `json:"total_devices"`
+	OnLatest        int                   `json:"on_latest"`
+	BehindLatest    int                   `json:"behind_latest"`
+	PercentUpToDate float64               `json:"percent_up_to_date"`
+	Devices         []DeviceRolloutStatus `json:"devices"`
+}
+
+type RolloutSummary struct {
+	LatestRelease   *SoftwareRelease    `json:"latest_release"`
+	TotalDevices    int                 `json:"total_devices"`
+	OnLatest        int                 `json:"on_latest"`
+	BehindLatest    int                 `json:"behind_latest"`
+	PercentUpToDate float64             `json:"percent_up_to_date"`
+	Organizations   []RolloutOrgSummary `json:"organizations"`
+}
+
+type EnrollmentBootstrapResponse struct {
+	Status            string     `json:"status"`
+	DeviceID          string     `json:"device_id"`
+	EnrollmentCode    *string    `json:"enrollment_code,omitempty"`
+	EnrollmentExpires *time.Time `json:"enrollment_expires_at,omitempty"`
+	VehicleID         *string    `json:"vehicle_id,omitempty"`
+	OrgID             *string    `json:"org_id,omitempty"`
 }
 
 type PlatformStats struct {
