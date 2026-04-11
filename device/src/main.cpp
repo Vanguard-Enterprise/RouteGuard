@@ -4,6 +4,7 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QUrl>
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
@@ -17,7 +18,7 @@ int main(int argc, char *argv[]) {
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app, []() {
         QCoreApplication::exit(-1);
     });
-    engine.loadFromModule("RouteGuard.Bus", "Main");
+    engine.load(QUrl(QStringLiteral("qrc:/qt/qml/RouteGuard/Bus/Main.qml")));
 
     controller.initialize();
     return app.exec();

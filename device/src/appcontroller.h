@@ -22,6 +22,7 @@ class AppController : public QObject {
     Q_PROPERTY(QString lastSync READ lastSync NOTIFY lastSyncChanged)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString deviceId READ deviceId CONSTANT)
+    Q_PROPERTY(QString fatalError READ fatalError NOTIFY fatalErrorChanged)
 
 public:
     explicit AppController(QObject *parent = nullptr);
@@ -37,6 +38,7 @@ public:
     QString lastSync() const;
     QString appVersion() const;
     QString deviceId() const;
+    QString fatalError() const;
 
     Q_INVOKABLE void initialize();
     Q_INVOKABLE void loginDriver(const QString &driverName);
@@ -52,14 +54,16 @@ signals:
     void routeCodeChanged();
     void lastScanChanged();
     void lastSyncChanged();
+    void fatalErrorChanged();
 
 private:
     bool shouldSuppressTag(const QString &tagId);
     void enterEnrollmentMode();
     void enterOperationalMode();
+    void setFatalError(const QString &message);
     QString storedToken() const;
     void persistToken(const QString &token);
-    QString ensurePersistentDeviceId();
+    QString resolveSystemDeviceId();
     void updatePendingCount();
 
     LocalStore m_store;
@@ -82,4 +86,5 @@ private:
     QString m_lastSync {"Never"};
     QString m_appVersion;
     QString m_deviceId;
+    QString m_fatalError;
 };

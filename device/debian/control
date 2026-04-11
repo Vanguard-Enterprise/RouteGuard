@@ -1,0 +1,9 @@
+Package: routeguard-bus
+Version: @VERSION@
+Section: utils
+Priority: optional
+Architecture: @ARCH@
+Maintainer: RouteGuard
+Depends: adduser, systemd
+Description: RouteGuard bus computer application
+ Native Qt/QML touchscreen appliance for in-bus RouteGuard devices.

@@ -220,7 +220,18 @@ export interface SoftwareRelease {
   version: string
   release_date: string
   release_notes: string
+  artifact_url: string
+  artifact_sha256: string
+  installer_url: string
+  target_os: string
+  target_arch: string
+  is_install_default: boolean
   created_at: string
+}
+
+export interface DeviceInstallCommand {
+  release: SoftwareRelease | null
+  command: string
 }
 
 export interface DeviceRolloutStatus {
@@ -700,8 +711,19 @@ export const api = {
     },
     updates: {
       releases: () => platformRequest<SoftwareRelease[]>('/platform/updates/releases'),
-      createRelease: (data: { version: string; release_date: string; release_notes?: string }) =>
+      createRelease: (data: {
+        version: string
+        release_date: string
+        release_notes?: string
+        artifact_url: string
+        artifact_sha256: string
+        installer_url: string
+        target_os?: string
+        target_arch?: string
+        is_install_default?: boolean
+      }) =>
         platformRequest<SoftwareRelease>('/platform/updates/releases', { method: 'POST', body: JSON.stringify(data) }),
+      installCommand: () => platformRequest<DeviceInstallCommand>('/platform/updates/install-command'),
       rollout: () => platformRequest<RolloutSummary>('/platform/updates/rollout'),
     },
   },

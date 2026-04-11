@@ -2,12 +2,14 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/routeguard/api/internal/crypto"
+	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/middleware"
 	"github.com/routeguard/api/internal/repository"
 )
@@ -305,9 +307,15 @@ func (h *Handler) PlatformListSoftwareReleases(w http.ResponseWriter, r *http.Re
 
 func (h *Handler) PlatformCreateSoftwareRelease(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Version      string `json:"version"`
-		ReleaseDate  string `json:"release_date"`
-		ReleaseNotes string `json:"release_notes"`
+		Version          string `json:"version"`
+		ReleaseDate      string `json:"release_date"`
+		ReleaseNotes     string `json:"release_notes"`
+		ArtifactURL      string `json:"artifact_url"`
+		ArtifactSHA256   string `json:"artifact_sha256"`
+		InstallerURL     string `json:"installer_url"`
+		TargetOS         string `json:"target_os"`
+		TargetArch       string `json:"target_arch"`
+		IsInstallDefault bool   `json:"is_install_default"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		Error(w, http.StatusBadRequest, "invalid request body")
@@ -315,12 +323,37 @@ func (h *Handler) PlatformCreateSoftwareRelease(w http.ResponseWriter, r *http.R
 	}
 	body.Version = strings.TrimSpace(body.Version)
 	body.ReleaseDate = strings.TrimSpace(body.ReleaseDate)
-	if body.Version == "" || body.ReleaseDate == "" {
-		Error(w, http.StatusBadRequest, "version and release_date are required")
+	body.ArtifactURL = strings.TrimSpace(body.ArtifactURL)
+	body.ArtifactSHA256 = strings.TrimSpace(body.ArtifactSHA256)
+	body.InstallerURL = strings.TrimSpace(body.InstallerURL)
+	body.TargetOS = strings.TrimSpace(body.TargetOS)
+	body.TargetArch = strings.TrimSpace(body.TargetArch)
+	if body.Version == "" || body.ReleaseDate == "" || body.ArtifactURL == "" || body.ArtifactSHA256 == "" || body.InstallerURL == "" {
+		Error(w, http.StatusBadRequest, "version, release_date, artifact_url, artifact_sha256, and installer_url are required")
+		return
+	}
+	if body.TargetOS == "" {
+		body.TargetOS = "debian"
+	}
+	if body.TargetArch == "" {
+		body.TargetArch = "amd64"
+	}
+	if len(body.ArtifactSHA256) != 64 {
+		Error(w, http.StatusBadRequest, "artifact_sha256 must be a 64 character hex digest")
 		return
 	}
 
-	rel, err := h.devices.CreateSoftwareRelease(r.Context(), body.Version, body.ReleaseDate, body.ReleaseNotes)
+	rel, err := h.devices.CreateSoftwareRelease(r.Context(), repository.SoftwareReleaseCreateInput{
+		Version:          body.Version,
+		ReleaseDate:      body.ReleaseDate,
+		ReleaseNotes:     body.ReleaseNotes,
+		ArtifactURL:      body.ArtifactURL,
+		ArtifactSHA256:   strings.ToLower(body.ArtifactSHA256),
+		InstallerURL:     body.InstallerURL,
+		TargetOS:         body.TargetOS,
+		TargetArch:       body.TargetArch,
+		IsInstallDefault: body.IsInstallDefault,
+	})
 	if err != nil {
 		if isUniqueViolation(err) {
 			Error(w, http.StatusConflict, "version already exists")
@@ -330,6 +363,36 @@ func (h *Handler) PlatformCreateSoftwareRelease(w http.ResponseWriter, r *http.R
 		return
 	}
 	JSON(w, http.StatusCreated, rel)
+}
+
+func (h *Handler) PlatformGetInstallCommand(w http.ResponseWriter, r *http.Request) {
+	rel, err := h.devices.InstallDefaultSoftwareRelease(r.Context())
+	if err != nil {
+		if isNotFound(err) {
+			rel, err = h.devices.LatestSoftwareRelease(r.Context())
+		}
+		if err != nil {
+			Error(w, http.StatusNotFound, "no installable device release available")
+			return
+		}
+	}
+	if strings.TrimSpace(rel.InstallerURL) == "" || strings.TrimSpace(rel.ArtifactURL) == "" || strings.TrimSpace(rel.ArtifactSHA256) == "" {
+		Error(w, http.StatusNotFound, "selected release does not have install metadata")
+		return
+	}
+
+	command := fmt.Sprintf(
+		"curl -fsSL %s | sudo bash -s -- --package-url %s --sha256 %s --version %s",
+		shellEscape(rel.InstallerURL),
+		shellEscape(rel.ArtifactURL),
+		shellEscape(rel.ArtifactSHA256),
+		shellEscape(rel.Version),
+	)
+
+	JSON(w, http.StatusOK, domain.DeviceInstallCommand{
+		Release: rel,
+		Command: command,
+	})
 }
 
 func (h *Handler) PlatformGetRollout(w http.ResponseWriter, r *http.Request) {
@@ -345,6 +408,10 @@ func (h *Handler) PlatformGetRollout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	JSON(w, http.StatusOK, summary)
+}
+
+func shellEscape(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 func (h *Handler) decryptOrgNameFromEncrypted(nameEnc string) string {

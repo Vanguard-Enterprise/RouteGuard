@@ -52,6 +52,18 @@ type DeviceClaimInput struct {
 	ClaimedAt time.Time
 }
 
+type SoftwareReleaseCreateInput struct {
+	Version          string
+	ReleaseDate      string
+	ReleaseNotes     string
+	ArtifactURL      string
+	ArtifactSHA256   string
+	InstallerURL     string
+	TargetOS         string
+	TargetArch       string
+	IsInstallDefault bool
+}
+
 type EnrollmentStatusResult struct {
 	Device     *domain.Device
 	Status     string
@@ -62,6 +74,10 @@ type EnrollmentStatusResult struct {
 }
 
 type deviceScanner interface {
+	Scan(dest ...any) error
+}
+
+type softwareReleaseScanner interface {
 	Scan(dest ...any) error
 }
 
@@ -79,6 +95,27 @@ func scanDevice(scanner deviceScanner) (*domain.Device, error) {
 		return nil, err
 	}
 	return &d, nil
+}
+
+func scanSoftwareRelease(scanner softwareReleaseScanner) (*domain.SoftwareRelease, error) {
+	var rel domain.SoftwareRelease
+	err := scanner.Scan(
+		&rel.ID,
+		&rel.Version,
+		&rel.ReleaseDate,
+		&rel.ReleaseNotes,
+		&rel.ArtifactURL,
+		&rel.ArtifactSHA256,
+		&rel.InstallerURL,
+		&rel.TargetOS,
+		&rel.TargetArch,
+		&rel.IsInstallDefault,
+		&rel.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &rel, nil
 }
 
 func (r *DeviceRepo) findByDeviceKey(ctx context.Context, deviceKey string) (*domain.Device, error) {
@@ -418,9 +455,10 @@ func (r *DeviceRepo) ResetEnrollment(ctx context.Context, orgID, id string, now 
 
 func (r *DeviceRepo) ListSoftwareReleases(ctx context.Context) ([]domain.SoftwareRelease, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, version, release_date::text, release_notes, created_at
+		SELECT id, version, release_date::text, release_notes, artifact_url, artifact_sha256, installer_url,
+		       target_os, target_arch, is_install_default, created_at
 		FROM software_releases
-		ORDER BY release_date DESC, created_at DESC`)
+		ORDER BY is_install_default DESC, release_date DESC, created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list software releases: %w", err)
 	}
@@ -428,40 +466,70 @@ func (r *DeviceRepo) ListSoftwareReleases(ctx context.Context) ([]domain.Softwar
 
 	items := make([]domain.SoftwareRelease, 0)
 	for rows.Next() {
-		var rel domain.SoftwareRelease
-		if err := rows.Scan(&rel.ID, &rel.Version, &rel.ReleaseDate, &rel.ReleaseNotes, &rel.CreatedAt); err != nil {
+		rel, err := scanSoftwareRelease(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan software release: %w", err)
 		}
-		items = append(items, rel)
+		items = append(items, *rel)
 	}
 	return items, nil
 }
 
-func (r *DeviceRepo) CreateSoftwareRelease(ctx context.Context, version, releaseDate, notes string) (*domain.SoftwareRelease, error) {
-	var rel domain.SoftwareRelease
-	err := r.pool.QueryRow(ctx, `
-		INSERT INTO software_releases (version, release_date, release_notes)
-		VALUES ($1, $2::date, $3)
-		RETURNING id, version, release_date::text, release_notes, created_at`,
-		version, releaseDate, notes,
-	).Scan(&rel.ID, &rel.Version, &rel.ReleaseDate, &rel.ReleaseNotes, &rel.CreatedAt)
+func (r *DeviceRepo) CreateSoftwareRelease(ctx context.Context, in SoftwareReleaseCreateInput) (*domain.SoftwareRelease, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin create software release: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if in.IsInstallDefault {
+		if _, err := tx.Exec(ctx, `UPDATE software_releases SET is_install_default = FALSE WHERE is_install_default = TRUE`); err != nil {
+			return nil, fmt.Errorf("clear install default release: %w", err)
+		}
+	}
+
+	rel, err := scanSoftwareRelease(tx.QueryRow(ctx, `
+		INSERT INTO software_releases (
+			version, release_date, release_notes, artifact_url, artifact_sha256, installer_url, target_os, target_arch, is_install_default
+		)
+		VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, version, release_date::text, release_notes, artifact_url, artifact_sha256, installer_url,
+		          target_os, target_arch, is_install_default, created_at`,
+		in.Version, in.ReleaseDate, in.ReleaseNotes, in.ArtifactURL, in.ArtifactSHA256, in.InstallerURL, in.TargetOS, in.TargetArch, in.IsInstallDefault,
+	))
 	if err != nil {
 		return nil, fmt.Errorf("create software release: %w", err)
 	}
-	return &rel, nil
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit create software release: %w", err)
+	}
+	return rel, nil
 }
 
 func (r *DeviceRepo) LatestSoftwareRelease(ctx context.Context) (*domain.SoftwareRelease, error) {
-	var rel domain.SoftwareRelease
-	err := r.pool.QueryRow(ctx, `
-		SELECT id, version, release_date::text, release_notes, created_at
+	rel, err := scanSoftwareRelease(r.pool.QueryRow(ctx, `
+		SELECT id, version, release_date::text, release_notes, artifact_url, artifact_sha256, installer_url,
+		       target_os, target_arch, is_install_default, created_at
 		FROM software_releases
 		ORDER BY release_date DESC, created_at DESC
-		LIMIT 1`).Scan(&rel.ID, &rel.Version, &rel.ReleaseDate, &rel.ReleaseNotes, &rel.CreatedAt)
+		LIMIT 1`))
 	if err != nil {
 		return nil, fmt.Errorf("latest software release: %w", err)
 	}
-	return &rel, nil
+	return rel, nil
+}
+
+func (r *DeviceRepo) InstallDefaultSoftwareRelease(ctx context.Context) (*domain.SoftwareRelease, error) {
+	rel, err := scanSoftwareRelease(r.pool.QueryRow(ctx, `
+		SELECT id, version, release_date::text, release_notes, artifact_url, artifact_sha256, installer_url,
+		       target_os, target_arch, is_install_default, created_at
+		FROM software_releases
+		WHERE is_install_default = TRUE
+		LIMIT 1`))
+	if err != nil {
+		return nil, fmt.Errorf("install default software release: %w", err)
+	}
+	return rel, nil
 }
 
 func (r *DeviceRepo) RolloutSummary(ctx context.Context) (*domain.RolloutSummary, error) {

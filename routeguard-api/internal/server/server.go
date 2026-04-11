@@ -112,6 +112,7 @@ func (s *Server) buildRouter() chi.Router {
 		// Updates
 		r.Get("/updates/releases", h.PlatformListSoftwareReleases)
 		r.Post("/updates/releases", h.PlatformCreateSoftwareRelease)
+		r.Get("/updates/install-command", h.PlatformGetInstallCommand)
 		r.Get("/updates/rollout", h.PlatformGetRollout)
 
 		// Support

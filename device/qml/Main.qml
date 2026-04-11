@@ -39,7 +39,7 @@ ApplicationWindow {
                     }
 
                     Text {
-                        text: "Device " + appController.deviceId + "  |  v" + appController.appVersion
+                        text: (appController.deviceId ? "Device " + appController.deviceId : "Device unavailable") + "  |  v" + appController.appVersion
                         color: "#8fa8c5"
                         font.pixelSize: 18
                     }
@@ -245,7 +245,9 @@ ApplicationWindow {
                 }
 
                 Text {
-                    text: "Have an org admin claim this bus computer from Settings > Devices."
+                    text: appController.fatalError
+                        ? "This device cannot enroll until its system identity is repaired."
+                        : "Have an org admin claim this bus computer from Settings > Devices."
                     color: "#9ab2ce"
                     font.pixelSize: 18
                     horizontalAlignment: Text.AlignHCenter
@@ -264,23 +266,26 @@ ApplicationWindow {
                         spacing: 12
 
                         Text {
-                            text: "Enrollment Code"
+                            text: appController.fatalError ? "Device Error" : "Enrollment Code"
                             color: "#8fa8c5"
                             font.pixelSize: 18
                             Layout.alignment: Qt.AlignHCenter
                         }
 
                         Text {
-                            text: appController.enrollmentCode || "Loading..."
+                            text: appController.fatalError || appController.enrollmentCode || "Loading..."
                             color: "white"
-                            font.pixelSize: 52
+                            font.pixelSize: appController.fatalError ? 26 : 52
                             font.bold: true
-                            letterSpacing: 4
+                            letterSpacing: appController.fatalError ? 0 : 4
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignHCenter
                             Layout.alignment: Qt.AlignHCenter
+                            Layout.maximumWidth: 440
                         }
 
                         Text {
-                            text: appController.enrollmentExpires ? "Expires: " + appController.enrollmentExpires : ""
+                            text: appController.fatalError ? "" : (appController.enrollmentExpires ? "Expires: " + appController.enrollmentExpires : "")
                             color: "#9ab2ce"
                             font.pixelSize: 16
                             Layout.alignment: Qt.AlignHCenter
@@ -289,8 +294,9 @@ ApplicationWindow {
                 }
 
                 Button {
-                    text: "Refresh"
+                    text: appController.fatalError ? "Unavailable" : "Refresh"
                     Layout.alignment: Qt.AlignHCenter
+                    enabled: !appController.fatalError
                     onClicked: appController.forceSync()
                 }
             }

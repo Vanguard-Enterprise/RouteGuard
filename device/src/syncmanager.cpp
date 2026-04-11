@@ -1,4 +1,5 @@
 #include "syncmanager.h"
+#include "build_config.h"
 
 #include <QDateTime>
 #include <QJsonArray>
@@ -11,8 +12,8 @@
 SyncManager::SyncManager(LocalStore *store, QObject *parent)
     : QObject(parent), m_store(store) {}
 
-void SyncManager::configure(QString apiBase, QString deviceId, QString appVersion) {
-    m_apiBase = apiBase;
+void SyncManager::configure(QString deviceId, QString appVersion) {
+    m_apiBase = QStringLiteral(ROUTEGUARD_API_BASE_URL);
     m_deviceId = deviceId;
     m_appVersion = appVersion;
 }

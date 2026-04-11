@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! id -u routeguard >/dev/null 2>&1; then
+  adduser --system --group --home /var/lib/routeguard --no-create-home routeguard
+fi
+
+mkdir -p /opt/routeguard-bus
+chown -R routeguard:routeguard /opt/routeguard-bus
+
+systemctl daemon-reload
+systemctl enable routeguard-bus.service
+systemctl restart routeguard-bus.service

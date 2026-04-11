@@ -1,20 +1,15 @@
 #include "appcontroller.h"
+#include "build_config.h"
 
 #include <QDateTime>
+#include <QFile>
 #include <QJsonObject>
-#include <QProcessEnvironment>
 #include <QUuid>
-
-namespace {
-QString readEnv(const char *key, const QString &fallback = QString()) {
-    return QProcessEnvironment::systemEnvironment().value(QString::fromUtf8(key), fallback);
-}
-}
 
 AppController::AppController(QObject *parent)
     : QObject(parent), m_sync(&m_store, this), m_settings("RouteGuard", "RouteGuard Bus") {
-    m_appVersion = readEnv("ROUTEGUARD_APP_VERSION", "0.1.0");
-    m_deviceId = ensurePersistentDeviceId();
+    m_appVersion = QStringLiteral(ROUTEGUARD_BUILD_VERSION);
+    m_deviceId = resolveSystemDeviceId();
 
     connect(&m_sync, &SyncManager::bootstrapReady, this, [this](const QString &status, const QString &code, const QString &expiresAt) {
         if (!code.isEmpty()) {
@@ -90,16 +85,17 @@ QString AppController::lastScan() const { return m_lastScan; }
 QString AppController::lastSync() const { return m_lastSync; }
 QString AppController::appVersion() const { return m_appVersion; }
 QString AppController::deviceId() const { return m_deviceId; }
+QString AppController::fatalError() const { return m_fatalError; }
 
 void AppController::initialize() {
     m_store.initialize();
     updatePendingCount();
 
-    m_sync.configure(
-        readEnv("ROUTEGUARD_API_BASE", "http://localhost:8080"),
-        m_deviceId,
-        m_appVersion
-    );
+    if (m_deviceId.isEmpty()) {
+        return;
+    }
+
+    m_sync.configure(m_deviceId, m_appVersion);
 
     const QString token = storedToken();
     if (!token.isEmpty()) {
@@ -133,7 +129,7 @@ bool AppController::shouldSuppressTag(const QString &tagId) {
 
 void AppController::submitTag(const QString &tagId) {
     const QString normalized = tagId.trimmed();
-    if (m_enrollmentRequired || normalized.isEmpty() || shouldSuppressTag(normalized)) {
+    if (!m_fatalError.isEmpty() || m_enrollmentRequired || normalized.isEmpty() || shouldSuppressTag(normalized)) {
         return;
     }
 
@@ -156,6 +152,9 @@ void AppController::submitTag(const QString &tagId) {
 }
 
 void AppController::forceSync() {
+    if (!m_fatalError.isEmpty()) {
+        return;
+    }
     if (m_enrollmentRequired) {
         m_sync.bootstrap();
         return;
@@ -189,6 +188,24 @@ void AppController::enterOperationalMode() {
     emit enrollmentStateChanged();
 }
 
+void AppController::setFatalError(const QString &message) {
+    if (m_fatalError == message) {
+        return;
+    }
+    m_fatalError = message;
+    m_enrollmentRequired = true;
+    m_connectivityStatus = "error";
+    m_enrollmentCode.clear();
+    m_enrollmentExpires.clear();
+    m_enrollmentCodeTimer.stop();
+    m_enrollmentPollTimer.stop();
+    m_checkInTimer.stop();
+    m_syncTimer.stop();
+    emit connectivityStatusChanged();
+    emit enrollmentStateChanged();
+    emit fatalErrorChanged();
+}
+
 QString AppController::storedToken() const {
     return m_settings.value("deviceToken").toString();
 }
@@ -201,19 +218,24 @@ void AppController::persistToken(const QString &token) {
     }
 }
 
-QString AppController::ensurePersistentDeviceId() {
-    const QString envDeviceId = readEnv("ROUTEGUARD_DEVICE_ID");
-    if (!envDeviceId.isEmpty()) {
-        m_settings.setValue("deviceId", envDeviceId);
-        return envDeviceId;
+QString AppController::resolveSystemDeviceId() {
+    QFile machineIdFile(QStringLiteral("/etc/machine-id"));
+    if (!machineIdFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QString message = QStringLiteral("Missing /etc/machine-id. RouteGuard cannot enroll this device until the system machine ID is available.");
+        qCritical().noquote() << message;
+        setFatalError(message);
+        return {};
     }
-    const QString existing = m_settings.value("deviceId").toString();
-    if (!existing.isEmpty()) {
-        return existing;
+
+    const QString machineId = QString::fromUtf8(machineIdFile.readAll()).trimmed().toLower();
+    if (machineId.isEmpty()) {
+        const QString message = QStringLiteral("Empty /etc/machine-id. RouteGuard cannot enroll this device until the system machine ID is repaired.");
+        qCritical().noquote() << message;
+        setFatalError(message);
+        return {};
     }
-    const QString generated = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    m_settings.setValue("deviceId", generated);
-    return generated;
+
+    return machineId;
 }
 
 void AppController::updatePendingCount() {

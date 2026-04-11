@@ -11,7 +11,7 @@ class SyncManager : public QObject {
 public:
     explicit SyncManager(LocalStore *store, QObject *parent = nullptr);
 
-    void configure(QString apiBase, QString deviceId, QString appVersion);
+    void configure(QString deviceId, QString appVersion);
     void setDeviceToken(const QString &deviceToken);
     void bootstrap();
     void refreshEnrollmentCode();

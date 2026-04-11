@@ -24,20 +24,42 @@ cmake --build build
 
 The resulting binary is `routeguard-bus`.
 
-## Runtime configuration
+Production builds embed:
 
-The app reads configuration from environment variables:
+- API base URL: `https://api.route-guard.com`
+- app version: from the CMake project version
+- device identity: from `/etc/machine-id`
 
-- `ROUTEGUARD_API_BASE`
-- `ROUTEGUARD_DEVICE_ID`
-- `ROUTEGUARD_APP_VERSION`
+Developer builds can target another API by setting the CMake cache variable at configure time:
+
+```bash
+cmake -S . -B build -DROUTEGUARD_API_BASE=http://localhost:8080
+```
+
+## Debian package
+
+Build the app first, then assemble the installable Debian package:
+
+```bash
+cmake -S . -B build
+cmake --build build
+./debian/build-deb.sh
+```
+
+This produces:
+
+- `build/dist/routeguard-bus_<version>_amd64.deb`
+- `build/dist/routeguard-bus_<version>_amd64.deb.sha256`
+
+The one-line installer script lives at `linux/install-routeguard-bus.sh` and is designed to be hosted from RouteGuard-managed storage.
 
 Device enrollment is now backend-driven:
 
 - first boot shows a rotating enrollment code
 - an org admin claims the device from dashboard settings
 - the issued device token is persisted locally by the app
+- if `/etc/machine-id` is missing or unreadable, the app stops in a visible device-error state instead of inventing a new ID
 
 ## Linux appliance notes
 
-See `linux/routeguard-bus.service` for a systemd unit example and `linux/routeguard-bus.env.example` for environment configuration.
+See `linux/routeguard-bus.service` for a systemd unit example. The service no longer needs an environment file for normal production use.

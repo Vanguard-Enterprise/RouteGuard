@@ -7,6 +7,14 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+set(ROUTEGUARD_API_BASE "https://api.route-guard.com" CACHE STRING "RouteGuard device API base URL")
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/build_config.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/build_config.h
+    @ONLY
+)
+
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network Sql)
 
 qt_standard_project_setup()
@@ -34,4 +42,8 @@ target_link_libraries(routeguard-bus PRIVATE
     Qt6::Quick
     Qt6::Network
     Qt6::Sql
+)
+
+target_include_directories(routeguard-bus PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
 )

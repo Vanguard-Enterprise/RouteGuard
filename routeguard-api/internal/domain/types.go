@@ -334,11 +334,22 @@ type RouteStudent struct {
 }
 
 type SoftwareRelease struct {
-	ID           string    `json:"id"`
-	Version      string    `json:"version"`
-	ReleaseDate  string    `json:"release_date"`
-	ReleaseNotes string    `json:"release_notes"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID               string    `json:"id"`
+	Version          string    `json:"version"`
+	ReleaseDate      string    `json:"release_date"`
+	ReleaseNotes     string    `json:"release_notes"`
+	ArtifactURL      string    `json:"artifact_url"`
+	ArtifactSHA256   string    `json:"artifact_sha256"`
+	InstallerURL     string    `json:"installer_url"`
+	TargetOS         string    `json:"target_os"`
+	TargetArch       string    `json:"target_arch"`
+	IsInstallDefault bool      `json:"is_install_default"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type DeviceInstallCommand struct {
+	Release *SoftwareRelease `json:"release"`
+	Command string           `json:"command"`
 }
 
 type DeviceRolloutStatus struct {
