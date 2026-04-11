@@ -63,3 +63,5 @@ Device enrollment is now backend-driven:
 ## Linux appliance notes
 
 See `linux/routeguard-bus.service` for a systemd unit example. The service no longer needs an environment file for normal production use.
+
+For kiosk-style appliance installs on hardware with multiple connected displays, the packaged `linux/eglfs-kms.json` file is the source of truth for connector selection. Production currently prefers the external `DP-2` output and disables the built-in `eDP-1` panel on the reference laptop hardware.

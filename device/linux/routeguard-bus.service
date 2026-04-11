@@ -7,6 +7,7 @@ Conflicts=getty@tty1.service
 [Service]
 Type=simple
 Environment=QT_QPA_PLATFORM=eglfs
+Environment=QT_QPA_EGLFS_KMS_CONFIG=/opt/routeguard-bus/eglfs-kms.json
 ExecStart=/opt/routeguard-bus/routeguard-bus
 Restart=always
 RestartSec=3

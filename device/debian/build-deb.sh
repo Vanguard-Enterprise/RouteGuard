@@ -32,6 +32,7 @@ sed \
 
 install -m 0755 "${ROOT_DIR}/debian/postinst" "${PACKAGE_DIR}/DEBIAN/postinst"
 install -m 0755 "${BUILD_DIR}/routeguard-bus" "${PACKAGE_DIR}/opt/routeguard-bus/routeguard-bus"
+install -m 0644 "${ROOT_DIR}/linux/eglfs-kms.json" "${PACKAGE_DIR}/opt/routeguard-bus/eglfs-kms.json"
 install -m 0644 "${ROOT_DIR}/linux/routeguard-bus.service" "${PACKAGE_DIR}/etc/systemd/system/routeguard-bus.service"
 
 dpkg-deb --build "${PACKAGE_DIR}" "${OUTPUT_DIR}/routeguard-bus_${VERSION}_${ARCH}.deb"
