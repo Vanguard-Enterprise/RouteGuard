@@ -277,7 +277,7 @@ ApplicationWindow {
                             color: "white"
                             font.pixelSize: appController.fatalError ? 26 : 52
                             font.bold: true
-                            letterSpacing: appController.fatalError ? 0 : 4
+                            font.letterSpacing: appController.fatalError ? 0 : 4
                             wrapMode: Text.WordWrap
                             horizontalAlignment: Text.AlignHCenter
                             Layout.alignment: Qt.AlignHCenter

@@ -16,5 +16,16 @@ Enterprise school bus fleet management platform.
 
 See `deploy/README.md` for full setup instructions.
 
-##Server Authentication
-The server running our infrastructure is located at 10.1.40.125. You can login using the deploy/keys and the root user.
+## Server Authentication
+
+The production infrastructure server is located at `10.1.40.125`. You can log in as `root` using the SSH key material in `deploy/keys`.
+
+## Device Box Access
+
+The Debian device box used for bus-device setup is located at `10.1.11.198`.
+
+- User login:
+  - username: `routeguard`
+  - password: `routeguard`
+- Root login:
+  - password: `routeguard`
