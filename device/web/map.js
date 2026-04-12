@@ -8,6 +8,8 @@
   let stopMarkers = [];
   let destinationMarker = null;
   let initialFitComplete = false;
+  let tileLayerReady = false;
+  let tileLayerFailed = false;
 
   function setStatus(message) {
     const element = document.getElementById("map-status");
@@ -56,8 +58,22 @@
       tileSize: 512,
       zoomOffset: -1,
       maxZoom: 18,
-      crossOrigin: true,
       updateWhenIdle: true,
+    });
+    tileLayer.on("loading", function () {
+      tileLayerReady = false;
+      tileLayerFailed = false;
+      setStatus("Loading map");
+    });
+    tileLayer.on("load", function () {
+      tileLayerReady = true;
+      tileLayerFailed = false;
+      setStatus("");
+    });
+    tileLayer.on("tileerror", function () {
+      tileLayerReady = false;
+      tileLayerFailed = true;
+      setStatus("Map tiles unavailable");
     });
     tileLayer.addTo(map);
   }
@@ -184,12 +200,22 @@
     ]);
 
     if (stops.length === 0) {
-      setStatus("No assigned route to display");
+      setStatus(tileLayerFailed ? "Map tiles unavailable" : "No assigned route to display");
       return;
     }
 
     if (selectedDestination && directionsGeometry.length <= 1) {
       setStatus("Directions unavailable");
+      return;
+    }
+
+    if (tileLayerFailed) {
+      setStatus("Map tiles unavailable");
+      return;
+    }
+
+    if (!tileLayerReady) {
+      setStatus("Loading map");
       return;
     }
 

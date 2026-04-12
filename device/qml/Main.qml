@@ -6,15 +6,24 @@ import QtWebEngine
 
 ApplicationWindow {
     visible: true
-    width: 1280
-    height: 800
+    visibility: Window.FullScreen
+    width: 1920
+    height: 1080
     title: "RouteGuard Bus"
     color: "#0b1320"
+    readonly property real designWidth: 1920
+    readonly property real designHeight: 1080
+    readonly property real uiScale: Math.max(0.82, Math.min(width / designWidth, height / designHeight))
+    readonly property bool compactLayout: width < 1500 || height < 860
     property string driverPinValue: ""
     property string lockToastMessage: ""
     property bool lockToastVisible: false
     property string navigationQuery: ""
     property string rfidTagValue: ""
+
+    function px(value) {
+        return Math.round(value * uiScale)
+    }
 
     function appendDriverPin(digit) {
         if (appController.driverAuthenticated || appController.driverLoginPending || driverPinValue.length >= 4) {
@@ -86,10 +95,10 @@ ApplicationWindow {
     }
 
     component ChromeButton: Button {
-        font.pixelSize: 16
+        font.pixelSize: px(16)
         padding: 0
         background: Rectangle {
-            radius: 18
+            radius: px(18)
             color: parent.down ? "#dbe7f5" : "#f8fbff"
             border.color: "#d9e5f2"
         }
@@ -366,16 +375,16 @@ ApplicationWindow {
     Rectangle {
         anchors.top: parent.top
         anchors.right: parent.right
-        anchors.topMargin: 24
-        anchors.rightMargin: 24
-        width: Math.min(parent.width - 48, 420)
-        radius: 18
+        anchors.topMargin: px(24)
+        anchors.rightMargin: px(24)
+        width: Math.min(parent.width - px(48), px(420))
+        radius: px(18)
         z: 12
         visible: lockToastVisible
         opacity: lockToastVisible ? 1 : 0
         color: "#2a1217"
         border.color: "#d7677f"
-        implicitHeight: 92
+        implicitHeight: px(92)
 
         Behavior on opacity {
             NumberAnimation { duration: 160 }
@@ -391,20 +400,20 @@ ApplicationWindow {
 
         RowLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 12
+            anchors.margins: px(16)
+            spacing: px(12)
 
             Rectangle {
-                Layout.preferredWidth: 40
-                Layout.preferredHeight: 40
-                radius: 20
+                Layout.preferredWidth: px(40)
+                Layout.preferredHeight: px(40)
+                radius: px(20)
                 color: "#4a1c24"
 
                 Text {
                     anchors.centerIn: parent
                     text: "!"
                     color: "#ffb3c2"
-                    font.pixelSize: 24
+                    font.pixelSize: px(24)
                     font.bold: true
                 }
             }
@@ -416,14 +425,14 @@ ApplicationWindow {
                 Text {
                     text: "Unlock failed"
                     color: "white"
-                    font.pixelSize: 17
+                    font.pixelSize: px(17)
                     font.bold: true
                 }
 
                 Text {
                     text: lockToastMessage
                     color: "#ffd2dc"
-                    font.pixelSize: 15
+                    font.pixelSize: px(15)
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -460,13 +469,13 @@ ApplicationWindow {
 
         ColumnLayout {
             anchors.centerIn: parent
-            width: Math.min(parent.width - 120, 700)
-            spacing: 24
+            width: Math.min(parent.width - px(120), Math.max(px(700), parent.width * 0.42))
+            spacing: px(24)
 
             Image {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Math.min(420, parent.width)
-                Layout.preferredHeight: 96
+                Layout.preferredWidth: Math.min(px(420), parent.width)
+                Layout.preferredHeight: px(96)
                 fillMode: Image.PreserveAspectFit
                 mipmap: true
                 source: "qrc:/RouteGuard/Bus/assets/text-logo.png"
@@ -475,7 +484,7 @@ ApplicationWindow {
             Text {
                 text: "Device Locked"
                 color: "white"
-                font.pixelSize: 48
+                font.pixelSize: px(48)
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
                 Layout.fillWidth: true
@@ -483,22 +492,22 @@ ApplicationWindow {
 
             Rectangle {
                 Layout.fillWidth: true
-                radius: 18
+                radius: px(18)
                 color: appController.driverLoginError.length > 0 ? "#3b1820" : "#0d1828"
                 border.color: appController.driverLoginError.length > 0 ? "#d7677f" : "#2d4a69"
-                implicitHeight: 156
+                implicitHeight: px(156)
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 22
-                    spacing: 12
+                    anchors.margins: px(22)
+                    spacing: px(12)
 
                     Text {
                         text: maskedDriverPin()
                         color: "white"
-                        font.pixelSize: 42
+                        font.pixelSize: px(42)
                         font.bold: true
-                        font.letterSpacing: 6
+                        font.letterSpacing: px(6)
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
                     }
@@ -506,7 +515,7 @@ ApplicationWindow {
                     Text {
                         text: appController.driverLoginPending ? "Checking PIN..." : ""
                         color: "#c8d8ea"
-                        font.pixelSize: 18
+                        font.pixelSize: px(18)
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
                         visible: text.length > 0
@@ -517,8 +526,8 @@ ApplicationWindow {
             GridLayout {
                 Layout.fillWidth: true
                 columns: 3
-                columnSpacing: 16
-                rowSpacing: 16
+                columnSpacing: px(16)
+                rowSpacing: px(16)
                 enabled: !appController.driverLoginPending
 
                 Repeater {
@@ -526,9 +535,9 @@ ApplicationWindow {
 
                     Button {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 126
+                        Layout.preferredHeight: px(126)
                         text: modelData
-                        font.pixelSize: 34
+                        font.pixelSize: px(34)
                         font.bold: true
 
                         onClicked: {
@@ -553,16 +562,16 @@ ApplicationWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 34
-            spacing: 20
+            anchors.margins: px(34)
+            spacing: px(20)
 
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
                 ChromeButton {
                     text: "More"
-                    implicitWidth: 108
-                    implicitHeight: 48
+                    implicitWidth: px(108)
+                    implicitHeight: px(48)
                     onClicked: homeOverflowMenu.open()
                 }
             }
@@ -570,28 +579,28 @@ ApplicationWindow {
             Text {
                 text: appController.greeting
                 color: "#d8e6f5"
-                font.pixelSize: 44
+                font.pixelSize: px(44)
                 font.bold: true
             }
 
             Text {
                 text: appController.activeDriver
                 color: "white"
-                font.pixelSize: 28
+                font.pixelSize: px(28)
                 font.bold: true
             }
 
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: 26
+                radius: px(26)
                 color: "#f8fbff"
                 border.color: "#dce7f3"
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 22
-                    spacing: 14
+                    anchors.margins: px(22)
+                    spacing: px(14)
 
                     BusyIndicator {
                         Layout.alignment: Qt.AlignHCenter
@@ -602,13 +611,14 @@ ApplicationWindow {
                     Text {
                         text: appController.driverHomeError
                         color: "#9f1239"
+                        font.pixelSize: px(16)
                         visible: !appController.driverHomeLoading && appController.driverHomeError.length > 0
                     }
 
                     Text {
                         text: appController.hasAssignedRoute ? appController.selectedRoute.route_code : "No active route assigned for this driver/device right now."
                         color: "#0f172a"
-                        font.pixelSize: appController.hasAssignedRoute ? 34 : 24
+                        font.pixelSize: appController.hasAssignedRoute ? px(34) : px(24)
                         font.bold: true
                         visible: !appController.driverHomeLoading
                     }
@@ -618,7 +628,7 @@ ApplicationWindow {
                               ? appController.selectedRoute.service_window + "  |  " + routeStops(appController.selectedRoute).length + " stops  |  " + appController.selectedRoute.assigned_students + " students"
                               : "Open the map for orientation or wait for dispatch to assign a route."
                         color: "#47617d"
-                        font.pixelSize: 16
+                        font.pixelSize: px(16)
                         wrapMode: Text.WordWrap
                         visible: !appController.driverHomeLoading
                     }
@@ -626,7 +636,7 @@ ApplicationWindow {
                     ListView {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        spacing: 10
+                        spacing: px(10)
                         clip: true
                         visible: !appController.driverHomeLoading && appController.hasAssignedRoute
                         model: routeStops(appController.selectedRoute)
@@ -634,19 +644,19 @@ ApplicationWindow {
                         delegate: RowLayout {
                             required property var modelData
                             width: ListView.view.width
-                            spacing: 12
+                            spacing: px(12)
 
                             Rectangle {
-                                Layout.preferredWidth: 30
-                                Layout.preferredHeight: 30
-                                radius: 15
+                                Layout.preferredWidth: px(30)
+                                Layout.preferredHeight: px(30)
+                                radius: px(15)
                                 color: "#dbeafe"
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: modelData.stop_order
                                     color: "#1d4ed8"
-                                    font.pixelSize: 14
+                                    font.pixelSize: px(14)
                                     font.bold: true
                                 }
                             }
@@ -658,14 +668,14 @@ ApplicationWindow {
                                 Text {
                                     text: modelData.name
                                     color: "#0f172a"
-                                    font.pixelSize: 18
+                                    font.pixelSize: px(18)
                                     font.bold: true
                                 }
 
                                 Text {
                                     text: modelData.address
                                     color: "#64748b"
-                                    font.pixelSize: 14
+                                    font.pixelSize: px(14)
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
                                 }
@@ -675,13 +685,13 @@ ApplicationWindow {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 14
+                        spacing: px(14)
                         visible: !appController.driverHomeLoading
 
                         ChromeButton {
                             text: "Start Route"
                             Layout.fillWidth: true
-                            implicitHeight: 64
+                            implicitHeight: px(64)
                             enabled: appController.hasAssignedRoute
                             onClicked: appController.startRoute()
                         }
@@ -689,7 +699,7 @@ ApplicationWindow {
                         ChromeButton {
                             text: "Open Map"
                             Layout.fillWidth: true
-                            implicitHeight: 64
+                            implicitHeight: px(64)
                             onClicked: appController.openMap()
                         }
                     }
@@ -704,12 +714,14 @@ ApplicationWindow {
 
         Rectangle {
             id: consolePanel
-            width: appController.operationsPanelExpanded ? 360 : 90
+            width: appController.operationsPanelExpanded
+                   ? Math.max(px(320), Math.min(Math.round(parent.width * 0.30), px(420)))
+                   : px(90)
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.margins: 26
-            radius: 26
+            anchors.margins: px(26)
+            radius: px(26)
             color: "#f8fbff"
             border.color: "#dce7f3"
 
@@ -719,39 +731,39 @@ ApplicationWindow {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+                anchors.margins: px(14)
+                spacing: px(12)
                 visible: !appController.operationsPanelExpanded
 
                 ChromeButton {
                     text: "Menu"
-                    implicitHeight: 52
+                    implicitHeight: px(52)
                     onClicked: appController.setOperationsPanelExpanded(true)
                 }
 
                 ChromeButton {
                     text: "Home"
-                    implicitHeight: 52
+                    implicitHeight: px(52)
                     onClicked: appController.showDriverHome()
                 }
 
                 ChromeButton {
                     text: appController.routeStarted ? "Sync" : "Start"
-                    implicitHeight: 52
+                    implicitHeight: px(52)
                     onClicked: appController.routeStarted ? appController.forceSync() : appController.startRoute()
                 }
 
                 ChromeButton {
                     text: "More"
-                    implicitHeight: 52
+                    implicitHeight: px(52)
                     onClicked: consoleOverflowMenu.open()
                 }
             }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 16
-                spacing: 12
+                anchors.margins: px(16)
+                spacing: px(12)
                 visible: appController.operationsPanelExpanded
 
                 RowLayout {
@@ -760,15 +772,15 @@ ApplicationWindow {
                     Text {
                         text: appController.routeStarted ? "Active Route" : "Map Console"
                         color: "#0f172a"
-                        font.pixelSize: 22
+                        font.pixelSize: px(22)
                         font.bold: true
                         Layout.fillWidth: true
                     }
 
                     ChromeButton {
                         text: "Hide"
-                        implicitWidth: 84
-                        implicitHeight: 40
+                        implicitWidth: px(84)
+                        implicitHeight: px(40)
                         onClicked: appController.setOperationsPanelExpanded(false)
                     }
                 }
@@ -776,21 +788,21 @@ ApplicationWindow {
                 Text {
                     text: appController.hasAssignedRoute ? appController.selectedRoute.route_code : "No route assigned"
                     color: "#0f172a"
-                    font.pixelSize: 28
+                    font.pixelSize: px(28)
                     font.bold: true
                 }
 
                 Text {
                     text: stopSummary(appController.selectedStop)
                     color: "#47617d"
-                    font.pixelSize: 15
+                    font.pixelSize: px(15)
                     wrapMode: Text.WordWrap
                 }
 
                 Text {
                     text: destinationSummary(appController.selectedDestination)
                     color: "#0f172a"
-                    font.pixelSize: 15
+                    font.pixelSize: px(15)
                     font.bold: true
                     wrapMode: Text.WordWrap
                     visible: appController.selectedDestination.label !== undefined && appController.selectedDestination.label !== ""
@@ -799,6 +811,7 @@ ApplicationWindow {
                 Text {
                     text: appController.navigationError
                     color: "#9f1239"
+                    font.pixelSize: px(15)
                     visible: appController.navigationError.length > 0
                     wrapMode: Text.WordWrap
                 }
@@ -823,7 +836,7 @@ ApplicationWindow {
                     ChromeButton {
                         text: appController.routeStarted ? "Record Scan" : "Start Route"
                         Layout.fillWidth: true
-                        implicitHeight: 52
+                        implicitHeight: px(52)
                         onClicked: {
                             if (appController.routeStarted) {
                                 appController.submitTag(rfidField.text)
@@ -838,7 +851,7 @@ ApplicationWindow {
                     ChromeButton {
                         text: "Sync"
                         Layout.fillWidth: true
-                        implicitHeight: 52
+                        implicitHeight: px(52)
                         onClicked: appController.forceSync()
                     }
                 }
@@ -846,7 +859,7 @@ ApplicationWindow {
                 Text {
                     text: appController.lastScan || "No scans recorded yet"
                     color: "#0f172a"
-                    font.pixelSize: 18
+                    font.pixelSize: px(18)
                     font.bold: true
                     wrapMode: Text.WordWrap
                 }
@@ -858,9 +871,9 @@ ApplicationWindow {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.right: consolePanel.left
-            anchors.margins: 26
-            anchors.rightMargin: 18
-            radius: 26
+            anchors.margins: px(26)
+            anchors.rightMargin: px(18)
+            radius: px(26)
             color: "#f8fbff"
             border.color: "#dce7f3"
             clip: true
@@ -868,6 +881,7 @@ ApplicationWindow {
             WebEngineView {
                 anchors.fill: parent
                 url: "qrc:/RouteGuard/Bus/web/map.html"
+                settings.localContentCanAccessRemoteUrls: true
                 webChannel: WebChannel {
                     Component.onCompleted: registerObject("appController", appController)
                 }
@@ -876,16 +890,16 @@ ApplicationWindow {
             Rectangle {
                 anchors.top: parent.top
                 anchors.left: parent.left
-                anchors.margins: 22
-                width: Math.min(parent.width - 44, 420)
-                radius: 22
+                anchors.margins: px(22)
+                width: Math.min(parent.width - px(44), compactLayout ? parent.width * 0.62 : px(420))
+                radius: px(22)
                 color: "#fbfdff"
                 border.color: "#dce7f3"
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 8
+                    anchors.margins: px(12)
+                    spacing: px(8)
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -908,8 +922,8 @@ ApplicationWindow {
 
                         ChromeButton {
                             text: appController.selectedDestination.label !== undefined && appController.selectedDestination.label !== "" ? "Clear" : "More"
-                            implicitWidth: 92
-                            implicitHeight: 48
+                            implicitWidth: px(92)
+                            implicitHeight: px(48)
                             onClicked: {
                                 if (appController.selectedDestination.label !== undefined && appController.selectedDestination.label !== "") {
                                     searchField.text = ""
@@ -925,15 +939,15 @@ ApplicationWindow {
 
                     Rectangle {
                         Layout.fillWidth: true
-                        radius: 16
+                        radius: px(16)
                         color: "#f5f8fb"
                         border.color: "#dce6f1"
                         visible: appController.navigationSearchPending || appController.navigationSearchResults.length > 0
-                        implicitHeight: Math.min(220, 58 + appController.navigationSearchResults.length * 66)
+                        implicitHeight: Math.min(px(220), px(58) + appController.navigationSearchResults.length * px(66))
 
                         Item {
                             anchors.fill: parent
-                            anchors.margins: 10
+                            anchors.margins: px(10)
 
                             BusyIndicator {
                                 anchors.centerIn: parent
@@ -943,7 +957,7 @@ ApplicationWindow {
 
                             ListView {
                                 anchors.fill: parent
-                                spacing: 8
+                                spacing: px(8)
                                 clip: true
                                 visible: !appController.navigationSearchPending
                                 model: appController.navigationSearchResults
@@ -951,10 +965,10 @@ ApplicationWindow {
                                 delegate: Rectangle {
                                     required property var modelData
                                     width: ListView.view.width
-                                    radius: 14
+                                    radius: px(14)
                                     color: "#ffffff"
                                     border.color: "#d7e4f2"
-                                    implicitHeight: 58
+                                    implicitHeight: px(58)
 
                                     MouseArea {
                                         anchors.fill: parent
@@ -967,20 +981,20 @@ ApplicationWindow {
 
                                     ColumnLayout {
                                         anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 2
+                                        anchors.margins: px(12)
+                                        spacing: px(2)
 
                                         Text {
                                             text: modelData.label
                                             color: "#0f172a"
-                                            font.pixelSize: 16
+                                            font.pixelSize: px(16)
                                             font.bold: true
                                         }
 
                                         Text {
                                             text: modelData.address
                                             color: "#64748b"
-                                            font.pixelSize: 13
+                                            font.pixelSize: px(13)
                                             wrapMode: Text.WordWrap
                                         }
                                     }
