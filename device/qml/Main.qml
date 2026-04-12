@@ -276,16 +276,16 @@ ApplicationWindow {
 
         ColumnLayout {
             anchors.centerIn: parent
-            width: Math.min(parent.width - 120, 520)
-            spacing: 20
+            width: Math.min(parent.width - 120, 700)
+            spacing: 24
 
-            Text {
-                text: "RouteGuard Bus"
-                color: "#8fa8c5"
-                font.pixelSize: 18
-                font.letterSpacing: 3
-                horizontalAlignment: Text.AlignHCenter
-                Layout.fillWidth: true
+            Image {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: Math.min(420, parent.width)
+                Layout.preferredHeight: 96
+                fillMode: Image.PreserveAspectFit
+                mipmap: true
+                source: "qrc:/qt/qml/RouteGuard/Bus/assets/text-logo.png"
             }
 
             Text {
@@ -297,39 +297,30 @@ ApplicationWindow {
                 Layout.fillWidth: true
             }
 
-            Text {
-                text: "Enter the assigned 4-digit driver PIN to unlock boarding mode. The device stays locked until RouteGuard verifies the PIN online."
-                color: "#b7c9dc"
-                font.pixelSize: 18
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
-                Layout.fillWidth: true
-            }
-
             Rectangle {
                 Layout.fillWidth: true
                 radius: 18
                 color: appController.driverLoginError.length > 0 ? "#3b1820" : "#0d1828"
                 border.color: appController.driverLoginError.length > 0 ? "#d7677f" : "#2d4a69"
-                implicitHeight: 128
+                implicitHeight: 156
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 10
+                    anchors.margins: 22
+                    spacing: 12
 
                     Text {
                         text: "Driver PIN"
                         color: "#8fa8c5"
-                        font.pixelSize: 15
+                        font.pixelSize: 16
                     }
 
                     Text {
                         text: maskedDriverPin()
                         color: "white"
-                        font.pixelSize: 34
+                        font.pixelSize: 42
                         font.bold: true
-                        font.letterSpacing: 4
+                        font.letterSpacing: 6
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
                     }
@@ -339,7 +330,7 @@ ApplicationWindow {
                               ? "Checking PIN with RouteGuard..."
                               : (driverPinValue.length === 4 ? "Checking PIN with RouteGuard..." : "Enter 4 digits to unlock this device.")
                         color: "#c8d8ea"
-                        font.pixelSize: 15
+                        font.pixelSize: 18
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
@@ -350,8 +341,8 @@ ApplicationWindow {
             GridLayout {
                 Layout.fillWidth: true
                 columns: 3
-                columnSpacing: 12
-                rowSpacing: 12
+                columnSpacing: 16
+                rowSpacing: 16
                 enabled: !appController.driverLoginPending
 
                 Repeater {
@@ -359,8 +350,10 @@ ApplicationWindow {
 
                     Button {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 78
+                        Layout.preferredHeight: 106
                         text: modelData
+                        font.pixelSize: 28
+                        font.bold: true
 
                         onClicked: {
                             if (modelData === "Clear") {
@@ -377,21 +370,10 @@ ApplicationWindow {
 
             Text {
                 Layout.fillWidth: true
-                text: appController.driverLoginPending
-                      ? "Validating driver PIN..."
-                      : "PIN validation starts automatically after the fourth digit."
-                color: "#8fa8c5"
-                font.pixelSize: 15
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-            Text {
-                Layout.fillWidth: true
                 visible: appController.driverLoginError.length > 0
                 text: appController.driverLoginError
                 color: "#ff9fb3"
-                font.pixelSize: 16
+                font.pixelSize: 18
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
             }

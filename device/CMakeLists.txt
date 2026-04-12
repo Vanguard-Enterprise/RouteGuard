@@ -34,6 +34,8 @@ qt_add_qml_module(routeguard-bus
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+    RESOURCES
+        assets/text-logo.png
 )
 
 target_link_libraries(routeguard-bus PRIVATE
