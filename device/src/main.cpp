@@ -7,8 +7,12 @@
 #include <QQmlContext>
 #include <QUrl>
 #include <QtWebEngineCore/QWebEngineProfile>
+#include <QtWebEngineQuick/qtwebenginequickglobal.h>
 
 int main(int argc, char *argv[]) {
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    QtWebEngineQuick::initialize();
+
     QGuiApplication app(argc, argv);
     app.setOrganizationName("RouteGuard");
     app.setApplicationName("RouteGuard Bus");

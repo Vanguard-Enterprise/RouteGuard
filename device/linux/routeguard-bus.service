@@ -13,6 +13,8 @@ Environment=QT_QPA_EGLFS_HIDECURSOR=1
 Environment=QT_LOGGING_RULES=qt.qpa.eglfs.kms=true
 Environment=QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS=/dev/input/event20
 Environment=QT_QPA_EVDEV_MOUSE_PARAMETERS=/dev/input/event21
+Environment=QTWEBENGINE_DISABLE_SANDBOX=1
+Environment="QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox --disable-gpu-sandbox"
 ExecStart=/opt/routeguard-bus/routeguard-bus
 Restart=always
 RestartSec=3

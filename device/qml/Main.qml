@@ -869,7 +869,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 url: "qrc:/RouteGuard/Bus/web/map.html"
                 webChannel: WebChannel {
-                    registeredObjects: [appController]
+                    Component.onCompleted: registerObject("appController", appController)
                 }
             }
 
