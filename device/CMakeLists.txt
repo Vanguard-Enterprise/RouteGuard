@@ -15,7 +15,7 @@ configure_file(
     @ONLY
 )
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network Sql Multimedia)
 
 qt_standard_project_setup()
 
@@ -36,6 +36,7 @@ qt_add_qml_module(routeguard-bus
         qml/Main.qml
     RESOURCES
         assets/text-logo.png
+        assets/wrong-pin-tone.wav
 )
 
 target_link_libraries(routeguard-bus PRIVATE
@@ -44,6 +45,7 @@ target_link_libraries(routeguard-bus PRIVATE
     Qt6::Quick
     Qt6::Network
     Qt6::Sql
+    Qt6::Multimedia
 )
 
 target_include_directories(routeguard-bus PRIVATE

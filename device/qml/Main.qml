@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtMultimedia
 
 ApplicationWindow {
     visible: true
@@ -9,6 +10,8 @@ ApplicationWindow {
     title: "RouteGuard Bus"
     color: "#0b1320"
     property string driverPinValue: ""
+    property string lockToastMessage: ""
+    property bool lockToastVisible: false
 
     function appendDriverPin(digit) {
         if (appController.driverAuthenticated || appController.driverLoginPending || driverPinValue.length >= 4) {
@@ -53,6 +56,25 @@ ApplicationWindow {
         appController.submitDriverPIN(driverPinValue)
     }
 
+    function showLockToast(message) {
+        lockToastMessage = message
+        lockToastVisible = true
+        lockToastTimer.restart()
+    }
+
+    SoundEffect {
+        id: wrongPinTone
+        source: "qrc:/RouteGuard/Bus/assets/wrong-pin-tone.wav"
+        volume: 0.85
+    }
+
+    Timer {
+        id: lockToastTimer
+        interval: 2600
+        repeat: false
+        onTriggered: lockToastVisible = false
+    }
+
     Connections {
         target: appController
 
@@ -69,6 +91,11 @@ ApplicationWindow {
         function onDriverLoginStateChanged() {
             if (!appController.driverLoginPending && appController.driverLoginError.length > 0) {
                 driverPinValue = ""
+                showLockToast(appController.driverLoginError)
+                if (appController.driverLoginError.toLowerCase().indexOf("invalid driver pin") !== -1) {
+                    wrongPinTone.stop()
+                    wrongPinTone.play()
+                }
             }
         }
     }
@@ -248,6 +275,74 @@ ApplicationWindow {
     }
 
     Rectangle {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 24
+        anchors.rightMargin: 24
+        width: Math.min(parent.width - 48, 420)
+        radius: 18
+        z: 12
+        visible: lockToastVisible
+        opacity: lockToastVisible ? 1 : 0
+        color: "#2a1217"
+        border.color: "#d7677f"
+        implicitHeight: 92
+
+        Behavior on opacity {
+            NumberAnimation { duration: 160 }
+        }
+
+        transform: Translate {
+            y: lockToastVisible ? 0 : -16
+
+            Behavior on y {
+                NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+            }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 12
+
+            Rectangle {
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
+                radius: 20
+                color: "#4a1c24"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "!"
+                    color: "#ffb3c2"
+                    font.pixelSize: 24
+                    font.bold: true
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                Text {
+                    text: "Unlock failed"
+                    color: "white"
+                    font.pixelSize: 17
+                    font.bold: true
+                }
+
+                Text {
+                    text: lockToastMessage
+                    color: "#ffd2dc"
+                    font.pixelSize: 15
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+            }
+        }
+    }
+
+    Rectangle {
         anchors.fill: parent
         visible: !appController.enrollmentRequired && !appController.driverAuthenticated
         z: 9
@@ -328,12 +423,13 @@ ApplicationWindow {
                     Text {
                         text: appController.driverLoginPending
                               ? "Checking PIN with RouteGuard..."
-                              : (driverPinValue.length === 4 ? "Checking PIN with RouteGuard..." : "Enter 4 digits to unlock this device.")
+                              : ""
                         color: "#c8d8ea"
                         font.pixelSize: 18
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
+                        visible: text.length > 0
                     }
                 }
             }
@@ -350,9 +446,9 @@ ApplicationWindow {
 
                     Button {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 106
+                        Layout.preferredHeight: 126
                         text: modelData
-                        font.pixelSize: 28
+                        font.pixelSize: 34
                         font.bold: true
 
                         onClicked: {
@@ -368,15 +464,6 @@ ApplicationWindow {
                 }
             }
 
-            Text {
-                Layout.fillWidth: true
-                visible: appController.driverLoginError.length > 0
-                text: appController.driverLoginError
-                color: "#ff9fb3"
-                font.pixelSize: 18
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
-            }
         }
     }
 
