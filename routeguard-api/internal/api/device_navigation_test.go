@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -111,5 +112,12 @@ func TestFetchDeviceCurrentLocationRequiresWifiSignals(t *testing.T) {
 
 	if _, err := handler.fetchDeviceCurrentLocation(context.Background(), nil); err == nil {
 		t.Fatal("expected current location resolution to fail without wifi access points")
+	}
+}
+
+func TestDecodeGeolocationResponseRejectsCoarseAccuracy(t *testing.T) {
+	_, err := decodeGeolocationResponse(strings.NewReader(`{"location":{"lat":38.9072,"lng":-77.0369},"accuracy":25000}`))
+	if err == nil {
+		t.Fatal("expected coarse geolocation response to be rejected")
 	}
 }

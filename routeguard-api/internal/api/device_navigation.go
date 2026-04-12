@@ -17,7 +17,10 @@ import (
 	"github.com/routeguard/api/internal/domain"
 )
 
-const deviceDriverSessionTTL = 12 * time.Hour
+const (
+	deviceDriverSessionTTL                 = 12 * time.Hour
+	maxDeviceLocationAccuracyMeters float64 = 5000
+)
 
 type deviceDriverSessionClaims struct {
 	DeviceID  string    `json:"device_id"`
@@ -693,6 +696,9 @@ func decodeGeolocationResponse(body io.Reader) (map[string]any, error) {
 	}
 	if math.IsNaN(parsed.Location.Lat) || math.IsNaN(parsed.Location.Lng) {
 		return nil, fmt.Errorf("invalid geolocation response")
+	}
+	if parsed.Accuracy <= 0 || parsed.Accuracy > maxDeviceLocationAccuracyMeters {
+		return nil, fmt.Errorf("geolocation accuracy %.2f is too coarse", parsed.Accuracy)
 	}
 
 	return map[string]any{
