@@ -15,6 +15,9 @@ ApplicationWindow {
             return
         }
         driverPinValue += digit
+        if (driverPinValue.length === 4) {
+            submitDriverPin()
+        }
     }
 
     function clearDriverPin() {
@@ -240,6 +243,157 @@ ApplicationWindow {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        visible: !appController.enrollmentRequired && !appController.driverAuthenticated
+        z: 9
+        color: "#0b1320"
+        clip: true
+
+        Rectangle {
+            width: parent.width * 0.55
+            height: parent.height * 0.6
+            x: -parent.width * 0.08
+            y: -parent.height * 0.12
+            radius: width / 2
+            color: "#17304a"
+            opacity: 0.55
+        }
+
+        Rectangle {
+            width: parent.width * 0.42
+            height: parent.height * 0.42
+            x: parent.width * 0.72
+            y: parent.height * 0.7
+            radius: width / 2
+            color: "#0f2438"
+            opacity: 0.75
+        }
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 120, 520)
+            spacing: 20
+
+            Text {
+                text: "RouteGuard Bus"
+                color: "#8fa8c5"
+                font.pixelSize: 18
+                font.letterSpacing: 3
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            Text {
+                text: "Device Locked"
+                color: "white"
+                font.pixelSize: 48
+                font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            Text {
+                text: "Enter the assigned 4-digit driver PIN to unlock boarding mode. The device stays locked until RouteGuard verifies the PIN online."
+                color: "#b7c9dc"
+                font.pixelSize: 18
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                radius: 18
+                color: appController.driverLoginError.length > 0 ? "#3b1820" : "#0d1828"
+                border.color: appController.driverLoginError.length > 0 ? "#d7677f" : "#2d4a69"
+                implicitHeight: 128
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    spacing: 10
+
+                    Text {
+                        text: "Driver PIN"
+                        color: "#8fa8c5"
+                        font.pixelSize: 15
+                    }
+
+                    Text {
+                        text: maskedDriverPin()
+                        color: "white"
+                        font.pixelSize: 34
+                        font.bold: true
+                        font.letterSpacing: 4
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        text: appController.driverLoginPending
+                              ? "Checking PIN with RouteGuard..."
+                              : (driverPinValue.length === 4 ? "Checking PIN with RouteGuard..." : "Enter 4 digits to unlock this device.")
+                        color: "#c8d8ea"
+                        font.pixelSize: 15
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 3
+                columnSpacing: 12
+                rowSpacing: 12
+                enabled: !appController.driverLoginPending
+
+                Repeater {
+                    model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Back"]
+
+                    Button {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 78
+                        text: modelData
+
+                        onClicked: {
+                            if (modelData === "Clear") {
+                                clearDriverPin()
+                            } else if (modelData === "Back") {
+                                backspaceDriverPin()
+                            } else {
+                                appendDriverPin(modelData)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: appController.driverLoginPending
+                      ? "Validating driver PIN..."
+                      : "PIN validation starts automatically after the fourth digit."
+                color: "#8fa8c5"
+                font.pixelSize: 15
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: appController.driverLoginError.length > 0
+                text: appController.driverLoginError
+                color: "#ff9fb3"
+                font.pixelSize: 16
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
             }
         }
     }
@@ -483,154 +637,6 @@ ApplicationWindow {
                             }
                         }
                     }
-                }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: !appController.enrollmentRequired && !appController.driverAuthenticated
-            radius: 28
-            color: "#122033"
-            border.color: "#1f3550"
-            clip: true
-
-            Rectangle {
-                width: parent.width * 0.55
-                height: parent.height * 0.6
-                x: -parent.width * 0.08
-                y: -parent.height * 0.12
-                radius: width / 2
-                color: "#17304a"
-                opacity: 0.55
-            }
-
-            Rectangle {
-                width: parent.width * 0.42
-                height: parent.height * 0.42
-                x: parent.width * 0.72
-                y: parent.height * 0.7
-                radius: width / 2
-                color: "#0f2438"
-                opacity: 0.75
-            }
-
-            ColumnLayout {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 120, 520)
-                spacing: 20
-
-                Text {
-                    text: "RouteGuard Bus"
-                    color: "#8fa8c5"
-                    font.pixelSize: 18
-                    font.letterSpacing: 3
-                    horizontalAlignment: Text.AlignHCenter
-                    Layout.fillWidth: true
-                }
-
-                Text {
-                    text: "Device Locked"
-                    color: "white"
-                    font.pixelSize: 48
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    Layout.fillWidth: true
-                }
-
-                Text {
-                    text: "Enter the assigned 4-digit driver PIN to unlock boarding mode. The device stays locked until RouteGuard verifies the PIN online."
-                    color: "#b7c9dc"
-                    font.pixelSize: 18
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                    Layout.fillWidth: true
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    radius: 18
-                    color: appController.driverLoginError.length > 0 ? "#3b1820" : "#0d1828"
-                    border.color: appController.driverLoginError.length > 0 ? "#d7677f" : "#2d4a69"
-                    implicitHeight: 128
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 18
-                        spacing: 10
-
-                        Text {
-                            text: "Driver PIN"
-                            color: "#8fa8c5"
-                            font.pixelSize: 15
-                        }
-
-                        Text {
-                            text: maskedDriverPin()
-                            color: "white"
-                            font.pixelSize: 34
-                            font.bold: true
-                            font.letterSpacing: 4
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.fillWidth: true
-                        }
-
-                        Text {
-                            text: appController.driverLoginPending ? "Checking PIN with RouteGuard..." : "Use the keypad to unlock this device."
-                            color: "#c8d8ea"
-                            font.pixelSize: 15
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-                }
-
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: 3
-                    columnSpacing: 12
-                    rowSpacing: 12
-                    enabled: !appController.driverLoginPending
-
-                    Repeater {
-                        model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Back"]
-
-                        Button {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 78
-                            text: modelData
-
-                            onClicked: {
-                                if (modelData === "Clear") {
-                                    clearDriverPin()
-                                } else if (modelData === "Back") {
-                                    backspaceDriverPin()
-                                } else {
-                                    appendDriverPin(modelData)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 64
-                    text: appController.driverLoginPending ? "Unlocking..." : "Unlock Device"
-                    enabled: !appController.driverLoginPending && driverPinValue.length === 4
-                    onClicked: submitDriverPin()
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    visible: appController.driverLoginError.length > 0
-                    text: appController.driverLoginError
-                    color: "#ff9fb3"
-                    font.pixelSize: 16
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
                 }
             }
         }
