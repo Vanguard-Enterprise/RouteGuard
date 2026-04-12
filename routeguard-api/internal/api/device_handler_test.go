@@ -55,6 +55,28 @@ func TestDeviceDriverLoginSuccess(t *testing.T) {
 	}
 }
 
+func TestDeviceDriverLoginAcceptsDeviceCookie(t *testing.T) {
+	h, token, driver := seedDeviceDriverLoginScenario(t, "1234", true, false)
+
+	req := httptest.NewRequest(http.MethodPost, "/device/driver-login", strings.NewReader(`{"pin":"1234"}`))
+	req.AddCookie(&http.Cookie{Name: "rg_device_token", Value: token})
+
+	rr := httptest.NewRecorder()
+	h.DeviceDriverLogin(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var response domain.DeviceDriverLoginResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Driver.ID != driver.ID {
+		t.Fatalf("expected driver id %s, got %s", driver.ID, response.Driver.ID)
+	}
+}
+
 func TestDeviceDriverLoginRejectsInvalidPIN(t *testing.T) {
 	h, token, _ := seedDeviceDriverLoginScenario(t, "1234", true, false)
 

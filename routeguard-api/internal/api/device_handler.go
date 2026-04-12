@@ -28,6 +28,11 @@ func (h *Handler) authenticateDeviceRequest(r *http.Request) (*repository.Device
 func (h *Handler) authenticateDevice(r *http.Request) (*domain.Device, error) {
 	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 	if token == "" {
+		if cookie, err := r.Cookie("rg_device_token"); err == nil {
+			token = strings.TrimSpace(cookie.Value)
+		}
+	}
+	if token == "" {
 		return nil, http.ErrNoCookie
 	}
 	device, err := h.devices.AuthenticateByToken(r.Context(), crypto.HMAC(h.cfg.HMACKey, token))

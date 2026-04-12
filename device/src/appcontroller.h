@@ -130,6 +130,7 @@ signals:
     void settingsVisibleChanged();
     void availableRfidDevicesChanged();
     void selectedRfidDeviceChanged();
+    void webCredentialsChanged();
 
 private:
     bool shouldSuppressTag(const QString &tagId);

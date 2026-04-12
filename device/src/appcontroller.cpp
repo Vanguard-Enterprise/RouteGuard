@@ -627,10 +627,14 @@ QString AppController::storedToken() const {
 }
 
 void AppController::persistToken(const QString &token) {
+    const QString previousToken = storedToken();
     if (token.isEmpty()) {
         m_settings.remove("deviceToken");
     } else {
         m_settings.setValue("deviceToken", token);
+    }
+    if (previousToken != token) {
+        emit webCredentialsChanged();
     }
 }
 

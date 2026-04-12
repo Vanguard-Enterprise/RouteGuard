@@ -7,6 +7,8 @@
   let directionsLayer = null;
   let stopMarkers = [];
   let destinationMarker = null;
+  let mapContainer = null;
+  let resizeObserver = null;
   let initialFitComplete = false;
   let tileLayerReady = false;
   let tileLayerFailed = false;
@@ -52,19 +54,45 @@
     });
   }
 
-  function ensureTileLayer(apiBase) {
-    if (tileLayer) {
+  function buildProxyTileUrl(apiBase, coords) {
+    const normalizedBase = String(apiBase || "").replace(/\/+$/, "");
+    const upstream = `https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/${coords.z}/${coords.x}/${coords.y}@2x`;
+    return `${normalizedBase}/device/mapbox/proxy?url=${encodeURIComponent(upstream)}`;
+  }
+
+  function invalidateMapSize() {
+    if (!map) {
       return;
     }
 
-    const upstreamTemplate = "https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x";
-    const proxyTemplate = `${apiBase}/device/mapbox/proxy?url=${encodeURIComponent(upstreamTemplate)}`;
-    tileLayer = L.tileLayer(proxyTemplate, {
+    window.requestAnimationFrame(function () {
+      if (map) {
+        map.invalidateSize(false);
+      }
+    });
+  }
+
+  function ensureTileLayer(apiBase) {
+    if (tileLayer && tileLayer._routeguardApiBase === apiBase) {
+      return;
+    }
+
+    if (tileLayer) {
+      tileLayer.remove();
+      tileLayer = null;
+    }
+
+    tileLayer = L.tileLayer("", {
       tileSize: 256,
       zoomOffset: 0,
       maxZoom: 18,
+      keepBuffer: 4,
       updateWhenIdle: true,
     });
+    tileLayer._routeguardApiBase = apiBase;
+    tileLayer.getTileUrl = function (coords) {
+      return buildProxyTileUrl(apiBase, coords);
+    };
     tileLayer.on("loading", function () {
       tileLayerReady = false;
       tileLayerFailed = false;
@@ -74,10 +102,16 @@
       tileLayerReady = true;
       tileLayerFailed = false;
       setStatus("");
+      invalidateMapSize();
     });
-    tileLayer.on("tileerror", function () {
+    tileLayer.on("tileerror", function (event) {
       tileLayerReady = false;
       tileLayerFailed = true;
+      console.error(
+        "Map tile failed",
+        event && event.coords ? JSON.stringify(event.coords) : "unknown",
+        event && event.tile && event.tile.src ? event.tile.src : ""
+      );
       setStatus("Map tiles unavailable");
     });
     tileLayer.addTo(map);
@@ -232,6 +266,7 @@
       return;
     }
     controller.mapState(function (state) {
+      invalidateMapSize();
       renderState(state || {});
     });
   }
@@ -246,13 +281,21 @@
       return;
     }
 
-    map = L.map("map", {
+    mapContainer = document.getElementById("map");
+    map = L.map(mapContainer, {
       zoomControl: false,
       attributionControl: false,
       preferCanvas: true,
     });
     map.setView(defaultCenter, 11);
     L.control.zoom({ position: "bottomright" }).addTo(map);
+    map.whenReady(invalidateMapSize);
+
+    window.addEventListener("resize", invalidateMapSize);
+    if (typeof ResizeObserver !== "undefined" && mapContainer) {
+      resizeObserver = new ResizeObserver(invalidateMapSize);
+      resizeObserver.observe(mapContainer);
+    }
 
     new QWebChannel(qt.webChannelTransport, function (channel) {
       controller = channel.objects.appController;
