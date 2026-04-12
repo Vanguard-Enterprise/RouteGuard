@@ -34,8 +34,8 @@ type googlePlacesSearchTextRequest struct {
 
 type googlePlacesSearchTextResponse struct {
 	Places []struct {
-		ID               string `json:"id"`
-		DisplayName      struct {
+		ID          string `json:"id"`
+		DisplayName struct {
 			Text string `json:"text"`
 		} `json:"displayName"`
 		FormattedAddress string `json:"formattedAddress"`
@@ -265,6 +265,9 @@ func (h *Handler) DeviceMapboxProxy(w http.ResponseWriter, r *http.Request) {
 
 	token := strings.TrimSpace(h.cfg.MapboxAccessToken)
 	if token == "" {
+		if h.proxyFallbackTile(w, r, upstreamURL) {
+			return
+		}
 		Error(w, http.StatusServiceUnavailable, "map proxy unavailable")
 		return
 	}
@@ -283,10 +286,28 @@ func (h *Handler) DeviceMapboxProxy(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.httpClient.Do(upstreamReq)
 	if err != nil {
+		if h.proxyFallbackTile(w, r, upstreamURL) {
+			return
+		}
 		Error(w, http.StatusServiceUnavailable, "map proxy unavailable")
 		return
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		if h.proxyFallbackTile(w, r, upstreamURL) {
+			return
+		}
+		body, _ := io.ReadAll(resp.Body)
+		if len(body) == 0 {
+			Error(w, http.StatusServiceUnavailable, "map proxy unavailable")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"error":"map proxy unavailable"}`))
+		return
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -302,6 +323,74 @@ func (h *Handler) DeviceMapboxProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(body)
+}
+
+func (h *Handler) proxyFallbackTile(w http.ResponseWriter, r *http.Request, requestedURL *url.URL) bool {
+	fallbackURL, ok := h.fallbackTileURL(requestedURL)
+	if !ok {
+		return false
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, fallbackURL, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", "RouteGuard/1.0 (Device Map Fallback)")
+	if accept := strings.TrimSpace(r.Header.Get("Accept")); accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return false
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false
+	}
+
+	if contentType := strings.TrimSpace(resp.Header.Get("Content-Type")); contentType != "" {
+		w.Header().Set("Content-Type", contentType)
+	}
+	if cacheControl := strings.TrimSpace(resp.Header.Get("Cache-Control")); cacheControl != "" {
+		w.Header().Set("Cache-Control", cacheControl)
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=300")
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+	return true
+}
+
+func (h *Handler) fallbackTileURL(requestedURL *url.URL) (string, bool) {
+	if requestedURL == nil {
+		return "", false
+	}
+
+	parts := strings.Split(strings.Trim(requestedURL.Path, "/"), "/")
+	if len(parts) < 8 {
+		return "", false
+	}
+	if parts[0] != "styles" || parts[1] != "v1" || parts[4] != "tiles" {
+		return "", false
+	}
+
+	z := parts[len(parts)-3]
+	x := parts[len(parts)-2]
+	y := parts[len(parts)-1]
+	y = strings.TrimSuffix(y, "@2x")
+	y = strings.TrimSuffix(y, ".png")
+	if z == "" || x == "" || y == "" {
+		return "", false
+	}
+
+	return fmt.Sprintf("https://tile.openstreetmap.org/%s/%s/%s.png", z, x, y), true
 }
 
 func (h *Handler) isAllowedMapboxURL(value *url.URL) bool {

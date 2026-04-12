@@ -52,11 +52,11 @@
       return;
     }
 
-    const upstreamTemplate = "https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/512/{z}/{x}/{y}@2x";
+    const upstreamTemplate = "https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x";
     const proxyTemplate = `${apiBase}/device/mapbox/proxy?url=${encodeURIComponent(upstreamTemplate)}`;
     tileLayer = L.tileLayer(proxyTemplate, {
-      tileSize: 512,
-      zoomOffset: -1,
+      tileSize: 256,
+      zoomOffset: 0,
       maxZoom: 18,
       updateWhenIdle: true,
     });
