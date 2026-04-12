@@ -89,6 +89,7 @@ private:
     QString storedToken() const;
     void persistToken(const QString &token);
     QString resolveSystemDeviceId();
+    void playFailureTone();
     void clearDriverSession();
     void updatePendingCount();
     QVariantList discoverRfidDevices() const;

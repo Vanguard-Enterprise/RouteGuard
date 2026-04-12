@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtMultimedia
 
 ApplicationWindow {
     visible: true
@@ -62,12 +61,6 @@ ApplicationWindow {
         lockToastTimer.restart()
     }
 
-    SoundEffect {
-        id: wrongPinTone
-        source: "qrc:/RouteGuard/Bus/assets/wrong-pin-tone.wav"
-        volume: 0.85
-    }
-
     Timer {
         id: lockToastTimer
         interval: 2600
@@ -92,10 +85,6 @@ ApplicationWindow {
             if (!appController.driverLoginPending && appController.driverLoginError.length > 0) {
                 driverPinValue = ""
                 showLockToast(appController.driverLoginError)
-                if (appController.driverLoginError.toLowerCase().indexOf("invalid driver pin") !== -1) {
-                    wrongPinTone.stop()
-                    wrongPinTone.play()
-                }
             }
         }
     }

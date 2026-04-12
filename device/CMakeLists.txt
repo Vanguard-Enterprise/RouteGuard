@@ -15,7 +15,11 @@ configure_file(
     @ONLY
 )
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network Sql Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network Sql)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(ALSA REQUIRED)
+endif()
 
 qt_standard_project_setup()
 
@@ -36,7 +40,6 @@ qt_add_qml_module(routeguard-bus
         qml/Main.qml
     RESOURCES
         assets/text-logo.png
-        assets/wrong-pin-tone.wav
 )
 
 target_link_libraries(routeguard-bus PRIVATE
@@ -45,8 +48,11 @@ target_link_libraries(routeguard-bus PRIVATE
     Qt6::Quick
     Qt6::Network
     Qt6::Sql
-    Qt6::Multimedia
 )
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(routeguard-bus PRIVATE ALSA::ALSA)
+endif()
 
 target_include_directories(routeguard-bus PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/generated

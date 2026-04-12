@@ -2,13 +2,92 @@
 #include "build_config.h"
 
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonObject>
 #include <QSet>
 #include <QUuid>
+#include <array>
+#include <atomic>
+#include <cmath>
+#include <cstdint>
+#include <thread>
 #include <utility>
+#include <vector>
+
+#ifdef Q_OS_LINUX
+#include <alsa/asoundlib.h>
+#endif
+
+namespace {
+
+#ifdef Q_OS_LINUX
+std::atomic_bool s_failureTonePlaying {false};
+
+bool writeToneToDevice(const char *deviceName) {
+    constexpr unsigned int sampleRate = 48000;
+    constexpr double frequencyHz = 740.0;
+    constexpr double durationSeconds = 0.22;
+    constexpr double amplitude = 0.24;
+    constexpr std::size_t fadeSamples = 2400;
+
+    snd_pcm_t *pcm = nullptr;
+    if (snd_pcm_open(&pcm, deviceName, SND_PCM_STREAM_PLAYBACK, 0) < 0) {
+        return false;
+    }
+
+    const int configureResult = snd_pcm_set_params(
+        pcm,
+        SND_PCM_FORMAT_S16_LE,
+        SND_PCM_ACCESS_RW_INTERLEAVED,
+        1,
+        sampleRate,
+        1,
+        250000
+    );
+    if (configureResult < 0) {
+        snd_pcm_close(pcm);
+        return false;
+    }
+
+    const std::size_t frameCount = static_cast<std::size_t>(sampleRate * durationSeconds);
+    std::vector<int16_t> samples(frameCount);
+    constexpr double twoPi = 6.28318530717958647692;
+
+    for (std::size_t index = 0; index < frameCount; ++index) {
+        double envelope = 1.0;
+        if (index >= frameCount - fadeSamples) {
+            envelope = static_cast<double>(frameCount - index) / static_cast<double>(fadeSamples);
+        }
+
+        const double radians = twoPi * frequencyHz * static_cast<double>(index) / static_cast<double>(sampleRate);
+        const double value = std::sin(radians) * amplitude * envelope;
+        samples[index] = static_cast<int16_t>(value * 32767.0);
+    }
+
+    std::size_t offset = 0;
+    while (offset < samples.size()) {
+        const snd_pcm_sframes_t written = snd_pcm_writei(pcm, samples.data() + offset, samples.size() - offset);
+        if (written < 0) {
+            if (written == -EPIPE) {
+                snd_pcm_prepare(pcm);
+                continue;
+            }
+            snd_pcm_close(pcm);
+            return false;
+        }
+        offset += static_cast<std::size_t>(written);
+    }
+
+    snd_pcm_drain(pcm);
+    snd_pcm_close(pcm);
+    return true;
+}
+#endif
+
+} // namespace
 
 AppController::AppController(QObject *parent)
     : QObject(parent), m_sync(&m_store, this), m_settings("RouteGuard", "RouteGuard Bus") {
@@ -68,6 +147,9 @@ AppController::AppController(QObject *parent)
     connect(&m_sync, &SyncManager::driverLoginFailed, this, [this](const QString &message) {
         m_driverLoginPending = false;
         m_driverLoginError = message;
+        if (message.contains(QStringLiteral("invalid driver pin"), Qt::CaseInsensitive)) {
+            playFailureTone();
+        }
         emit driverLoginStateChanged();
     });
 
@@ -363,6 +445,37 @@ QString AppController::resolveSystemDeviceId() {
     }
 
     return machineId;
+}
+
+void AppController::playFailureTone() {
+#ifdef Q_OS_LINUX
+    bool expected = false;
+    if (!s_failureTonePlaying.compare_exchange_strong(expected, true)) {
+        return;
+    }
+
+    std::thread([]() {
+        const std::array<const char *, 3> deviceNames {
+            "default",
+            "plughw:0,0",
+            "hw:0,0"
+        };
+
+        bool played = false;
+        for (const char *deviceName : deviceNames) {
+            if (writeToneToDevice(deviceName)) {
+                played = true;
+                break;
+            }
+        }
+
+        if (!played) {
+            qWarning().noquote() << "Unable to play RouteGuard failure tone on any ALSA output.";
+        }
+
+        s_failureTonePlaying.store(false);
+    }).detach();
+#endif
 }
 
 void AppController::clearDriverSession() {
