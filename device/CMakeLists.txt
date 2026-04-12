@@ -42,6 +42,8 @@ qt_add_qml_module(routeguard-bus
         qml/Main.qml
     RESOURCES
         assets/text-logo.png
+        web/leaflet.css
+        web/leaflet.js
         web/map.css
         web/map.html
         web/map.js

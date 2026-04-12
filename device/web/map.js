@@ -19,6 +19,11 @@
     }
   }
 
+  function failMap(message) {
+    console.error(message);
+    setStatus(message);
+  }
+
   function toLatLngPairs(geometry) {
     if (!geometry || !Array.isArray(geometry.coordinates)) {
       return [];
@@ -232,6 +237,15 @@
   }
 
   function init() {
+    if (typeof L === "undefined") {
+      failMap("Map library unavailable");
+      return;
+    }
+    if (typeof QWebChannel === "undefined") {
+      failMap("Web channel unavailable");
+      return;
+    }
+
     map = L.map("map", {
       zoomControl: false,
       attributionControl: false,
@@ -252,4 +266,12 @@
   } else {
     init();
   }
+
+  window.addEventListener("error", function (event) {
+    if (event && event.message) {
+      failMap(event.message);
+      return;
+    }
+    failMap("Map failed to initialize");
+  });
 })();

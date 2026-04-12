@@ -882,8 +882,27 @@ ApplicationWindow {
                 anchors.fill: parent
                 url: "qrc:/RouteGuard/Bus/web/map.html"
                 settings.localContentCanAccessRemoteUrls: true
+                settings.localContentCanAccessFileUrls: true
                 webChannel: WebChannel {
                     Component.onCompleted: registerObject("appController", appController)
+                }
+
+                onLoadingChanged: function(loadRequest) {
+                    if (loadRequest.status === WebEngineView.LoadStartedStatus) {
+                        console.log("Map load started:", loadRequest.url)
+                    } else if (loadRequest.status === WebEngineView.LoadSucceededStatus) {
+                        console.log("Map load succeeded:", loadRequest.url)
+                    } else if (loadRequest.status === WebEngineView.LoadFailedStatus) {
+                        console.log("Map load failed:", loadRequest.url, loadRequest.errorString)
+                    }
+                }
+
+                onJavaScriptConsoleMessage: function(level, message, lineNumber, sourceID) {
+                    console.log("Map JS:", level, sourceID + ":" + lineNumber, message)
+                }
+
+                onRenderProcessTerminated: function(terminationStatus, exitCode) {
+                    console.log("Map render process terminated:", terminationStatus, exitCode)
                 }
             }
 
