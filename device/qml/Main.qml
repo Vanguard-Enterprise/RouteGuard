@@ -285,7 +285,7 @@ ApplicationWindow {
                 Layout.preferredHeight: 96
                 fillMode: Image.PreserveAspectFit
                 mipmap: true
-                source: "qrc:/qt/qml/RouteGuard/Bus/assets/text-logo.png"
+                source: "qrc:/RouteGuard/Bus/assets/text-logo.png"
             }
 
             Text {
