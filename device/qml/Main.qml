@@ -56,6 +56,7 @@ ApplicationWindow {
         function onDriverSessionChanged() {
             driverPinValue = ""
             if (!appController.driverAuthenticated) {
+                appController.closeSettings()
                 routeIdField.text = ""
                 routeCodeField.text = ""
                 tagField.text = ""
@@ -254,6 +255,7 @@ ApplicationWindow {
             color: "#122033"
             border.color: "#1f3550"
             implicitHeight: 120
+            visible: !appController.enrollmentRequired && appController.driverAuthenticated
 
             RowLayout {
                 anchors.fill: parent
@@ -309,7 +311,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 20
-            visible: !appController.enrollmentRequired
+            visible: !appController.enrollmentRequired && appController.driverAuthenticated
 
             Rectangle {
                 Layout.fillWidth: true
@@ -324,7 +326,7 @@ ApplicationWindow {
                     spacing: 18
 
                     Text {
-                        text: "Driver Access"
+                        text: "Driver Session"
                         color: "white"
                         font.pixelSize: 26
                         font.bold: true
@@ -332,7 +334,7 @@ ApplicationWindow {
 
                     Text {
                         Layout.fillWidth: true
-                        text: "Drivers must sign in with a 4-digit PIN before route selection and RFID scanning are available. Login requires the API to be online."
+                        text: "The device is unlocked for this driver session. Route selection stays manual until a route is assigned."
                         wrapMode: Text.WordWrap
                         color: "#9ab2ce"
                         font.pixelSize: 16
@@ -341,9 +343,9 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         radius: 16
-                        color: appController.driverLoginError.length > 0 ? "#3b1820" : "#0d1828"
-                        border.color: appController.driverAuthenticated ? "#3fb36f" : (appController.driverLoginError.length > 0 ? "#d7677f" : "#27415f")
-                        implicitHeight: 118
+                        color: "#0d1828"
+                        border.color: "#3fb36f"
+                        implicitHeight: 130
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -351,25 +353,24 @@ ApplicationWindow {
                             spacing: 8
 
                             Text {
-                                text: appController.driverAuthenticated ? "Driver authenticated" : "Driver PIN"
+                                text: "Authenticated Driver"
                                 color: "#8fa8c5"
                                 font.pixelSize: 15
                             }
 
                             Text {
-                                text: appController.driverAuthenticated ? appController.activeDriver : maskedDriverPin()
+                                text: appController.activeDriver
                                 color: "white"
-                                font.pixelSize: appController.driverAuthenticated ? 28 : 34
+                                font.pixelSize: 28
                                 font.bold: true
-                                font.letterSpacing: appController.driverAuthenticated ? 0 : 3
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
 
                             Text {
-                                text: appController.driverAuthenticated
-                                      ? "RFID workflow unlocked for this session."
-                                      : (appController.driverLoginPending ? "Checking PIN with RouteGuard..." : "Use the on-screen keypad.")
+                                text: appController.routeCode.length > 0
+                                      ? "Active route: " + appController.routeCode
+                                      : "No route selected yet."
                                 color: "#c8d8ea"
                                 font.pixelSize: 15
                                 Layout.fillWidth: true
@@ -378,33 +379,16 @@ ApplicationWindow {
                         }
                     }
 
-                    GridLayout {
+                    TextField {
+                        id: routeIdField
                         Layout.fillWidth: true
-                        columns: 3
-                        columnSpacing: 12
-                        rowSpacing: 12
-                        enabled: !appController.driverAuthenticated && !appController.driverLoginPending
-                        visible: !appController.driverAuthenticated
+                        placeholderText: "Route ID"
+                    }
 
-                        Repeater {
-                            model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Back"]
-
-                            Button {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 76
-                                text: modelData
-
-                                onClicked: {
-                                    if (modelData === "Clear") {
-                                        clearDriverPin()
-                                    } else if (modelData === "Back") {
-                                        backspaceDriverPin()
-                                    } else {
-                                        appendDriverPin(modelData)
-                                    }
-                                }
-                            }
-                        }
+                    TextField {
+                        id: routeCodeField
+                        Layout.fillWidth: true
+                        placeholderText: "Route code"
                     }
 
                     RowLayout {
@@ -413,83 +397,15 @@ ApplicationWindow {
 
                         Button {
                             Layout.fillWidth: true
-                            text: appController.driverLoginPending ? "Signing In..." : "Unlock Device"
-                            enabled: !appController.driverAuthenticated && !appController.driverLoginPending && driverPinValue.length === 4
-                            onClicked: submitDriverPin()
+                            text: "Set Active Route"
+                            onClicked: appController.selectRoute(routeIdField.text, routeCodeField.text)
                         }
 
                         Button {
                             Layout.fillWidth: true
-                            visible: appController.driverAuthenticated
                             text: "Logout Driver"
                             onClicked: appController.logoutDriver()
                         }
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        visible: appController.driverLoginError.length > 0
-                        text: appController.driverLoginError
-                        color: "#ff9fb3"
-                        font.pixelSize: 16
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        radius: 14
-                        color: "#0d1828"
-                        implicitHeight: 128
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 16
-                            spacing: 8
-
-                            Text {
-                                text: "Session Status"
-                                color: "#8fa8c5"
-                                font.pixelSize: 15
-                            }
-
-                            Text {
-                                text: "Active Driver: " + (appController.activeDriver || "Not signed in")
-                                color: "white"
-                                font.pixelSize: 20
-                            }
-
-                            Text {
-                                text: "Active Route: " + (appController.routeCode || "None selected")
-                                color: "#c8d8ea"
-                                font.pixelSize: 18
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "Route selection stays manual after login."
-                        color: "#8fa8c5"
-                        font.pixelSize: 15
-                    }
-
-                    TextField {
-                        id: routeIdField
-                        Layout.fillWidth: true
-                        placeholderText: "Route ID"
-                        enabled: appController.driverAuthenticated
-                    }
-
-                    TextField {
-                        id: routeCodeField
-                        Layout.fillWidth: true
-                        placeholderText: "Route code"
-                        enabled: appController.driverAuthenticated
-                    }
-
-                    Button {
-                        text: "Set Active Route"
-                        enabled: appController.driverAuthenticated
-                        onClicked: appController.selectRoute(routeIdField.text, routeCodeField.text)
                     }
                 }
             }
@@ -568,35 +484,153 @@ ApplicationWindow {
                         }
                     }
                 }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: !appController.enrollmentRequired && !appController.driverAuthenticated
+            radius: 28
+            color: "#122033"
+            border.color: "#1f3550"
+            clip: true
+
+            Rectangle {
+                width: parent.width * 0.55
+                height: parent.height * 0.6
+                x: -parent.width * 0.08
+                y: -parent.height * 0.12
+                radius: width / 2
+                color: "#17304a"
+                opacity: 0.55
+            }
+
+            Rectangle {
+                width: parent.width * 0.42
+                height: parent.height * 0.42
+                x: parent.width * 0.72
+                y: parent.height * 0.7
+                radius: width / 2
+                color: "#0f2438"
+                opacity: 0.75
+            }
+
+            ColumnLayout {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 120, 520)
+                spacing: 20
+
+                Text {
+                    text: "RouteGuard Bus"
+                    color: "#8fa8c5"
+                    font.pixelSize: 18
+                    font.letterSpacing: 3
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: "Device Locked"
+                    color: "white"
+                    font.pixelSize: 48
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: "Enter the assigned 4-digit driver PIN to unlock boarding mode. The device stays locked until RouteGuard verifies the PIN online."
+                    color: "#b7c9dc"
+                    font.pixelSize: 18
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
+                }
 
                 Rectangle {
-                    anchors.fill: parent
+                    Layout.fillWidth: true
                     radius: 18
-                    color: "#08101bd9"
-                    visible: !appController.driverAuthenticated
-                    z: 2
+                    color: appController.driverLoginError.length > 0 ? "#3b1820" : "#0d1828"
+                    border.color: appController.driverLoginError.length > 0 ? "#d7677f" : "#2d4a69"
+                    implicitHeight: 128
 
                     ColumnLayout {
-                        anchors.centerIn: parent
-                        spacing: 12
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 10
 
                         Text {
-                            text: "Driver login required"
-                            color: "white"
-                            font.pixelSize: 30
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.alignment: Qt.AlignHCenter
+                            text: "Driver PIN"
+                            color: "#8fa8c5"
+                            font.pixelSize: 15
                         }
 
                         Text {
-                            text: "Unlock the device from the keypad before scanning RFID tags."
-                            color: "#9ab2ce"
-                            font.pixelSize: 18
+                            text: maskedDriverPin()
+                            color: "white"
+                            font.pixelSize: 34
+                            font.bold: true
+                            font.letterSpacing: 4
                             horizontalAlignment: Text.AlignHCenter
-                            Layout.alignment: Qt.AlignHCenter
+                            Layout.fillWidth: true
+                        }
+
+                        Text {
+                            text: appController.driverLoginPending ? "Checking PIN with RouteGuard..." : "Use the keypad to unlock this device."
+                            color: "#c8d8ea"
+                            font.pixelSize: 15
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
                         }
                     }
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 3
+                    columnSpacing: 12
+                    rowSpacing: 12
+                    enabled: !appController.driverLoginPending
+
+                    Repeater {
+                        model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Back"]
+
+                        Button {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 78
+                            text: modelData
+
+                            onClicked: {
+                                if (modelData === "Clear") {
+                                    clearDriverPin()
+                                } else if (modelData === "Back") {
+                                    backspaceDriverPin()
+                                } else {
+                                    appendDriverPin(modelData)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 64
+                    text: appController.driverLoginPending ? "Unlocking..." : "Unlock Device"
+                    enabled: !appController.driverLoginPending && driverPinValue.length === 4
+                    onClicked: submitDriverPin()
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    visible: appController.driverLoginError.length > 0
+                    text: appController.driverLoginError
+                    color: "#ff9fb3"
+                    font.pixelSize: 16
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
         }
