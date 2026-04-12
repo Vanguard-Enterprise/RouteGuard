@@ -60,6 +60,7 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/enrollment-status", h.DeviceEnrollmentStatus)
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/check-in", h.DeviceCheckIn)
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/rfid-events", h.DeviceRFIDEvents)
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/driver-login", h.DeviceDriverLogin)
 	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/releases/latest", h.DeviceLatestRelease)
 
 	// Authenticated auth
@@ -191,6 +192,8 @@ func (s *Server) buildRouter() chi.Router {
 		r.With(middleware.RequirePermission("drivers:write")).Put("/drivers/{id}", h.OrgUpdateDriver)
 		r.With(middleware.RequirePermission("drivers:write")).Delete("/drivers/{id}", h.OrgDeleteDriver)
 		r.With(middleware.RequirePermission("drivers:write")).Post("/drivers/{id}/restore", h.OrgRestoreDriver)
+		r.With(middleware.RequirePermission("drivers:write")).Put("/drivers/{id}/pin", h.OrgSetDriverPIN)
+		r.With(middleware.RequirePermission("drivers:write")).Delete("/drivers/{id}/pin", h.OrgClearDriverPIN)
 
 		r.With(middleware.RequirePermission("stops:read")).Get("/stops", h.OrgListStops)
 		r.With(middleware.RequirePermission("stops:read")).Get("/stops/deleted", h.OrgListDeletedStops)

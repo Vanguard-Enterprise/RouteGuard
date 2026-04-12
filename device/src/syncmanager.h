@@ -17,6 +17,7 @@ public:
     void refreshEnrollmentCode();
     void pollEnrollmentStatus(const QString &code);
     void sendCheckIn(const QString &connectivityState, const QString &appHealth);
+    void loginDriver(const QString &pin);
     void syncPending(const QString &routeId);
 
 signals:
@@ -27,6 +28,8 @@ signals:
     void syncFailed(const QString &message);
     void checkInComplete(const QString &latestVersion);
     void checkInFailed(const QString &message);
+    void driverLoginSucceeded(const QString &id, const QString &driverId, const QString &name);
+    void driverLoginFailed(const QString &message);
 
 private:
     LocalStore *m_store;

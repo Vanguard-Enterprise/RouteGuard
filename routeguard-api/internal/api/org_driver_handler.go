@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/routeguard/api/internal/auth"
+	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/middleware"
 )
@@ -14,6 +17,8 @@ import (
 func normalizeDriverText(v string) string {
 	return strings.TrimSpace(v)
 }
+
+const driverPINLookupConstraint = "idx_drivers_org_pin_lookup_active"
 
 func (h *Handler) OrgListDrivers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -265,6 +270,73 @@ func (h *Handler) OrgRestoreDriver(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		Error(w, http.StatusInternalServerError, "failed to restore driver")
+		return
+	}
+
+	JSON(w, http.StatusOK, driver)
+}
+
+func (h *Handler) OrgSetDriverPIN(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	session := middleware.SessionFromContext(ctx)
+	id := chi.URLParam(r, "id")
+
+	var body struct {
+		PIN string `json:"pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	body.PIN = strings.TrimSpace(body.PIN)
+	if err := auth.ValidatePIN(body.PIN); err != nil {
+		Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	pinHash, err := auth.HashPIN(body.PIN)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to hash driver pin")
+		return
+	}
+
+	driver, err := h.drivers.SetPIN(
+		ctx,
+		session.OrgID,
+		id,
+		pinHash,
+		crypto.HMAC(h.cfg.HMACKey, body.PIN),
+		time.Now().UTC(),
+	)
+	if err != nil {
+		if isNotFound(err) {
+			Error(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		if constraintName(err) == driverPINLookupConstraint {
+			Error(w, http.StatusConflict, "pin already in use by another driver")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to set driver pin")
+		return
+	}
+
+	JSON(w, http.StatusOK, driver)
+}
+
+func (h *Handler) OrgClearDriverPIN(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	session := middleware.SessionFromContext(ctx)
+	id := chi.URLParam(r, "id")
+
+	driver, err := h.drivers.ClearPIN(ctx, session.OrgID, id)
+	if err != nil {
+		if isNotFound(err) {
+			Error(w, http.StatusNotFound, "driver not found")
+			return
+		}
+		Error(w, http.StatusInternalServerError, "failed to clear driver pin")
 		return
 	}
 

@@ -55,6 +55,7 @@ import {
   CircleCheckIcon,
   CircleXIcon,
   FilterIcon,
+  KeyRoundIcon,
   LoaderCircleIcon,
   PhoneIcon,
   RotateCcwIcon,
@@ -136,7 +137,18 @@ function getAutoPerPage(viewportHeight: number) {
   return Math.max(10, Math.min(24, estimatedVisibleRows))
 }
 
-export function DriverManagementPage() {
+function formatPinUpdatedAt(pinUpdatedAt?: string | null) {
+  if (!pinUpdatedAt) return "Not set"
+  const parsed = new Date(pinUpdatedAt)
+  if (Number.isNaN(parsed.getTime())) return "Not set"
+  return parsed.toLocaleString()
+}
+
+type DriverManagementPageProps = {
+  canWrite: boolean
+}
+
+export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
   const [payload, setPayload] = useState<DriverUpsertPayload>(emptyPayload)
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -156,6 +168,11 @@ export function DriverManagementPage() {
   const [trashOpen, setTrashOpen] = useState(false)
   const [deletedPage, setDeletedPage] = useState(1)
   const [recoveringId, setRecoveringId] = useState<string | null>(null)
+  const [pinTarget, setPinTarget] = useState<Driver | null>(null)
+  const [pinValue, setPinValue] = useState("")
+  const [pinSaving, setPinSaving] = useState(false)
+  const [pinClearing, setPinClearing] = useState(false)
+  const [pinError, setPinError] = useState<string | null>(null)
 
   const key = useMemo(
     () => ["org-drivers", debouncedQuery, filters.status, page, perPage] as const,
@@ -255,6 +272,12 @@ export function DriverManagementPage() {
     setModalOpen(true)
   }
 
+  function openPinModal(driver: Driver) {
+    setPinTarget(driver)
+    setPinValue("")
+    setPinError(null)
+  }
+
   async function handleSubmit() {
     if (!payload.driver_id?.trim() || !payload.name?.trim()) {
       toast.error("Driver ID and name are required")
@@ -334,6 +357,52 @@ export function DriverManagementPage() {
     }
   }
 
+  async function handleSetPin() {
+    if (!pinTarget) return
+
+    const normalizedPin = pinValue.replace(/\D/g, "").slice(0, 4)
+    if (normalizedPin.length !== 4 || normalizedPin !== pinValue) {
+      setPinError("PIN must be exactly 4 digits")
+      return
+    }
+
+    setPinSaving(true)
+    setPinError(null)
+    try {
+      await api.org.drivers.setPin(pinTarget.id, normalizedPin)
+      toast.success(pinTarget.has_pin ? "Driver PIN updated" : "Driver PIN set")
+      setPinTarget(null)
+      setPinValue("")
+      mutate()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save driver PIN"
+      setPinError(message)
+      toast.error(message)
+    } finally {
+      setPinSaving(false)
+    }
+  }
+
+  async function handleClearPin() {
+    if (!pinTarget) return
+
+    setPinClearing(true)
+    setPinError(null)
+    try {
+      await api.org.drivers.clearPin(pinTarget.id)
+      toast.success("Driver PIN cleared")
+      setPinTarget(null)
+      setPinValue("")
+      mutate()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to clear driver PIN"
+      setPinError(message)
+      toast.error(message)
+    } finally {
+      setPinClearing(false)
+    }
+  }
+
   function applyFilters() {
     setFilters(draftFilters)
     setFiltersOpen(false)
@@ -358,7 +427,7 @@ export function DriverManagementPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Driver Management</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your driver roster, phone readiness, and PM availability from one workspace.
+          Manage your driver roster, phone readiness, device PIN access, and PM availability from one workspace.
         </p>
       </div>
 
@@ -505,6 +574,84 @@ export function DriverManagementPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={Boolean(pinTarget)}
+        onOpenChange={(open) => {
+          if (open) return
+          if (pinSaving || pinClearing) return
+          setPinTarget(null)
+          setPinValue("")
+          setPinError(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{pinTarget?.has_pin ? "Update Driver PIN" : "Set Driver PIN"}</DialogTitle>
+            <DialogDescription>
+              Enter a write-only 4-digit PIN for {pinTarget?.name}. This PIN is used on the RouteGuard bus device login pad.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Current state</span>
+                <Badge variant={pinTarget?.has_pin ? "secondary" : "outline"}>
+                  {pinTarget?.has_pin ? "PIN set" : "No PIN"}
+                </Badge>
+              </div>
+              <div className="text-muted-foreground">
+                Last updated: {formatPinUpdatedAt(pinTarget?.pin_updated_at)}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="driver-pin">4-digit PIN</Label>
+              <Input
+                id="driver-pin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="1234"
+                value={pinValue}
+                onChange={(event) => {
+                  setPinError(null)
+                  setPinValue(event.target.value.replace(/\D/g, "").slice(0, 4))
+                }}
+              />
+            </div>
+            {pinError ? <p className="text-sm text-destructive">{pinError}</p> : null}
+          </div>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <div>
+              {pinTarget?.has_pin ? (
+                <Button
+                  variant="outline"
+                  onClick={handleClearPin}
+                  disabled={pinSaving || pinClearing}
+                >
+                  {pinClearing ? "Clearing..." : "Clear PIN"}
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPinTarget(null)
+                  setPinValue("")
+                  setPinError(null)
+                }}
+                disabled={pinSaving || pinClearing}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSetPin} disabled={pinSaving || pinClearing}>
+                {pinSaving ? "Saving..." : pinTarget?.has_pin ? "Update PIN" : "Set PIN"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={filtersOpen} onOpenChange={(open) => { setFiltersOpen(open); if (open) setDraftFilters(filters) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -545,7 +692,9 @@ export function DriverManagementPage() {
                 </span>
               ) : null}
             </Button>
-            <Button size="icon" className="size-9" onClick={openCreateModal} aria-label="Add driver" title="Add driver"><UserRoundPlusIcon /></Button>
+            {canWrite ? (
+              <Button size="icon" className="size-9" onClick={openCreateModal} aria-label="Add driver" title="Add driver"><UserRoundPlusIcon /></Button>
+            ) : null}
             <Button variant="outline" size="icon" className="size-9" onClick={() => { setDeletedPage(1); setTrashOpen(true) }} title="View archived drivers" aria-label="View archived drivers"><Trash2Icon /></Button>
           </div>
         </CardHeader>
@@ -557,6 +706,7 @@ export function DriverManagementPage() {
                 <TableRow>
                   <TableHead>Driver</TableHead>
                   <TableHead>Phone</TableHead>
+                  <TableHead>Device PIN</TableHead>
                   <TableHead>Availability</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -564,14 +714,24 @@ export function DriverManagementPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
                 ) : drivers.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No drivers found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No drivers found.</TableCell></TableRow>
                 ) : (
                   drivers.map((driver) => (
                     <TableRow key={driver.id}>
                       <TableCell><div className="font-medium">{driver.name}</div><div className="text-xs text-muted-foreground">{driver.driver_id}</div></TableCell>
                       <TableCell>{driver.phone || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant={driver.has_pin ? "secondary" : "outline"} className="w-fit">
+                            {driver.has_pin ? "PIN set" : "No PIN"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {formatPinUpdatedAt(driver.pin_updated_at)}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="px-1.5 text-muted-foreground">
                           {driver.is_available ? <CircleCheckIcon className="fill-green-500 dark:fill-green-400" /> : <CircleXIcon className="fill-muted-foreground/30" />}
@@ -586,11 +746,20 @@ export function DriverManagementPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="icon" variant="outline" onClick={() => setAvailabilityTarget(driver)} aria-label={`Toggle availability for ${driver.name}`} title={driver.is_available ? "Mark unavailable" : "Mark available"}>
-                            {availabilitySaving && availabilityTarget?.id === driver.id ? <LoaderCircleIcon className="size-4 animate-spin" /> : <UserRoundIcon className="size-4" />}
-                          </Button>
-                          <Button size="icon" variant="outline" onClick={() => openEditModal(driver)} aria-label={`Edit ${driver.name}`} title="Edit"><SquarePenIcon className="size-4" /></Button>
-                          <Button size="icon" variant="destructive" onClick={() => setArchiveTarget(driver)} aria-label={`Archive ${driver.name}`} title="Archive"><ArchiveIcon className="size-4" /></Button>
+                          {canWrite ? (
+                            <>
+                              <Button size="icon" variant="outline" onClick={() => openPinModal(driver)} aria-label={`Manage PIN for ${driver.name}`} title={driver.has_pin ? "Update PIN" : "Set PIN"}>
+                                <KeyRoundIcon className="size-4" />
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => setAvailabilityTarget(driver)} aria-label={`Toggle availability for ${driver.name}`} title={driver.is_available ? "Mark unavailable" : "Mark available"}>
+                                {availabilitySaving && availabilityTarget?.id === driver.id ? <LoaderCircleIcon className="size-4 animate-spin" /> : <UserRoundIcon className="size-4" />}
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => openEditModal(driver)} aria-label={`Edit ${driver.name}`} title="Edit"><SquarePenIcon className="size-4" /></Button>
+                              <Button size="icon" variant="destructive" onClick={() => setArchiveTarget(driver)} aria-label={`Archive ${driver.name}`} title="Archive"><ArchiveIcon className="size-4" /></Button>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Read only</span>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -627,7 +796,7 @@ export function DriverManagementPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={archiving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={archiving} onClick={handleArchiveConfirmed}>{archiving ? "Archiving..." : "Archive"}</AlertDialogAction>
+            <AlertDialogAction variant="destructive" disabled={archiving || !canWrite} onClick={handleArchiveConfirmed}>{archiving ? "Archiving..." : "Archive"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -640,7 +809,7 @@ export function DriverManagementPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={availabilitySaving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={availabilitySaving} onClick={handleAvailabilityToggle}>{availabilitySaving ? "Saving..." : availabilityTarget?.is_available ? "Mark Unavailable" : "Mark Available"}</AlertDialogAction>
+            <AlertDialogAction disabled={availabilitySaving || !canWrite} onClick={handleAvailabilityToggle}>{availabilitySaving ? "Saving..." : availabilityTarget?.is_available ? "Mark Unavailable" : "Mark Available"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -676,7 +845,11 @@ export function DriverManagementPage() {
                       <TableCell>{driver.deleted_at ? new Date(driver.deleted_at).toLocaleString() : "-"}</TableCell>
                       <TableCell>{formatTimeUntilDeletion(driver.deleted_at)}</TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="outline" className="gap-2" onClick={() => handleRecoverDriver(driver)} disabled={recoveringId === driver.id}><RotateCcwIcon className="size-4" />{recoveringId === driver.id ? "Recovering..." : "Recover"}</Button>
+                        {canWrite ? (
+                          <Button size="sm" variant="outline" className="gap-2" onClick={() => handleRecoverDriver(driver)} disabled={recoveringId === driver.id}><RotateCcwIcon className="size-4" />{recoveringId === driver.id ? "Recovering..." : "Recover"}</Button>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Read only</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

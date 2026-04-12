@@ -436,6 +436,8 @@ export interface Driver {
   phone: string
   is_available: boolean
   is_active: boolean
+  has_pin: boolean
+  pin_updated_at: string | null
   created_at: string
   updated_at: string
   deleted_at?: string | null
@@ -850,6 +852,10 @@ export const api = {
         orgRequest<Driver>('/org/drivers', { method: 'POST', body: JSON.stringify(data) }),
       update: (id: string, data: DriverUpsertPayload) =>
         orgRequest<Driver>(`/org/drivers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      setPin: (id: string, pin: string) =>
+        orgRequest<Driver>(`/org/drivers/${id}/pin`, { method: 'PUT', body: JSON.stringify({ pin }) }),
+      clearPin: (id: string) =>
+        orgRequest<Driver>(`/org/drivers/${id}/pin`, { method: 'DELETE' }),
       remove: (id: string) =>
         orgRequest<void>(`/org/drivers/${id}`, { method: 'DELETE' }),
       restore: (id: string) =>

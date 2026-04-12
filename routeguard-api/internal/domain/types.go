@@ -246,16 +246,30 @@ type RiderScanEvent struct {
 }
 
 type Driver struct {
-	ID          string     `json:"id"`
-	OrgID       string     `json:"org_id"`
-	DriverID    string     `json:"driver_id"`
-	Name        string     `json:"name"`
-	Phone       string     `json:"phone"`
-	IsAvailable bool       `json:"is_available"`
-	IsActive    bool       `json:"is_active"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	ID            string     `json:"id"`
+	OrgID         string     `json:"org_id"`
+	DriverID      string     `json:"driver_id"`
+	Name          string     `json:"name"`
+	Phone         string     `json:"phone"`
+	IsAvailable   bool       `json:"is_available"`
+	IsActive      bool       `json:"is_active"`
+	PinHash       *string    `json:"-"`
+	PinLookupHash *string    `json:"-"`
+	HasPIN        bool       `json:"has_pin"`
+	PinUpdatedAt  *time.Time `json:"pin_updated_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	DeletedAt     *time.Time `json:"deleted_at,omitempty"`
+}
+
+type DeviceDriverSummary struct {
+	ID       string `json:"id"`
+	DriverID string `json:"driver_id"`
+	Name     string `json:"name"`
+}
+
+type DeviceDriverLoginResponse struct {
+	Driver DeviceDriverSummary `json:"driver"`
 }
 
 type Stop struct {

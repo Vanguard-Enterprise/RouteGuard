@@ -130,6 +130,56 @@ void SyncManager::sendCheckIn(const QString &connectivityState, const QString &a
     });
 }
 
+void SyncManager::loginDriver(const QString &pin) {
+    QNetworkRequest request(QUrl(m_apiBase + "/device/driver-login"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", QByteArray("Bearer ") + m_deviceToken.toUtf8());
+
+    const QJsonObject payload{
+        {"pin", pin}
+    };
+
+    QNetworkReply *reply = m_network.post(request, QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QJsonDocument document = QJsonDocument::fromJson(body);
+        const QJsonObject json = document.isObject() ? document.object() : QJsonObject{};
+        const QString errorMessage = json.value("error").toString();
+
+        if (status == 401) {
+            emit authRejected();
+            reply->deleteLater();
+            return;
+        }
+
+        if (reply->error() != QNetworkReply::NoError) {
+            if (status == 403) {
+                emit driverLoginFailed(errorMessage.isEmpty() ? QStringLiteral("Invalid driver PIN.") : errorMessage);
+            } else if (!errorMessage.isEmpty()) {
+                emit driverLoginFailed(errorMessage);
+            } else {
+                emit driverLoginFailed(QStringLiteral("Driver login requires an online connection."));
+            }
+            reply->deleteLater();
+            return;
+        }
+
+        const QJsonObject driver = json.value("driver").toObject();
+        const QString id = driver.value("id").toString();
+        const QString driverId = driver.value("driver_id").toString();
+        const QString name = driver.value("name").toString();
+        if (id.isEmpty() || driverId.isEmpty() || name.isEmpty()) {
+            emit driverLoginFailed(QStringLiteral("Unexpected driver login response."));
+            reply->deleteLater();
+            return;
+        }
+
+        emit driverLoginSucceeded(id, driverId, name);
+        reply->deleteLater();
+    });
+}
+
 void SyncManager::syncPending(const QString &routeId) {
     const QList<PendingScanEvent> pending = m_store->pendingScans();
     if (pending.isEmpty()) {

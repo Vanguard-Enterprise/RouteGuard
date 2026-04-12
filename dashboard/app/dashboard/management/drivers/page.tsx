@@ -11,5 +11,5 @@ export default async function DriverManagementRoute() {
     redirect("/forbidden")
   }
 
-  return <DriverManagementPage />
+  return <DriverManagementPage canWrite={me.permissions.includes("drivers:write")} />
 }

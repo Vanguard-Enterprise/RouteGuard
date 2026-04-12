@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/routeguard/api/internal/auth"
 	"github.com/routeguard/api/internal/crypto"
 	"github.com/routeguard/api/internal/domain"
 	"github.com/routeguard/api/internal/middleware"
@@ -15,6 +16,16 @@ import (
 )
 
 func (h *Handler) authenticateDeviceRequest(r *http.Request) (*repository.DeviceCheckInInput, error) {
+	device, err := h.authenticateDevice(r)
+	if err != nil {
+		return nil, err
+	}
+	return &repository.DeviceCheckInInput{
+		DeviceID: device.ID,
+	}, nil
+}
+
+func (h *Handler) authenticateDevice(r *http.Request) (*domain.Device, error) {
 	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 	if token == "" {
 		return nil, http.ErrNoCookie
@@ -26,9 +37,7 @@ func (h *Handler) authenticateDeviceRequest(r *http.Request) (*repository.Device
 	if device.OrgID == nil {
 		return nil, http.ErrNoCookie
 	}
-	return &repository.DeviceCheckInInput{
-		DeviceID: device.ID,
-	}, nil
+	return device, nil
 }
 
 type deviceBootstrapRequest struct {
@@ -217,14 +226,8 @@ type riderScanBatchRequest struct {
 }
 
 func (h *Handler) DeviceRFIDEvents(w http.ResponseWriter, r *http.Request) {
-	authn, err := h.authenticateDeviceRequest(r)
+	device, err := h.authenticateDevice(r)
 	if err != nil {
-		Error(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	device, err := h.devices.AuthenticateByToken(r.Context(), crypto.HMAC(h.cfg.HMACKey, strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))))
-	if err != nil || device.OrgID == nil {
 		Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -261,7 +264,7 @@ func (h *Handler) DeviceRFIDEvents(w http.ResponseWriter, r *http.Request) {
 		}
 		meta, _ := json.Marshal(item.Metadata)
 		event, err := h.devices.CreateScanEvent(r.Context(), repository.RiderScanInput{
-			DeviceID:   authn.DeviceID,
+			DeviceID:   device.ID,
 			OrgID:      *device.OrgID,
 			RouteID:    item.RouteID,
 			EventUID:   item.EventUID,
@@ -277,6 +280,51 @@ func (h *Handler) DeviceRFIDEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, map[string]any{"results": results})
+}
+
+func (h *Handler) DeviceDriverLogin(w http.ResponseWriter, r *http.Request) {
+	device, err := h.authenticateDevice(r)
+	if err != nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var body struct {
+		PIN string `json:"pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	body.PIN = strings.TrimSpace(body.PIN)
+	if err := auth.ValidatePIN(body.PIN); err != nil {
+		Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	driver, err := h.drivers.FindActiveByPINLookup(r.Context(), *device.OrgID, crypto.HMAC(h.cfg.HMACKey, body.PIN))
+	if err != nil || driver.PinHash == nil {
+		Error(w, http.StatusForbidden, "invalid driver pin")
+		return
+	}
+
+	ok, err := auth.VerifyPIN(body.PIN, *driver.PinHash)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to verify driver pin")
+		return
+	}
+	if !ok {
+		Error(w, http.StatusForbidden, "invalid driver pin")
+		return
+	}
+
+	JSON(w, http.StatusOK, domain.DeviceDriverLoginResponse{
+		Driver: domain.DeviceDriverSummary{
+			ID:       driver.ID,
+			DriverID: driver.DriverID,
+			Name:     driver.Name,
+		},
+	})
 }
 
 func (h *Handler) DeviceLatestRelease(w http.ResponseWriter, r *http.Request) {
