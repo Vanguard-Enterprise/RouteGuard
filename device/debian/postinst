@@ -14,6 +14,10 @@ done
 mkdir -p /opt/routeguard-bus
 chown -R routeguard:routeguard /opt/routeguard-bus
 
+if [ -x /usr/sbin/setcap ] && [ -x /usr/sbin/iw ]; then
+  /usr/sbin/setcap cap_net_admin+ep /usr/sbin/iw || true
+fi
+
 systemctl daemon-reload
 systemctl enable routeguard-bus.service
 systemctl restart routeguard-bus.service

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -51,6 +52,25 @@ type nominatimSearchItem struct {
 	Lat         string `json:"lat"`
 	Lon         string `json:"lon"`
 	PlaceID     any    `json:"place_id"`
+}
+
+type deviceGeolocationRequest struct {
+	ConsiderIP       bool                         `json:"considerIp,omitempty"`
+	WifiAccessPoints []deviceGeolocationAccessPt `json:"wifiAccessPoints,omitempty"`
+}
+
+type deviceGeolocationAccessPt struct {
+	MacAddress     string  `json:"macAddress"`
+	SignalStrength float64 `json:"signalStrength,omitempty"`
+	Channel        int     `json:"channel,omitempty"`
+}
+
+type deviceGeolocationResponse struct {
+	Location struct {
+		Lat float64 `json:"lat"`
+		Lng float64 `json:"lng"`
+	} `json:"location"`
+	Accuracy float64 `json:"accuracy"`
 }
 
 type mapboxDirectionsResponse struct {
@@ -184,6 +204,29 @@ func (h *Handler) DeviceDriverHome(w http.ResponseWriter, r *http.Request) {
 
 	response.Routes = append(response.Routes, routeItem)
 	JSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) DeviceCurrentLocation(w http.ResponseWriter, r *http.Request) {
+	if _, err := h.authenticateDevice(r); err != nil {
+		Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var body struct {
+		WifiAccessPoints []deviceGeolocationAccessPt `json:"wifiAccessPoints"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	location, err := h.fetchDeviceCurrentLocation(r.Context(), body.WifiAccessPoints)
+	if err != nil {
+		Error(w, http.StatusServiceUnavailable, "current location unavailable")
+		return
+	}
+
+	JSON(w, http.StatusOK, location)
 }
 
 func (h *Handler) DeviceNavigationSearch(w http.ResponseWriter, r *http.Request) {
@@ -508,6 +551,155 @@ func (h *Handler) searchNominatim(r *http.Request, query string) ([]domain.Devic
 	}
 
 	return items, nil
+}
+
+func (h *Handler) fetchDeviceCurrentLocation(ctx context.Context, wifiAccessPoints []deviceGeolocationAccessPt) (map[string]any, error) {
+	sanitized := sanitizeGeolocationAccessPoints(wifiAccessPoints)
+	if len(sanitized) == 0 {
+		return nil, fmt.Errorf("no wifi access points available")
+	}
+
+	if strings.TrimSpace(h.cfg.GoogleMapsAPIKey) != "" {
+		location, err := h.fetchGoogleGeolocation(ctx, sanitized)
+		if err == nil {
+			return location, nil
+		}
+	}
+
+	return h.fetchBeaconDBGeolocation(ctx, sanitized)
+}
+
+func sanitizeGeolocationAccessPoints(points []deviceGeolocationAccessPt) []deviceGeolocationAccessPt {
+	sanitized := make([]deviceGeolocationAccessPt, 0, len(points))
+	seen := make(map[string]struct{}, len(points))
+
+	for _, point := range points {
+		mac := strings.ToLower(strings.TrimSpace(point.MacAddress))
+		if !usableGeolocationMAC(mac) {
+			continue
+		}
+		if _, ok := seen[mac]; ok {
+			continue
+		}
+
+		item := deviceGeolocationAccessPt{
+			MacAddress: mac,
+		}
+		if point.SignalStrength != 0 {
+			item.SignalStrength = point.SignalStrength
+		}
+		if point.Channel > 0 {
+			item.Channel = point.Channel
+		}
+
+		sanitized = append(sanitized, item)
+		seen[mac] = struct{}{}
+		if len(sanitized) == 12 {
+			break
+		}
+	}
+
+	return sanitized
+}
+
+func usableGeolocationMAC(value string) bool {
+	mac, err := net.ParseMAC(value)
+	if err != nil || len(mac) != 6 {
+		return false
+	}
+
+	isBroadcast := true
+	for _, octet := range mac {
+		if octet != 0xff {
+			isBroadcast = false
+			break
+		}
+	}
+	if isBroadcast {
+		return false
+	}
+	if mac[0] == 0x00 && mac[1] == 0x00 && mac[2] == 0x5e {
+		return false
+	}
+	if mac[0]&0x02 != 0 {
+		return false
+	}
+
+	return true
+}
+
+func (h *Handler) fetchGoogleGeolocation(ctx context.Context, wifiAccessPoints []deviceGeolocationAccessPt) (map[string]any, error) {
+	requestBody, err := json.Marshal(deviceGeolocationRequest{
+		WifiAccessPoints: wifiAccessPoints,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	requestURL := strings.TrimRight(h.googleGeoBaseURL, "/") + "/geolocation/v1/geolocate?key=" + url.QueryEscape(h.cfg.GoogleMapsAPIKey)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, strings.NewReader(string(requestBody)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("google geolocation status %d", resp.StatusCode)
+	}
+
+	return decodeGeolocationResponse(resp.Body)
+}
+
+func (h *Handler) fetchBeaconDBGeolocation(ctx context.Context, wifiAccessPoints []deviceGeolocationAccessPt) (map[string]any, error) {
+	requestBody, err := json.Marshal(deviceGeolocationRequest{
+		WifiAccessPoints: wifiAccessPoints,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	requestURL := strings.TrimRight(h.beaconDBBaseURL, "/") + "/geolocate"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, strings.NewReader(string(requestBody)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "RouteGuard/1.0 (Device Location)")
+
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("beacondb geolocation status %d", resp.StatusCode)
+	}
+
+	return decodeGeolocationResponse(resp.Body)
+}
+
+func decodeGeolocationResponse(body io.Reader) (map[string]any, error) {
+	var parsed deviceGeolocationResponse
+	if err := json.NewDecoder(body).Decode(&parsed); err != nil {
+		return nil, err
+	}
+	if math.IsNaN(parsed.Location.Lat) || math.IsNaN(parsed.Location.Lng) {
+		return nil, fmt.Errorf("invalid geolocation response")
+	}
+
+	return map[string]any{
+		"latitude":  parsed.Location.Lat,
+		"longitude": parsed.Location.Lng,
+		"accuracy":  parsed.Accuracy,
+	}, nil
 }
 
 func (h *Handler) fetchRouteGeometry(ctx context.Context, stops []domain.DeviceRouteHomeStop) (*domain.DeviceRouteGeometry, error) {

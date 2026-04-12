@@ -235,6 +235,34 @@ void SyncManager::fetchDriverHome() {
     });
 }
 
+void SyncManager::resolveDeviceLocation(const QVariantList &wifiAccessPoints) {
+    QNetworkRequest request = authorizedRequest(QStringLiteral("/device/location"));
+    const QJsonObject payload{
+        {"wifiAccessPoints", QJsonArray::fromVariantList(wifiAccessPoints)}
+    };
+
+    QNetworkReply *reply = m_network.post(request, QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QJsonObject json = parseJsonObject(body);
+
+        if (status == 401) {
+            emit authRejected();
+            reply->deleteLater();
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError) {
+            emit deviceLocationFailed(apiErrorMessage(json, QStringLiteral("Current location is unavailable right now.")));
+            reply->deleteLater();
+            return;
+        }
+
+        emit deviceLocationResolved(json.toVariantMap());
+        reply->deleteLater();
+    });
+}
+
 void SyncManager::searchNavigation(const QString &query) {
     QUrl requestUrl(m_apiBase + QStringLiteral("/device/navigation/search"));
     QUrlQuery requestQuery;

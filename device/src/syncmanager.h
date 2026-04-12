@@ -23,6 +23,7 @@ public:
     void sendCheckIn(const QString &connectivityState, const QString &appHealth);
     void loginDriver(const QString &pin);
     void fetchDriverHome();
+    void resolveDeviceLocation(const QVariantList &wifiAccessPoints);
     void searchNavigation(const QString &query);
     void requestDirections(const QVariantList &coordinates);
     void syncPending(const QString &routeId);
@@ -45,6 +46,8 @@ signals:
     void driverLoginFailed(const QString &message);
     void driverHomeLoaded(const QVariantMap &payload);
     void driverHomeFailed(const QString &message);
+    void deviceLocationResolved(const QVariantMap &payload);
+    void deviceLocationFailed(const QString &message);
     void navigationSearchFinished(const QVariantList &items);
     void navigationSearchFailed(const QString &message);
     void navigationDirectionsReady(const QVariantMap &payload);

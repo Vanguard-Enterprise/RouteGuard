@@ -35,7 +35,9 @@ type Handler struct {
 	support          *repository.SupportRepo
 	httpClient       *http.Client
 	googleBaseURL    string
+	googleGeoBaseURL string
 	nominatimBaseURL string
+	beaconDBBaseURL  string
 	mapboxBaseURL    string
 }
 
@@ -65,7 +67,9 @@ func NewHandler(pool *pgxpool.Pool, c *cache.Cache, cfg *config.Config) *Handler
 		support:          repository.NewSupportRepo(pool),
 		httpClient:       http.DefaultClient,
 		googleBaseURL:    "https://places.googleapis.com/v1",
+		googleGeoBaseURL: "https://www.googleapis.com",
 		nominatimBaseURL: "https://nominatim.openstreetmap.org",
+		beaconDBBaseURL:  "https://api.beacondb.net/v1",
 		mapboxBaseURL:    "https://api.mapbox.com",
 	}
 }

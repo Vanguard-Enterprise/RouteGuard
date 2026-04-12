@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 
     QGuiApplication app(argc, argv);
     app.setOrganizationName("RouteGuard");
-    app.setApplicationName("RouteGuard Bus");
+    app.setApplicationName(QStringLiteral("RouteGuard Bus"));
 
     AppController controller;
     RouteGuardRequestInterceptor interceptor(&controller);

@@ -108,6 +108,8 @@ public:
     Q_INVOKABLE void closeSettings();
     Q_INVOKABLE void refreshRfidDevices();
     Q_INVOKABLE void selectRfidDevice(const QString &devicePath);
+    Q_INVOKABLE void updateCurrentLocation(double latitude, double longitude, double accuracy);
+    Q_INVOKABLE void clearCurrentLocation();
 
 signals:
     void enrollmentStateChanged();
@@ -146,6 +148,11 @@ private:
     void applyDriverHome(const QVariantMap &payload);
     void requestDirectionsForCurrentState();
     QVariantMap currentAnchorStop() const;
+    QVariantMap currentNavigationOrigin() const;
+    void refreshCurrentLocation(bool force = false);
+    QString activeWirelessInterface() const;
+    QVariantList parseWifiScanOutput(const QString &output) const;
+    QVariantList parseWifiLinkOutput(const QString &output) const;
     QString currentRouteId() const;
     void setUiMode(const QString &mode);
     void setOperationsPanelExpandedInternal(bool expanded);
@@ -186,6 +193,9 @@ private:
     bool m_navigationSearchPending {false};
     bool m_navigationPending {false};
     QString m_navigationError;
+    QVariantMap m_currentLocation;
+    bool m_locationPending {false};
+    QDateTime m_lastLocationRequestAt;
     QString m_lastScan;
     QString m_lastSync {"Never"};
     QString m_appVersion;

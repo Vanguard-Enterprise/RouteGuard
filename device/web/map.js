@@ -5,6 +5,8 @@
   let tileLayer = null;
   let routeLayer = null;
   let directionsLayer = null;
+  let currentLocationMarker = null;
+  let currentLocationAccuracy = null;
   let stopMarkers = [];
   let destinationMarker = null;
   let mapContainer = null;
@@ -12,6 +14,9 @@
   let initialFitComplete = false;
   let tileLayerReady = false;
   let tileLayerFailed = false;
+  let lastUiMode = "";
+  let lastViewportKey = "";
+  let lastHadCurrentLocation = false;
 
   function setStatus(message) {
     const element = document.getElementById("map-status");
@@ -26,14 +31,52 @@
     setStatus(message);
   }
 
+  function toFiniteNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   function toLatLngPairs(geometry) {
     if (!geometry || !Array.isArray(geometry.coordinates)) {
       return [];
     }
 
     return geometry.coordinates
-      .filter((coordinate) => Array.isArray(coordinate) && coordinate.length >= 2)
-      .map((coordinate) => [coordinate[1], coordinate[0]]);
+      .map((coordinate) => {
+        if (!Array.isArray(coordinate) || coordinate.length < 2) {
+          return null;
+        }
+
+        const latitude = toFiniteNumber(coordinate[1]);
+        const longitude = toFiniteNumber(coordinate[0]);
+        if (latitude === null || longitude === null) {
+          return null;
+        }
+
+        return [latitude, longitude];
+      })
+      .filter(Boolean);
+  }
+
+  function toPoint(location, fallbackLabel) {
+    if (!location || typeof location !== "object") {
+      return null;
+    }
+
+    const latitude = toFiniteNumber(location.latitude);
+    const longitude = toFiniteNumber(location.longitude);
+    if (latitude === null || longitude === null) {
+      return null;
+    }
+
+    const accuracy = toFiniteNumber(location.accuracy);
+    return {
+      latitude,
+      longitude,
+      accuracy,
+      label: String(location.label || location.name || fallbackLabel || ""),
+      address: String(location.address || ""),
+    };
   }
 
   function createStopIcon(isSelected) {
@@ -133,25 +176,130 @@
       destinationMarker.remove();
       destinationMarker = null;
     }
+    if (currentLocationMarker) {
+      currentLocationMarker.remove();
+      currentLocationMarker = null;
+    }
+    if (currentLocationAccuracy) {
+      currentLocationAccuracy.remove();
+      currentLocationAccuracy = null;
+    }
   }
 
-  function fitMap(boundsParts) {
-    const bounds = [];
-    boundsParts.forEach((part) => {
-      if (Array.isArray(part)) {
-        part.forEach((item) => bounds.push(item));
-      }
-    });
+  function setViewToPoint(point, zoom) {
+    map.setView([point.latitude, point.longitude], zoom);
+    initialFitComplete = true;
+    invalidateMapSize();
+  }
 
-    if (bounds.length === 0) {
+  function fitPoints(points) {
+    if (points.length === 0) {
       if (!initialFitComplete) {
         map.setView(defaultCenter, 11);
+        initialFitComplete = true;
       }
       return;
     }
 
-    map.fitBounds(bounds, { padding: [52, 52] });
+    if (points.length === 1) {
+      map.setView(points[0], 14);
+      initialFitComplete = true;
+      invalidateMapSize();
+      return;
+    }
+
+    map.fitBounds(points, { padding: [52, 52] });
     initialFitComplete = true;
+    invalidateMapSize();
+  }
+
+  function updateViewport(state, context) {
+    const uiMode = String(state.ui_mode || "");
+    const uiModeChanged = uiMode !== lastUiMode;
+    const currentLocationAvailable = Boolean(context.currentLocationPoint);
+    const currentLocationBecameAvailable = currentLocationAvailable && !lastHadCurrentLocation;
+
+    lastUiMode = uiMode;
+    lastHadCurrentLocation = currentLocationAvailable;
+
+    const viewportKey = JSON.stringify({
+      mode: uiMode,
+      route: String(context.routeId || ""),
+      stop: String(context.selectedStopId || ""),
+      destination: context.destinationPoint
+        ? `${context.destinationPoint.latitude.toFixed(4)},${context.destinationPoint.longitude.toFixed(4)}`
+        : "",
+      directions: context.directionsGeometry.length > 1 ? 1 : 0,
+      stops: context.stopPoints.length,
+      hasLocation: currentLocationAvailable ? 1 : 0,
+    });
+
+    if (
+      initialFitComplete &&
+      viewportKey === lastViewportKey &&
+      !uiModeChanged &&
+      !currentLocationBecameAvailable
+    ) {
+      return;
+    }
+    lastViewportKey = viewportKey;
+
+    if (
+      (uiModeChanged || currentLocationBecameAvailable) &&
+      context.currentLocationPoint &&
+      context.directionsGeometry.length <= 1 &&
+      !context.destinationPoint
+    ) {
+      setViewToPoint(context.currentLocationPoint, 15);
+      return;
+    }
+
+    if (context.directionsGeometry.length > 1) {
+      const points = context.directionsGeometry.slice();
+      if (context.currentLocationPoint) {
+        points.push([context.currentLocationPoint.latitude, context.currentLocationPoint.longitude]);
+      }
+      if (context.destinationPoint) {
+        points.push([context.destinationPoint.latitude, context.destinationPoint.longitude]);
+      }
+      fitPoints(points);
+      return;
+    }
+
+    if (context.destinationPoint && context.currentLocationPoint) {
+      fitPoints([
+        [context.currentLocationPoint.latitude, context.currentLocationPoint.longitude],
+        [context.destinationPoint.latitude, context.destinationPoint.longitude],
+      ]);
+      return;
+    }
+
+    if (context.currentLocationPoint && uiMode === "map_only") {
+      setViewToPoint(context.currentLocationPoint, 15);
+      return;
+    }
+
+    if (context.routeGeometry.length > 1) {
+      fitPoints(context.routeGeometry);
+      return;
+    }
+
+    if (context.stopPoints.length > 0) {
+      fitPoints(context.stopPoints);
+      return;
+    }
+
+    if (context.currentLocationPoint) {
+      setViewToPoint(context.currentLocationPoint, 15);
+      return;
+    }
+
+    if (context.destinationPoint) {
+      setViewToPoint(context.destinationPoint, 15);
+      return;
+    }
+
+    fitPoints([]);
   }
 
   function renderState(state) {
@@ -165,22 +313,34 @@
     const route = state.route || {};
     const selectedStop = state.selected_stop || {};
     const selectedDestination = state.selected_destination || {};
+    const currentLocation = state.current_location || {};
     const directions = state.directions || {};
     const stops = Array.isArray(route.stops) ? route.stops : [];
     const routeGeometry = toLatLngPairs(route.geometry);
     const directionsGeometry = toLatLngPairs(directions.geometry);
+    const currentLocationPoint = toPoint(currentLocation, "Current location");
+    const destinationPoint = toPoint(
+      selectedDestination,
+      selectedDestination.label || "Destination"
+    );
+    const stopPoints = [];
 
     stops.forEach((stop) => {
+      const stopPoint = toPoint(stop, stop.name || "Stop");
+      if (!stopPoint) {
+        return;
+      }
+
       const isSelected =
         (selectedStop.id && stop.id === selectedStop.id) ||
         (selectedStop.stop_id && stop.stop_id === selectedStop.stop_id);
 
-      const marker = L.marker([stop.latitude, stop.longitude], {
+      const marker = L.marker([stopPoint.latitude, stopPoint.longitude], {
         icon: createStopIcon(isSelected),
         riseOnHover: true,
       }).addTo(map);
 
-      marker.bindTooltip(stop.name || "Stop", {
+      marker.bindTooltip(stopPoint.label || "Stop", {
         direction: "top",
         offset: [0, -8],
       });
@@ -193,6 +353,7 @@
       });
 
       stopMarkers.push(marker);
+      stopPoints.push([stopPoint.latitude, stopPoint.longitude]);
     });
 
     if (routeGeometry.length > 1) {
@@ -216,37 +377,59 @@
       }).addTo(map);
     }
 
-    if (
-      selectedDestination &&
-      Number.isFinite(selectedDestination.latitude) &&
-      Number.isFinite(selectedDestination.longitude)
-    ) {
+    if (destinationPoint) {
       destinationMarker = L.marker(
-        [selectedDestination.latitude, selectedDestination.longitude],
+        [destinationPoint.latitude, destinationPoint.longitude],
         { icon: createDestinationIcon(), riseOnHover: true }
       ).addTo(map);
-      destinationMarker.bindTooltip(selectedDestination.label || "Destination", {
+      destinationMarker.bindTooltip(destinationPoint.label || "Destination", {
         direction: "top",
         offset: [0, -8],
       });
     }
 
-    fitMap([
-      directionsGeometry.length > 1 ? directionsGeometry : [],
-      routeGeometry.length > 1 ? routeGeometry : [],
-      stops.map((stop) => [stop.latitude, stop.longitude]),
-      destinationMarker ? [[selectedDestination.latitude, selectedDestination.longitude]] : [],
-    ]);
+    if (currentLocationPoint) {
+      if (Number.isFinite(currentLocationPoint.accuracy) && currentLocationPoint.accuracy > 0) {
+        currentLocationAccuracy = L.circle(
+          [currentLocationPoint.latitude, currentLocationPoint.longitude],
+          {
+            radius: Math.min(currentLocationPoint.accuracy, 500),
+            color: "#3b82f6",
+            weight: 1,
+            opacity: 0.45,
+            fillColor: "#60a5fa",
+            fillOpacity: 0.16,
+            interactive: false,
+          }
+        ).addTo(map);
+      }
 
-    if (stops.length === 0) {
-      setStatus(tileLayerFailed ? "Map tiles unavailable" : "No assigned route to display");
-      return;
+      currentLocationMarker = L.circleMarker(
+        [currentLocationPoint.latitude, currentLocationPoint.longitude],
+        {
+          radius: 9,
+          color: "#ffffff",
+          weight: 3,
+          fillColor: "#1d4ed8",
+          fillOpacity: 1,
+          interactive: false,
+        }
+      ).addTo(map);
+      currentLocationMarker.bindTooltip("Current location", {
+        direction: "top",
+        offset: [0, -10],
+      });
     }
 
-    if (selectedDestination && directionsGeometry.length <= 1) {
-      setStatus("Directions unavailable");
-      return;
-    }
+    updateViewport(state, {
+      routeId: route.id,
+      selectedStopId: selectedStop.stop_id || selectedStop.id || "",
+      routeGeometry,
+      directionsGeometry,
+      stopPoints,
+      destinationPoint,
+      currentLocationPoint,
+    });
 
     if (tileLayerFailed) {
       setStatus("Map tiles unavailable");
@@ -258,7 +441,17 @@
       return;
     }
 
-    setStatus("");
+    if (destinationPoint && directionsGeometry.length <= 1) {
+      setStatus("Directions unavailable");
+      return;
+    }
+
+    if (currentLocationPoint || stopPoints.length > 0 || routeGeometry.length > 1) {
+      setStatus("");
+      return;
+    }
+
+    setStatus("Current location unavailable");
   }
 
   function refreshState() {

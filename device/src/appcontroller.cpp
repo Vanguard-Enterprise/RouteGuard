@@ -7,6 +7,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonObject>
+#include <QProcess>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTime>
 #include <QUuid>
@@ -90,6 +92,20 @@ bool writeToneToDevice(const char *deviceName) {
 
 QVariantMap stopFromVariant(const QVariant &value) {
     return value.toMap();
+}
+
+int channelFromFrequencyMHz(double frequencyMHz) {
+    if (frequencyMHz >= 2412.0 && frequencyMHz <= 2472.0) {
+        return static_cast<int>(std::llround((frequencyMHz - 2407.0) / 5.0));
+    }
+    if (std::llround(frequencyMHz) == 2484) {
+        return 14;
+    }
+    if (frequencyMHz >= 5000.0 && frequencyMHz <= 5895.0) {
+        return static_cast<int>(std::llround((frequencyMHz - 5000.0) / 5.0));
+    }
+
+    return 0;
 }
 
 } // namespace
@@ -179,6 +195,18 @@ AppController::AppController(QObject *parent)
         m_driverHomeLoading = false;
         m_driverHomeError = message;
         emit driverHomeStateChanged();
+    });
+    connect(&m_sync, &SyncManager::deviceLocationResolved, this, [this](const QVariantMap &payload) {
+        m_locationPending = false;
+        updateCurrentLocation(
+            payload.value(QStringLiteral("latitude")).toDouble(),
+            payload.value(QStringLiteral("longitude")).toDouble(),
+            payload.value(QStringLiteral("accuracy")).toDouble()
+        );
+    });
+    connect(&m_sync, &SyncManager::deviceLocationFailed, this, [this](const QString &message) {
+        m_locationPending = false;
+        qWarning().noquote() << "RouteGuard device location unavailable:" << message;
     });
     connect(&m_sync, &SyncManager::navigationSearchFinished, this, [this](const QVariantList &items) {
         m_navigationSearchPending = false;
@@ -335,6 +363,7 @@ void AppController::startRoute() {
         return;
     }
 
+    refreshCurrentLocation(true);
     m_routeStarted = true;
     setUiMode(QStringLiteral("active_route"));
     setOperationsPanelExpandedInternal(true);
@@ -347,6 +376,7 @@ void AppController::openMap() {
         return;
     }
 
+    refreshCurrentLocation(true);
     setUiMode(QStringLiteral("map_only"));
     setOperationsPanelExpandedInternal(false);
     emit routeStateChanged();
@@ -358,6 +388,7 @@ void AppController::showDriverHome() {
         return;
     }
 
+    refreshCurrentLocation();
     setUiMode(QStringLiteral("driver_home"));
     setOperationsPanelExpandedInternal(false);
     emit routeStateChanged();
@@ -461,10 +492,236 @@ QVariantMap AppController::mapState() const {
     state.insert(QStringLiteral("selected_stop"), currentAnchorStop());
     state.insert(QStringLiteral("selected_destination"), m_selectedDestination);
     state.insert(QStringLiteral("directions"), m_navigationDirections);
+    state.insert(QStringLiteral("current_location"), m_currentLocation);
     state.insert(QStringLiteral("route_started"), m_routeStarted);
     state.insert(QStringLiteral("ui_mode"), m_uiMode);
     state.insert(QStringLiteral("api_base"), apiBase());
     return state;
+}
+
+void AppController::updateCurrentLocation(double latitude, double longitude, double accuracy) {
+    if (!std::isfinite(latitude) || !std::isfinite(longitude) || latitude < -90.0 || latitude > 90.0 ||
+        longitude < -180.0 || longitude > 180.0) {
+        clearCurrentLocation();
+        return;
+    }
+
+    QVariantMap nextLocation{
+        {QStringLiteral("latitude"), latitude},
+        {QStringLiteral("longitude"), longitude},
+        {QStringLiteral("label"), QStringLiteral("Current location")}
+    };
+
+    if (std::isfinite(accuracy) && accuracy > 0.0) {
+        nextLocation.insert(QStringLiteral("accuracy"), accuracy);
+    }
+
+    const bool changed = m_currentLocation.isEmpty() ||
+        std::abs(m_currentLocation.value(QStringLiteral("latitude")).toDouble() - latitude) >= 0.0001 ||
+        std::abs(m_currentLocation.value(QStringLiteral("longitude")).toDouble() - longitude) >= 0.0001 ||
+        std::abs(m_currentLocation.value(QStringLiteral("accuracy")).toDouble() - nextLocation.value(QStringLiteral("accuracy")).toDouble()) >= 5.0;
+    if (!changed) {
+        return;
+    }
+
+    m_currentLocation = nextLocation;
+    emit mapStateChanged();
+
+    if (!m_selectedDestination.isEmpty()) {
+        requestDirectionsForCurrentState();
+    }
+}
+
+void AppController::clearCurrentLocation() {
+    if (m_currentLocation.isEmpty()) {
+        return;
+    }
+
+    m_currentLocation.clear();
+    emit mapStateChanged();
+
+    if (!m_selectedDestination.isEmpty()) {
+        requestDirectionsForCurrentState();
+    }
+}
+
+void AppController::refreshCurrentLocation(bool force) {
+    if (m_enrollmentRequired || !m_fatalError.isEmpty() || m_locationPending || storedToken().isEmpty()) {
+        return;
+    }
+
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    if (!force && m_lastLocationRequestAt.isValid() && m_lastLocationRequestAt.secsTo(now) < 30) {
+        return;
+    }
+
+    m_locationPending = true;
+    m_lastLocationRequestAt = now;
+
+    const auto failLocationRequest = [this](const QString &message) {
+        m_locationPending = false;
+        qWarning().noquote() << "RouteGuard device location unavailable:" << message;
+    };
+
+    const QString interfaceName = activeWirelessInterface();
+    if (interfaceName.isEmpty()) {
+        failLocationRequest(QStringLiteral("No wireless interface is available."));
+        return;
+    }
+
+    QProcess *scanProcess = new QProcess(this);
+    scanProcess->setProgram(QStringLiteral("/usr/sbin/iw"));
+    scanProcess->setArguments(QStringList{QStringLiteral("dev"), interfaceName, QStringLiteral("scan")});
+
+    const auto finishLocationRequest = [this, interfaceName, failLocationRequest](const QVariantList &scanResults) {
+        if (!scanResults.isEmpty()) {
+            m_sync.resolveDeviceLocation(scanResults);
+            return;
+        }
+
+        QProcess linkProcess;
+        linkProcess.start(QStringLiteral("/usr/sbin/iw"), QStringList{QStringLiteral("dev"), interfaceName, QStringLiteral("link")});
+        if (!linkProcess.waitForFinished(3000) || linkProcess.exitStatus() != QProcess::NormalExit) {
+            failLocationRequest(QStringLiteral("Wi-Fi access points are unavailable."));
+            return;
+        }
+
+        const QVariantList fallback = parseWifiLinkOutput(QString::fromUtf8(linkProcess.readAllStandardOutput()));
+        if (fallback.isEmpty()) {
+            failLocationRequest(QStringLiteral("Wi-Fi access points are unavailable."));
+            return;
+        }
+        m_sync.resolveDeviceLocation(fallback);
+    };
+
+    connect(
+        scanProcess,
+        &QProcess::finished,
+        this,
+        [this, scanProcess, finishLocationRequest](int exitCode, QProcess::ExitStatus exitStatus) {
+            QVariantList scanResults;
+            if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+                scanResults = parseWifiScanOutput(QString::fromUtf8(scanProcess->readAllStandardOutput()));
+            } else {
+                qWarning().noquote() << "RouteGuard Wi-Fi scan failed:" << QString::fromUtf8(scanProcess->readAllStandardError()).trimmed();
+            }
+
+            scanProcess->deleteLater();
+            finishLocationRequest(scanResults);
+        }
+    );
+    connect(scanProcess, &QProcess::errorOccurred, this, [this, scanProcess, finishLocationRequest](QProcess::ProcessError) {
+        scanProcess->deleteLater();
+        finishLocationRequest(QVariantList{});
+    });
+
+    scanProcess->start();
+}
+
+QString AppController::activeWirelessInterface() const {
+    const QDir interfaceDir(QStringLiteral("/sys/class/net"));
+    const QStringList entries = interfaceDir.entryList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::System | QDir::Hidden);
+    for (const QString &entry : entries) {
+        if (entry.startsWith(QStringLiteral("wl"))) {
+            return entry;
+        }
+    }
+
+    return {};
+}
+
+QVariantList AppController::parseWifiScanOutput(const QString &output) const {
+    const QRegularExpression bssPattern(QStringLiteral(R"(^BSS\s+([0-9a-fA-F:]{17}))"));
+    const QRegularExpression signalPattern(QStringLiteral(R"(signal:\s*(-?\d+(?:\.\d+)?)\s+dBm)"));
+    const QRegularExpression channelPattern(QStringLiteral(R"(DS Parameter set:\s*channel\s+(\d+))"));
+    const QRegularExpression frequencyPattern(QStringLiteral(R"(freq:\s*(\d+(?:\.\d+)?))"));
+
+    QVariantList results;
+    QString currentMac;
+    double currentSignal = 0.0;
+    int currentChannel = 0;
+
+    const auto appendCurrent = [&]() {
+        if (currentMac.isEmpty()) {
+            return;
+        }
+
+        QVariantMap item;
+        item.insert(QStringLiteral("macAddress"), currentMac.toLower());
+        if (currentSignal != 0.0) {
+            item.insert(QStringLiteral("signalStrength"), currentSignal);
+        }
+        if (currentChannel > 0) {
+            item.insert(QStringLiteral("channel"), currentChannel);
+        }
+        results.append(item);
+    };
+
+    const QStringList lines = output.split(QLatin1Char('\n'));
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty()) {
+            continue;
+        }
+
+        const QRegularExpressionMatch bssMatch = bssPattern.match(trimmed);
+        if (bssMatch.hasMatch()) {
+            appendCurrent();
+            currentMac = bssMatch.captured(1);
+            currentSignal = 0.0;
+            currentChannel = 0;
+            continue;
+        }
+
+        const QRegularExpressionMatch signalMatch = signalPattern.match(trimmed);
+        if (signalMatch.hasMatch()) {
+            currentSignal = signalMatch.captured(1).toDouble();
+            continue;
+        }
+
+        const QRegularExpressionMatch channelMatch = channelPattern.match(trimmed);
+        if (channelMatch.hasMatch()) {
+            currentChannel = channelMatch.captured(1).toInt();
+            continue;
+        }
+
+        const QRegularExpressionMatch frequencyMatch = frequencyPattern.match(trimmed);
+        if (frequencyMatch.hasMatch()) {
+            currentChannel = channelFromFrequencyMHz(frequencyMatch.captured(1).toDouble());
+        }
+    }
+
+    appendCurrent();
+    return results;
+}
+
+QVariantList AppController::parseWifiLinkOutput(const QString &output) const {
+    const QRegularExpression connectedPattern(QStringLiteral(R"(Connected\s+to\s+([0-9a-fA-F:]{17}))"));
+    const QRegularExpression signalPattern(QStringLiteral(R"(signal:\s*(-?\d+(?:\.\d+)?)\s+dBm)"));
+    const QRegularExpression frequencyPattern(QStringLiteral(R"(freq:\s*(\d+(?:\.\d+)?))"));
+
+    QVariantMap item;
+    const QRegularExpressionMatch connectedMatch = connectedPattern.match(output);
+    if (!connectedMatch.hasMatch()) {
+        return {};
+    }
+
+    item.insert(QStringLiteral("macAddress"), connectedMatch.captured(1).toLower());
+
+    const QRegularExpressionMatch signalMatch = signalPattern.match(output);
+    if (signalMatch.hasMatch()) {
+        item.insert(QStringLiteral("signalStrength"), signalMatch.captured(1).toDouble());
+    }
+
+    const QRegularExpressionMatch frequencyMatch = frequencyPattern.match(output);
+    if (frequencyMatch.hasMatch()) {
+        const int channel = channelFromFrequencyMHz(frequencyMatch.captured(1).toDouble());
+        if (channel > 0) {
+            item.insert(QStringLiteral("channel"), channel);
+        }
+    }
+
+    return QVariantList{item};
 }
 
 bool AppController::shouldSuppressTag(const QString &tagId) {
@@ -520,6 +777,7 @@ void AppController::forceSync() {
         m_sync.fetchDriverHome();
     }
 
+    refreshCurrentLocation();
     m_sync.sendCheckIn(m_connectivityStatus, "healthy");
     m_sync.syncPending(currentRouteId());
 }
@@ -530,6 +788,8 @@ void AppController::enterEnrollmentMode() {
     clearDriverSession();
     m_driverLoginPending = false;
     m_driverLoginError.clear();
+    m_locationPending = false;
+    clearCurrentLocation();
     m_checkInTimer.stop();
     m_syncTimer.stop();
     m_enrollmentCodeTimer.start();
@@ -549,6 +809,8 @@ void AppController::enterOperationalMode() {
     m_sync.setDriverSessionToken(QString());
     m_enrollmentCodeTimer.stop();
     m_enrollmentPollTimer.stop();
+    m_locationPending = false;
+    refreshCurrentLocation(true);
     m_sync.sendCheckIn("booting", "healthy");
     m_checkInTimer.start();
     m_syncTimer.start();
@@ -613,6 +875,8 @@ void AppController::setFatalError(const QString &message) {
     m_connectivityStatus = "error";
     m_enrollmentCode.clear();
     m_enrollmentExpires.clear();
+    m_locationPending = false;
+    clearCurrentLocation();
     m_enrollmentCodeTimer.stop();
     m_enrollmentPollTimer.stop();
     m_checkInTimer.stop();
@@ -810,11 +1074,11 @@ void AppController::requestDirectionsForCurrentState() {
         return;
     }
 
-    const QVariantMap anchor = currentAnchorStop();
-    if (anchor.isEmpty()) {
+    const QVariantMap origin = currentNavigationOrigin();
+    if (origin.isEmpty()) {
         m_navigationDirections.clear();
         m_navigationPending = false;
-        m_navigationError = QStringLiteral("No stop anchor is available for navigation.");
+        m_navigationError = QStringLiteral("Current location is unavailable for navigation.");
         emit navigationStateChanged();
         emit mapStateChanged();
         return;
@@ -822,10 +1086,10 @@ void AppController::requestDirectionsForCurrentState() {
 
     const QVariantList coordinates{
         QVariantMap{
-            {QStringLiteral("latitude"), anchor.value(QStringLiteral("latitude"))},
-            {QStringLiteral("longitude"), anchor.value(QStringLiteral("longitude"))},
-            {QStringLiteral("label"), anchor.value(QStringLiteral("name"))},
-            {QStringLiteral("address"), anchor.value(QStringLiteral("address"))}
+            {QStringLiteral("latitude"), origin.value(QStringLiteral("latitude"))},
+            {QStringLiteral("longitude"), origin.value(QStringLiteral("longitude"))},
+            {QStringLiteral("label"), origin.value(QStringLiteral("label")).toString().isEmpty() ? origin.value(QStringLiteral("name")) : origin.value(QStringLiteral("label"))},
+            {QStringLiteral("address"), origin.value(QStringLiteral("address"))}
         },
         QVariantMap{
             {QStringLiteral("latitude"), m_selectedDestination.value(QStringLiteral("latitude"))},
@@ -860,6 +1124,22 @@ QVariantMap AppController::currentAnchorStop() const {
     }
 
     return stopFromVariant(stops.constFirst());
+}
+
+QVariantMap AppController::currentNavigationOrigin() const {
+    const double latitude = m_currentLocation.value(QStringLiteral("latitude")).toDouble();
+    const double longitude = m_currentLocation.value(QStringLiteral("longitude")).toDouble();
+    if (!m_currentLocation.isEmpty() &&
+        std::isfinite(latitude) &&
+        std::isfinite(longitude) &&
+        latitude >= -90.0 &&
+        latitude <= 90.0 &&
+        longitude >= -180.0 &&
+        longitude <= 180.0) {
+        return m_currentLocation;
+    }
+
+    return currentAnchorStop();
 }
 
 QString AppController::currentRouteId() const {

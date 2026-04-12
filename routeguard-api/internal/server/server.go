@@ -62,6 +62,7 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/rfid-events", h.DeviceRFIDEvents)
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/driver-login", h.DeviceDriverLogin)
 	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/driver-home", h.DeviceDriverHome)
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/location", h.DeviceCurrentLocation)
 	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/navigation/search", h.DeviceNavigationSearch)
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/navigation/directions", h.DeviceNavigationDirections)
 	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/mapbox/proxy", h.DeviceMapboxProxy)
