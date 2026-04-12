@@ -61,6 +61,10 @@ func (s *Server) buildRouter() chi.Router {
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/check-in", h.DeviceCheckIn)
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/rfid-events", h.DeviceRFIDEvents)
 	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/driver-login", h.DeviceDriverLogin)
+	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/driver-home", h.DeviceDriverHome)
+	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/navigation/search", h.DeviceNavigationSearch)
+	r.With(middleware.RateLimit(s.cache, 120)).Post("/device/navigation/directions", h.DeviceNavigationDirections)
+	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/mapbox/proxy", h.DeviceMapboxProxy)
 	r.With(middleware.RateLimit(s.cache, 120)).Get("/device/releases/latest", h.DeviceLatestRelease)
 
 	// Authenticated auth
@@ -234,14 +238,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func corsMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
+	allowedOrigins := map[string]struct{}{
+		cfg.BaseURL:             {},
+		"http://localhost:3000": {},
+		"null":                  {},
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
-			if origin == cfg.BaseURL || origin == "http://localhost:3000" {
+			if _, ok := allowedOrigins[origin]; ok {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-RouteGuard-Driver-Session")
 			}
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)

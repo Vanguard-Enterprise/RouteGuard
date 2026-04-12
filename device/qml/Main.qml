@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtWebChannel
+import QtWebEngine
 
 ApplicationWindow {
     visible: true
@@ -11,6 +13,8 @@ ApplicationWindow {
     property string driverPinValue: ""
     property string lockToastMessage: ""
     property bool lockToastVisible: false
+    property string navigationQuery: ""
+    property string rfidTagValue: ""
 
     function appendDriverPin(digit) {
         if (appController.driverAuthenticated || appController.driverLoginPending || driverPinValue.length >= 4) {
@@ -18,7 +22,7 @@ ApplicationWindow {
         }
         driverPinValue += digit
         if (driverPinValue.length === 4) {
-            submitDriverPin()
+            appController.submitDriverPIN(driverPinValue)
         }
     }
 
@@ -38,27 +42,65 @@ ApplicationWindow {
 
     function maskedDriverPin() {
         if (driverPinValue.length === 0) {
-            return "Enter 4-digit PIN"
+            return "\u2022 \u2022 \u2022 \u2022"
         }
 
-        let masked = ""
+        let masked = []
         for (let index = 0; index < driverPinValue.length; index += 1) {
-            masked += (index === 0 ? "" : " ") + "\u2022"
+            masked.push("\u2022")
         }
-        return masked
-    }
-
-    function submitDriverPin() {
-        if (appController.driverLoginPending || driverPinValue.length !== 4) {
-            return
+        while (masked.length < 4) {
+            masked.push("\u25e6")
         }
-        appController.submitDriverPIN(driverPinValue)
+        return masked.join(" ")
     }
 
     function showLockToast(message) {
         lockToastMessage = message
         lockToastVisible = true
         lockToastTimer.restart()
+    }
+
+    function routeStops(route) {
+        return route && route.stops ? route.stops : []
+    }
+
+    function stopSummary(stop) {
+        if (!stop || !stop.name) {
+            return "Choose a stop on the map"
+        }
+        if (stop.address && stop.address.length > 0) {
+            return stop.name + "  |  " + stop.address
+        }
+        return stop.name
+    }
+
+    function destinationSummary(destination) {
+        if (!destination || !destination.label) {
+            return ""
+        }
+        if (destination.address && destination.address.length > 0) {
+            return destination.label + "  |  " + destination.address
+        }
+        return destination.label
+    }
+
+    component ChromeButton: Button {
+        font.pixelSize: 16
+        padding: 0
+        background: Rectangle {
+            radius: 18
+            color: parent.down ? "#dbe7f5" : "#f8fbff"
+            border.color: "#d9e5f2"
+        }
+        contentItem: Text {
+            text: parent.text
+            color: "#0f172a"
+            font.pixelSize: parent.font.pixelSize
+            font.bold: true
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
     }
 
     Timer {
@@ -68,16 +110,29 @@ ApplicationWindow {
         onTriggered: lockToastVisible = false
     }
 
+    Timer {
+        id: navigationSearchTimer
+        interval: 320
+        repeat: false
+        onTriggered: {
+            if (navigationQuery.length >= 3) {
+                appController.searchNavigation(navigationQuery)
+            } else {
+                appController.clearNavigationSearch()
+            }
+        }
+    }
+
     Connections {
         target: appController
 
         function onDriverSessionChanged() {
             driverPinValue = ""
+            navigationQuery = ""
+            rfidTagValue = ""
             if (!appController.driverAuthenticated) {
                 appController.closeSettings()
-                routeIdField.text = ""
-                routeCodeField.text = ""
-                tagField.text = ""
+                appController.clearNavigationSearch()
             }
         }
 
@@ -86,6 +141,51 @@ ApplicationWindow {
                 driverPinValue = ""
                 showLockToast(appController.driverLoginError)
             }
+        }
+    }
+
+    Menu {
+        id: homeOverflowMenu
+
+        MenuItem {
+            text: "Settings"
+            onTriggered: appController.openSettings()
+        }
+
+        MenuItem {
+            text: "Logout"
+            onTriggered: appController.logoutDriver()
+        }
+    }
+
+    Menu {
+        id: consoleOverflowMenu
+
+        MenuItem {
+            text: "Driver Home"
+            onTriggered: appController.showDriverHome()
+        }
+
+        MenuItem {
+            text: "Open Map"
+            enabled: appController.uiMode !== "map_only"
+            onTriggered: appController.openMap()
+        }
+
+        MenuItem {
+            text: "Start Route"
+            enabled: appController.hasAssignedRoute && !appController.routeStarted
+            onTriggered: appController.startRoute()
+        }
+
+        MenuItem {
+            text: "Settings"
+            onTriggered: appController.openSettings()
+        }
+
+        MenuItem {
+            text: "Logout"
+            onTriggered: appController.logoutDriver()
         }
     }
 
@@ -394,12 +494,6 @@ ApplicationWindow {
                     spacing: 12
 
                     Text {
-                        text: "Driver PIN"
-                        color: "#8fa8c5"
-                        font.pixelSize: 16
-                    }
-
-                    Text {
                         text: maskedDriverPin()
                         color: "white"
                         font.pixelSize: 42
@@ -410,14 +504,11 @@ ApplicationWindow {
                     }
 
                     Text {
-                        text: appController.driverLoginPending
-                              ? "Checking PIN with RouteGuard..."
-                              : ""
+                        text: appController.driverLoginPending ? "Checking PIN..." : ""
                         color: "#c8d8ea"
                         font.pixelSize: 18
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
                         visible: text.length > 0
                     }
                 }
@@ -456,252 +547,454 @@ ApplicationWindow {
         }
     }
 
-    ColumnLayout {
+    Item {
         anchors.fill: parent
-        anchors.margins: 28
-        spacing: 20
+        visible: !appController.enrollmentRequired && appController.driverAuthenticated && appController.uiMode === "driver_home"
 
-        Rectangle {
-            Layout.fillWidth: true
-            radius: 18
-            color: "#122033"
-            border.color: "#1f3550"
-            implicitHeight: 120
-            visible: !appController.enrollmentRequired && appController.driverAuthenticated
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 34
+            spacing: 20
 
             RowLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 24
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Text {
-                        text: "RouteGuard Bus"
-                        color: "white"
-                        font.pixelSize: 34
-                        font.bold: true
-                    }
-
-                    Text {
-                        text: (appController.deviceId ? "Device " + appController.deviceId : "Device unavailable") + "  |  v" + appController.appVersion
-                        color: "#8fa8c5"
-                        font.pixelSize: 18
-                    }
-                }
-
-                ColumnLayout {
-                    spacing: 6
-
-                    Text {
-                        text: "Connectivity: " + appController.connectivityStatus
-                        color: "white"
-                        font.pixelSize: 18
-                    }
-                    Text {
-                        text: "Pending sync: " + appController.syncPendingCount
-                        color: "#d5e4f6"
-                        font.pixelSize: 18
-                    }
-                    Text {
-                        text: "Last sync: " + appController.lastSync
-                        color: "#8fa8c5"
-                        font.pixelSize: 16
-                    }
-                }
-
-                Button {
-                    text: "Settings"
-                    onClicked: appController.openSettings()
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                ChromeButton {
+                    text: "More"
+                    implicitWidth: 108
+                    implicitHeight: 48
+                    onClicked: homeOverflowMenu.open()
                 }
             }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            spacing: 20
-            visible: !appController.enrollmentRequired && appController.driverAuthenticated
+            Text {
+                text: appController.greeting
+                color: "#d8e6f5"
+                font.pixelSize: 44
+                font.bold: true
+            }
+
+            Text {
+                text: appController.activeDriver
+                color: "white"
+                font.pixelSize: 28
+                font.bold: true
+            }
 
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: 18
-                color: "#122033"
-                border.color: "#1f3550"
+                radius: 26
+                color: "#f8fbff"
+                border.color: "#dce7f3"
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 18
+                    anchors.margins: 22
+                    spacing: 14
 
-                    Text {
-                        text: "Driver Session"
-                        color: "white"
-                        font.pixelSize: 26
-                        font.bold: true
+                    BusyIndicator {
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: appController.driverHomeLoading
+                        running: visible
                     }
 
                     Text {
-                        Layout.fillWidth: true
-                        text: "The device is unlocked for this driver session. Route selection stays manual until a route is assigned."
-                        wrapMode: Text.WordWrap
-                        color: "#9ab2ce"
+                        text: appController.driverHomeError
+                        color: "#9f1239"
+                        visible: !appController.driverHomeLoading && appController.driverHomeError.length > 0
+                    }
+
+                    Text {
+                        text: appController.hasAssignedRoute ? appController.selectedRoute.route_code : "No active route assigned for this driver/device right now."
+                        color: "#0f172a"
+                        font.pixelSize: appController.hasAssignedRoute ? 34 : 24
+                        font.bold: true
+                        visible: !appController.driverHomeLoading
+                    }
+
+                    Text {
+                        text: appController.hasAssignedRoute
+                              ? appController.selectedRoute.service_window + "  |  " + routeStops(appController.selectedRoute).length + " stops  |  " + appController.selectedRoute.assigned_students + " students"
+                              : "Open the map for orientation or wait for dispatch to assign a route."
+                        color: "#47617d"
                         font.pixelSize: 16
+                        wrapMode: Text.WordWrap
+                        visible: !appController.driverHomeLoading
+                    }
+
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 10
+                        clip: true
+                        visible: !appController.driverHomeLoading && appController.hasAssignedRoute
+                        model: routeStops(appController.selectedRoute)
+
+                        delegate: RowLayout {
+                            required property var modelData
+                            width: ListView.view.width
+                            spacing: 12
+
+                            Rectangle {
+                                Layout.preferredWidth: 30
+                                Layout.preferredHeight: 30
+                                radius: 15
+                                color: "#dbeafe"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.stop_order
+                                    color: "#1d4ed8"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                }
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                Text {
+                                    text: modelData.name
+                                    color: "#0f172a"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    text: modelData.address
+                                    color: "#64748b"
+                                    font.pixelSize: 14
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 14
+                        visible: !appController.driverHomeLoading
+
+                        ChromeButton {
+                            text: "Start Route"
+                            Layout.fillWidth: true
+                            implicitHeight: 64
+                            enabled: appController.hasAssignedRoute
+                            onClicked: appController.startRoute()
+                        }
+
+                        ChromeButton {
+                            text: "Open Map"
+                            Layout.fillWidth: true
+                            implicitHeight: 64
+                            onClicked: appController.openMap()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        visible: !appController.enrollmentRequired && appController.driverAuthenticated && appController.uiMode !== "driver_home"
+
+        Rectangle {
+            id: consolePanel
+            width: appController.operationsPanelExpanded ? 360 : 90
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 26
+            radius: 26
+            color: "#f8fbff"
+            border.color: "#dce7f3"
+
+            Behavior on width {
+                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+                visible: !appController.operationsPanelExpanded
+
+                ChromeButton {
+                    text: "Menu"
+                    implicitHeight: 52
+                    onClicked: appController.setOperationsPanelExpanded(true)
+                }
+
+                ChromeButton {
+                    text: "Home"
+                    implicitHeight: 52
+                    onClicked: appController.showDriverHome()
+                }
+
+                ChromeButton {
+                    text: appController.routeStarted ? "Sync" : "Start"
+                    implicitHeight: 52
+                    onClicked: appController.routeStarted ? appController.forceSync() : appController.startRoute()
+                }
+
+                ChromeButton {
+                    text: "More"
+                    implicitHeight: 52
+                    onClicked: consoleOverflowMenu.open()
+                }
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 12
+                visible: appController.operationsPanelExpanded
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Text {
+                        text: appController.routeStarted ? "Active Route" : "Map Console"
+                        color: "#0f172a"
+                        font.pixelSize: 22
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
+
+                    ChromeButton {
+                        text: "Hide"
+                        implicitWidth: 84
+                        implicitHeight: 40
+                        onClicked: appController.setOperationsPanelExpanded(false)
+                    }
+                }
+
+                Text {
+                    text: appController.hasAssignedRoute ? appController.selectedRoute.route_code : "No route assigned"
+                    color: "#0f172a"
+                    font.pixelSize: 28
+                    font.bold: true
+                }
+
+                Text {
+                    text: stopSummary(appController.selectedStop)
+                    color: "#47617d"
+                    font.pixelSize: 15
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    text: destinationSummary(appController.selectedDestination)
+                    color: "#0f172a"
+                    font.pixelSize: 15
+                    font.bold: true
+                    wrapMode: Text.WordWrap
+                    visible: appController.selectedDestination.label !== undefined && appController.selectedDestination.label !== ""
+                }
+
+                Text {
+                    text: appController.navigationError
+                    color: "#9f1239"
+                    visible: appController.navigationError.length > 0
+                    wrapMode: Text.WordWrap
+                }
+
+                TextField {
+                    id: rfidField
+                    Layout.fillWidth: true
+                    enabled: appController.routeStarted
+                    placeholderText: appController.routeStarted ? "RFID tag" : "Start route to enable boarding"
+                    text: rfidTagValue
+                    onTextChanged: rfidTagValue = text
+                    onAccepted: {
+                        appController.submitTag(text)
+                        text = ""
+                        rfidTagValue = ""
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    ChromeButton {
+                        text: appController.routeStarted ? "Record Scan" : "Start Route"
+                        Layout.fillWidth: true
+                        implicitHeight: 52
+                        onClicked: {
+                            if (appController.routeStarted) {
+                                appController.submitTag(rfidField.text)
+                                rfidField.text = ""
+                                rfidTagValue = ""
+                            } else {
+                                appController.startRoute()
+                            }
+                        }
+                    }
+
+                    ChromeButton {
+                        text: "Sync"
+                        Layout.fillWidth: true
+                        implicitHeight: 52
+                        onClicked: appController.forceSync()
+                    }
+                }
+
+                Text {
+                    text: appController.lastScan || "No scans recorded yet"
+                    color: "#0f172a"
+                    font.pixelSize: 18
+                    font.bold: true
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.right: consolePanel.left
+            anchors.margins: 26
+            anchors.rightMargin: 18
+            radius: 26
+            color: "#f8fbff"
+            border.color: "#dce7f3"
+            clip: true
+
+            WebEngineView {
+                anchors.fill: parent
+                url: "qrc:/RouteGuard/Bus/web/map.html"
+                webChannel: WebChannel {
+                    registeredObjects: [appController]
+                }
+            }
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 22
+                width: Math.min(parent.width - 44, 420)
+                radius: 22
+                color: "#fbfdff"
+                border.color: "#dce7f3"
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 8
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        TextField {
+                            id: searchField
+                            Layout.fillWidth: true
+                            placeholderText: "Search destinations or addresses"
+                            text: navigationQuery
+                            onTextChanged: {
+                                navigationQuery = text
+                                navigationSearchTimer.restart()
+                            }
+                            onAccepted: {
+                                if (appController.navigationSearchResults.length > 0) {
+                                    appController.selectDestinationResult(appController.navigationSearchResults[0])
+                                }
+                            }
+                        }
+
+                        ChromeButton {
+                            text: appController.selectedDestination.label !== undefined && appController.selectedDestination.label !== "" ? "Clear" : "More"
+                            implicitWidth: 92
+                            implicitHeight: 48
+                            onClicked: {
+                                if (appController.selectedDestination.label !== undefined && appController.selectedDestination.label !== "") {
+                                    searchField.text = ""
+                                    navigationQuery = ""
+                                    appController.clearDestination()
+                                    appController.clearNavigationSearch()
+                                } else {
+                                    consoleOverflowMenu.open()
+                                }
+                            }
+                        }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
                         radius: 16
-                        color: "#0d1828"
-                        border.color: "#3fb36f"
-                        implicitHeight: 130
+                        color: "#f5f8fb"
+                        border.color: "#dce6f1"
+                        visible: appController.navigationSearchPending || appController.navigationSearchResults.length > 0
+                        implicitHeight: Math.min(220, 58 + appController.navigationSearchResults.length * 66)
 
-                        ColumnLayout {
+                        Item {
                             anchors.fill: parent
-                            anchors.margins: 16
-                            spacing: 8
+                            anchors.margins: 10
 
-                            Text {
-                                text: "Authenticated Driver"
-                                color: "#8fa8c5"
-                                font.pixelSize: 15
+                            BusyIndicator {
+                                anchors.centerIn: parent
+                                visible: appController.navigationSearchPending
+                                running: visible
                             }
 
-                            Text {
-                                text: appController.activeDriver
-                                color: "white"
-                                font.pixelSize: 28
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
+                            ListView {
+                                anchors.fill: parent
+                                spacing: 8
+                                clip: true
+                                visible: !appController.navigationSearchPending
+                                model: appController.navigationSearchResults
 
-                            Text {
-                                text: appController.routeCode.length > 0
-                                      ? "Active route: " + appController.routeCode
-                                      : "No route selected yet."
-                                color: "#c8d8ea"
-                                font.pixelSize: 15
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-                    }
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    radius: 14
+                                    color: "#ffffff"
+                                    border.color: "#d7e4f2"
+                                    implicitHeight: 58
 
-                    TextField {
-                        id: routeIdField
-                        Layout.fillWidth: true
-                        placeholderText: "Route ID"
-                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            searchField.text = modelData.label
+                                            navigationQuery = modelData.label
+                                            appController.selectDestinationResult(modelData)
+                                        }
+                                    }
 
-                    TextField {
-                        id: routeCodeField
-                        Layout.fillWidth: true
-                        placeholderText: "Route code"
-                    }
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 2
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
+                                        Text {
+                                            text: modelData.label
+                                            color: "#0f172a"
+                                            font.pixelSize: 16
+                                            font.bold: true
+                                        }
 
-                        Button {
-                            Layout.fillWidth: true
-                            text: "Set Active Route"
-                            onClicked: appController.selectRoute(routeIdField.text, routeCodeField.text)
-                        }
-
-                        Button {
-                            Layout.fillWidth: true
-                            text: "Logout Driver"
-                            onClicked: appController.logoutDriver()
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                radius: 18
-                color: "#122033"
-                border.color: "#1f3550"
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 18
-
-                    Text {
-                        text: "RFID Boarding"
-                        color: "white"
-                        font.pixelSize: 26
-                        font.bold: true
-                    }
-
-                    Text {
-                        text: "Production readers can pipe into the same submit flow. This field is for bench and pilot validation."
-                        wrapMode: Text.WordWrap
-                        color: "#9ab2ce"
-                        font.pixelSize: 16
-                    }
-
-                    TextField {
-                        id: tagField
-                        Layout.fillWidth: true
-                        placeholderText: "RFID tag"
-                        onAccepted: {
-                            appController.submitTag(text)
-                            text = ""
-                        }
-                    }
-
-                    Button {
-                        text: "Record Scan"
-                        onClicked: {
-                            appController.submitTag(tagField.text)
-                            tagField.text = ""
-                        }
-                    }
-
-                    Button {
-                        text: "Force Sync"
-                        onClicked: appController.forceSync()
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        radius: 14
-                        color: "#0d1828"
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 16
-                            spacing: 10
-
-                            Text {
-                                text: "Last Scan"
-                                color: "#8fa8c5"
-                                font.pixelSize: 16
-                            }
-                            Text {
-                                text: appController.lastScan || "No scans recorded yet"
-                                color: "white"
-                                font.pixelSize: 24
-                                wrapMode: Text.WordWrap
+                                        Text {
+                                            text: modelData.address
+                                            color: "#64748b"
+                                            font.pixelSize: 13
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+    Rectangle {
+            anchors.fill: parent
             visible: appController.enrollmentRequired
             radius: 24
             color: "#122033"
@@ -777,5 +1070,4 @@ ApplicationWindow {
                 }
             }
         }
-    }
 }

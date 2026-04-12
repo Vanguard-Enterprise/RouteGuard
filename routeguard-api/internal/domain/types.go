@@ -269,7 +269,75 @@ type DeviceDriverSummary struct {
 }
 
 type DeviceDriverLoginResponse struct {
-	Driver DeviceDriverSummary `json:"driver"`
+	Driver           DeviceDriverSummary `json:"driver"`
+	SessionToken     string              `json:"session_token,omitempty"`
+	SessionExpiresAt *time.Time          `json:"session_expires_at,omitempty"`
+}
+
+type DeviceRouteGeometry struct {
+	Type        string      `json:"type"`
+	Coordinates [][]float64 `json:"coordinates"`
+}
+
+type DeviceRouteHomeStop struct {
+	ID           string  `json:"id"`
+	StopID       string  `json:"stop_id"`
+	Name         string  `json:"name"`
+	Address      string  `json:"address"`
+	Latitude     float64 `json:"latitude"`
+	Longitude    float64 `json:"longitude"`
+	StopOrder    int     `json:"stop_order"`
+	ETAMinutes   int     `json:"eta_minutes"`
+	StudentCount int     `json:"student_count"`
+}
+
+type DeviceRouteHomeRoute struct {
+	ID                     string               `json:"id"`
+	RouteCode              string               `json:"route_code"`
+	ServiceWindow          string               `json:"service_window"`
+	Status                 string               `json:"status"`
+	ObjectiveMode          string               `json:"objective_mode"`
+	EstimatedTravelMinutes int                  `json:"estimated_travel_minutes"`
+	AssignedStudents       int                  `json:"assigned_students"`
+	SeatUtilization        float64              `json:"seat_utilization"`
+	UnassignedCount        int                  `json:"unassigned_count"`
+	Stops                  []DeviceRouteHomeStop `json:"stops"`
+	Geometry               *DeviceRouteGeometry `json:"geometry,omitempty"`
+}
+
+type DeviceDriverHomeResponse struct {
+	Driver DeviceDriverSummary   `json:"driver"`
+	Routes []DeviceRouteHomeRoute `json:"routes"`
+}
+
+type DeviceNavigationSearchResult struct {
+	ID        string  `json:"id,omitempty"`
+	Label     string  `json:"label"`
+	Address   string  `json:"address"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Source    string  `json:"source"`
+}
+
+type DeviceNavigationDirectionsPoint struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Label     string  `json:"label,omitempty"`
+	Address   string  `json:"address,omitempty"`
+}
+
+type DeviceNavigationManeuver struct {
+	Instruction     string                         `json:"instruction"`
+	DistanceMeters  float64                        `json:"distance_meters"`
+	DurationSeconds float64                        `json:"duration_seconds"`
+	Location        DeviceNavigationDirectionsPoint `json:"location"`
+}
+
+type DeviceNavigationDirectionsResponse struct {
+	DistanceMeters  float64             `json:"distance_meters"`
+	DurationSeconds float64             `json:"duration_seconds"`
+	Geometry        *DeviceRouteGeometry `json:"geometry,omitempty"`
+	Maneuvers       []DeviceNavigationManeuver `json:"maneuvers"`
 }
 
 type Stop struct {

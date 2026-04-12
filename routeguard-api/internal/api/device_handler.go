@@ -318,12 +318,20 @@ func (h *Handler) DeviceDriverLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionToken, sessionExpiresAt, err := h.buildDeviceDriverSessionToken(device, driver, time.Now().UTC())
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to create driver session")
+		return
+	}
+
 	JSON(w, http.StatusOK, domain.DeviceDriverLoginResponse{
 		Driver: domain.DeviceDriverSummary{
 			ID:       driver.ID,
 			DriverID: driver.DriverID,
 			Name:     driver.Name,
 		},
+		SessionToken:     sessionToken,
+		SessionExpiresAt: &sessionExpiresAt,
 	})
 }
 

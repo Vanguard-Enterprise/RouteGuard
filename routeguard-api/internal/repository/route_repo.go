@@ -273,3 +273,68 @@ func (r *RouteRepo) ListRouteStudents(ctx context.Context, routeID string) ([]do
 	}
 	return items, nil
 }
+
+func (r *RouteRepo) FindActiveAssignedForDriver(ctx context.Context, orgID, driverID string, vehicleID *string) (*domain.Route, error) {
+	query := `SELECT r.id, r.org_id, r.planner_run_id, r.route_code, r.service_window, r.status, r.objective_mode, r.vehicle_id, r.driver_id,
+	              r.estimated_travel_minutes, r.assigned_students, r.seat_utilization, r.unassigned_count, r.created_at, r.updated_at, r.deleted_at
+	          FROM route_assignments ra
+	          JOIN routes r ON r.id = ra.route_id
+	          WHERE ra.org_id = $1
+	            AND ra.driver_id = $2
+	            AND ra.is_active = TRUE
+	            AND r.deleted_at IS NULL
+	            AND r.status = 'active'`
+	args := []any{orgID, driverID}
+	if vehicleID != nil && *vehicleID != "" {
+		query += ` AND ra.vehicle_id = $3`
+		args = append(args, *vehicleID)
+	}
+	query += ` ORDER BY ra.started_at DESC, ra.created_at DESC LIMIT 1`
+
+	var route domain.Route
+	if err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&route.ID, &route.OrgID, &route.PlannerRunID, &route.RouteCode, &route.ServiceWindow, &route.Status, &route.ObjectiveMode,
+		&route.VehicleID, &route.DriverID, &route.EstimatedTravelMinutes, &route.AssignedStudents, &route.SeatUtilization,
+		&route.UnassignedCount, &route.CreatedAt, &route.UpdatedAt, &route.DeletedAt,
+	); err != nil {
+		return nil, fmt.Errorf("find active assigned route: %w", err)
+	}
+	return &route, nil
+}
+
+func (r *RouteRepo) ListDetailedRouteStops(ctx context.Context, routeID string) ([]domain.DeviceRouteHomeStop, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT rs.id, s.stop_id, s.name, s.address, s.latitude, s.longitude, rs.stop_order, rs.eta_minutes, rs.student_count
+		 FROM route_stops rs
+		 JOIN stops s ON s.id = rs.stop_id
+		 WHERE rs.route_id = $1
+		   AND s.deleted_at IS NULL
+		 ORDER BY rs.stop_order`,
+		routeID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list detailed route stops: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]domain.DeviceRouteHomeStop, 0)
+	for rows.Next() {
+		var stop domain.DeviceRouteHomeStop
+		stop.ID = routeID
+		if err := rows.Scan(
+			&stop.ID,
+			&stop.StopID,
+			&stop.Name,
+			&stop.Address,
+			&stop.Latitude,
+			&stop.Longitude,
+			&stop.StopOrder,
+			&stop.ETAMinutes,
+			&stop.StudentCount,
+		); err != nil {
+			return nil, fmt.Errorf("scan detailed route stop: %w", err)
+		}
+		items = append(items, stop)
+	}
+	return items, nil
+}

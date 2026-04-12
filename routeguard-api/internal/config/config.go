@@ -13,6 +13,7 @@ type Config struct {
 	RedisPassword       string
 	BaseURL             string
 	APIBaseURL          string
+	GoogleMapsAPIKey    string
 	MapboxAccessToken   string
 	DataEncryptionKey   []byte
 	HMACKey             []byte
@@ -37,7 +38,8 @@ func Load() (*Config, error) {
 		RedisPassword:       os.Getenv("REDIS_PASSWORD"),
 		BaseURL:             envOr("BASE_URL", "http://localhost:3000"),
 		APIBaseURL:          envOr("API_BASE_URL", "http://localhost:8080"),
-		MapboxAccessToken:   envOr("MAPBOX_ACCESS_TOKEN", ""),
+		GoogleMapsAPIKey:    envOr("GOOGLE_MAPS_API_KEY", ""),
+		MapboxAccessToken:   envOr("MAPBOX_ACCESS_TOKEN", envOr("MAPBOX_TOKEN", "")),
 		DataEncryptionKey:   dataKey,
 		HMACKey:             hmacKey,
 		DemoTemplateVersion: envOr("DEMO_TEMPLATE_VERSION", "large-county-v1"),

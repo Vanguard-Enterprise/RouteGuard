@@ -15,7 +15,7 @@ configure_file(
     @ONLY
 )
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network Sql WebChannel WebEngineCore WebEngineQuick)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(ALSA REQUIRED)
@@ -29,6 +29,8 @@ qt_add_executable(routeguard-bus
     src/appcontroller.h
     src/localstore.cpp
     src/localstore.h
+    src/routeguardrequestinterceptor.cpp
+    src/routeguardrequestinterceptor.h
     src/syncmanager.cpp
     src/syncmanager.h
 )
@@ -40,6 +42,9 @@ qt_add_qml_module(routeguard-bus
         qml/Main.qml
     RESOURCES
         assets/text-logo.png
+        web/map.css
+        web/map.html
+        web/map.js
 )
 
 target_link_libraries(routeguard-bus PRIVATE
@@ -48,6 +53,9 @@ target_link_libraries(routeguard-bus PRIVATE
     Qt6::Quick
     Qt6::Network
     Qt6::Sql
+    Qt6::WebChannel
+    Qt6::WebEngineCore
+    Qt6::WebEngineQuick
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

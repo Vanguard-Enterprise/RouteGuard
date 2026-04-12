@@ -75,6 +75,9 @@ services:
       TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
       BASE_URL: https://route-guard.com
       API_BASE_URL: https://api.route-guard.com
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN}
+      MAPBOX_TOKEN: ${MAPBOX_TOKEN}
       PORT: "8080"
       RUSTFS_ENDPOINT: http://rustfs:9000
       RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY}

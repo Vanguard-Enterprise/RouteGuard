@@ -8,6 +8,21 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <QUrlQuery>
+
+namespace {
+
+QJsonObject parseJsonObject(const QByteArray &body) {
+    const QJsonDocument document = QJsonDocument::fromJson(body);
+    return document.isObject() ? document.object() : QJsonObject {};
+}
+
+QString apiErrorMessage(const QJsonObject &json, const QString &fallback) {
+    const QString error = json.value(QStringLiteral("error")).toString().trimmed();
+    return error.isEmpty() ? fallback : error;
+}
+
+} // namespace
 
 SyncManager::SyncManager(LocalStore *store, QObject *parent)
     : QObject(parent), m_store(store) {}
@@ -20,6 +35,24 @@ void SyncManager::configure(QString deviceId, QString appVersion) {
 
 void SyncManager::setDeviceToken(const QString &deviceToken) {
     m_deviceToken = deviceToken;
+}
+
+void SyncManager::setDriverSessionToken(const QString &driverSessionToken) {
+    m_driverSessionToken = driverSessionToken;
+}
+
+QString SyncManager::apiBase() const {
+    return m_apiBase;
+}
+
+QNetworkRequest SyncManager::authorizedRequest(const QString &path, bool includeDriverSession) const {
+    QNetworkRequest request(QUrl(m_apiBase + path));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", QByteArray("Bearer ") + m_deviceToken.toUtf8());
+    if (includeDriverSession && !m_driverSessionToken.isEmpty()) {
+        request.setRawHeader("X-RouteGuard-Driver-Session", m_driverSessionToken.toUtf8());
+    }
+    return request;
 }
 
 void SyncManager::bootstrap() {
@@ -96,9 +129,7 @@ void SyncManager::pollEnrollmentStatus(const QString &code) {
 }
 
 void SyncManager::sendCheckIn(const QString &connectivityState, const QString &appHealth) {
-    QNetworkRequest request(QUrl(m_apiBase + "/device/check-in"));
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    request.setRawHeader("Authorization", QByteArray("Bearer ") + m_deviceToken.toUtf8());
+    QNetworkRequest request = authorizedRequest(QStringLiteral("/device/check-in"));
 
     QJsonObject payload{
         {"name", m_deviceId},
@@ -131,9 +162,7 @@ void SyncManager::sendCheckIn(const QString &connectivityState, const QString &a
 }
 
 void SyncManager::loginDriver(const QString &pin) {
-    QNetworkRequest request(QUrl(m_apiBase + "/device/driver-login"));
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    request.setRawHeader("Authorization", QByteArray("Bearer ") + m_deviceToken.toUtf8());
+    QNetworkRequest request = authorizedRequest(QStringLiteral("/device/driver-login"));
 
     const QJsonObject payload{
         {"pin", pin}
@@ -143,8 +172,7 @@ void SyncManager::loginDriver(const QString &pin) {
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         const QByteArray body = reply->readAll();
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const QJsonDocument document = QJsonDocument::fromJson(body);
-        const QJsonObject json = document.isObject() ? document.object() : QJsonObject{};
+        const QJsonObject json = parseJsonObject(body);
         const QString errorMessage = json.value("error").toString();
 
         if (status == 401) {
@@ -166,16 +194,107 @@ void SyncManager::loginDriver(const QString &pin) {
         }
 
         const QJsonObject driver = json.value("driver").toObject();
+        const QString sessionToken = json.value("session_token").toString();
+        const QString sessionExpiresAt = json.value("session_expires_at").toVariant().toString();
         const QString id = driver.value("id").toString();
         const QString driverId = driver.value("driver_id").toString();
         const QString name = driver.value("name").toString();
-        if (id.isEmpty() || driverId.isEmpty() || name.isEmpty()) {
+        if (id.isEmpty() || driverId.isEmpty() || name.isEmpty() || sessionToken.isEmpty()) {
             emit driverLoginFailed(QStringLiteral("Unexpected driver login response."));
             reply->deleteLater();
             return;
         }
 
-        emit driverLoginSucceeded(id, driverId, name);
+        emit driverLoginSucceeded(id, driverId, name, sessionToken, sessionExpiresAt);
+        reply->deleteLater();
+    });
+}
+
+void SyncManager::fetchDriverHome() {
+    QNetworkRequest request = authorizedRequest(QStringLiteral("/device/driver-home"), true);
+
+    QNetworkReply *reply = m_network.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QJsonObject json = parseJsonObject(body);
+
+        if (status == 401) {
+            emit authRejected();
+            reply->deleteLater();
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError) {
+            emit driverHomeFailed(apiErrorMessage(json, QStringLiteral("Driver home requires an online connection.")));
+            reply->deleteLater();
+            return;
+        }
+
+        emit driverHomeLoaded(json.toVariantMap());
+        reply->deleteLater();
+    });
+}
+
+void SyncManager::searchNavigation(const QString &query) {
+    QUrl requestUrl(m_apiBase + QStringLiteral("/device/navigation/search"));
+    QUrlQuery requestQuery;
+    requestQuery.addQueryItem(QStringLiteral("q"), query);
+    requestUrl.setQuery(requestQuery);
+
+    QNetworkRequest request = authorizedRequest(QString(), true);
+    request.setUrl(requestUrl);
+
+    QNetworkReply *reply = m_network.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QJsonObject json = parseJsonObject(body);
+
+        if (status == 401) {
+            emit authRejected();
+            reply->deleteLater();
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError) {
+            emit navigationSearchFailed(apiErrorMessage(json, QStringLiteral("Navigation search is unavailable right now.")));
+            reply->deleteLater();
+            return;
+        }
+
+        emit navigationSearchFinished(json.value(QStringLiteral("items")).toArray().toVariantList());
+        reply->deleteLater();
+    });
+}
+
+void SyncManager::requestDirections(const QVariantList &coordinates) {
+    if (coordinates.size() < 2) {
+        emit navigationDirectionsFailed(QStringLiteral("Choose a stop and destination first."));
+        return;
+    }
+
+    QNetworkRequest request = authorizedRequest(QStringLiteral("/device/navigation/directions"), true);
+    const QJsonObject payload{
+        {"coordinates", QJsonArray::fromVariantList(coordinates)}
+    };
+
+    QNetworkReply *reply = m_network.post(request, QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QJsonObject json = parseJsonObject(body);
+
+        if (status == 401) {
+            emit authRejected();
+            reply->deleteLater();
+            return;
+        }
+        if (reply->error() != QNetworkReply::NoError) {
+            emit navigationDirectionsFailed(apiErrorMessage(json, QStringLiteral("Turn-by-turn directions are unavailable right now.")));
+            reply->deleteLater();
+            return;
+        }
+
+        emit navigationDirectionsReady(json.toVariantMap());
         reply->deleteLater();
     });
 }
@@ -205,9 +324,7 @@ void SyncManager::syncPending(const QString &routeId) {
 
     QJsonObject payload{{"events", events}};
 
-    QNetworkRequest request(QUrl(m_apiBase + "/device/rfid-events"));
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    request.setRawHeader("Authorization", QByteArray("Bearer ") + m_deviceToken.toUtf8());
+    QNetworkRequest request = authorizedRequest(QStringLiteral("/device/rfid-events"));
 
     QNetworkReply *reply = m_network.post(request, QJsonDocument(payload).toJson(QJsonDocument::Compact));
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
