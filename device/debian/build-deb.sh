@@ -7,14 +7,16 @@ PACKAGE_DIR="${ROOT_DIR}/build/package"
 OUTPUT_DIR="${ROOT_DIR}/build/dist"
 ARCH="${ROUTEGUARD_DEB_ARCH:-amd64}"
 VERSION="${ROUTEGUARD_BUILD_VERSION_OVERRIDE:-$(sed -n 's/^project(routeguard-bus VERSION \([^ ]*\) LANGUAGES CXX)$/\1/p' "${ROOT_DIR}/CMakeLists.txt")}"
+SLINT_BINARY="${BUILD_DIR}/routeguard-bus-slint"
+LEGACY_BINARY="${BUILD_DIR}/routeguard-bus"
 
 if [[ -z "${VERSION}" ]]; then
   echo "Could not determine RouteGuard device version from CMakeLists.txt" >&2
   exit 1
 fi
 
-if [[ ! -x "${BUILD_DIR}/routeguard-bus" ]]; then
-  echo "Missing compiled binary at ${BUILD_DIR}/routeguard-bus. Build the app first." >&2
+if [[ ! -x "${SLINT_BINARY}" ]]; then
+  echo "Missing compiled Slint binary at ${SLINT_BINARY}. Build routeguard-bus-slint first." >&2
   exit 1
 fi
 
@@ -31,7 +33,12 @@ sed \
   "${ROOT_DIR}/debian/control" > "${PACKAGE_DIR}/DEBIAN/control"
 
 install -m 0755 "${ROOT_DIR}/debian/postinst" "${PACKAGE_DIR}/DEBIAN/postinst"
-install -m 0755 "${BUILD_DIR}/routeguard-bus" "${PACKAGE_DIR}/opt/routeguard-bus/routeguard-bus"
+install -m 0755 "${SLINT_BINARY}" "${PACKAGE_DIR}/opt/routeguard-bus/routeguard-bus-slint"
+
+if [[ -x "${LEGACY_BINARY}" ]]; then
+  install -m 0755 "${LEGACY_BINARY}" "${PACKAGE_DIR}/opt/routeguard-bus/routeguard-bus-qt"
+fi
+
 install -m 0644 "${ROOT_DIR}/linux/eglfs-kms.json" "${PACKAGE_DIR}/opt/routeguard-bus/eglfs-kms.json"
 install -m 0644 "${ROOT_DIR}/linux/routeguard-bus.service" "${PACKAGE_DIR}/etc/systemd/system/routeguard-bus.service"
 

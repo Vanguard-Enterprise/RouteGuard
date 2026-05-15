@@ -7,6 +7,7 @@ Native Linux bus-computer application for RouteGuard.
 This directory contains the first production-oriented scaffold for the in-bus device:
 
 - `Qt/QML` touchscreen application
+- parallel `Slint` PIN-shell prototype for the migration off QML
 - local `SQLite` queue for offline RFID scan persistence
 - periodic device check-in to the RouteGuard API
 - periodic sync of pending rider scan events
@@ -23,6 +24,19 @@ cmake --build build
 ```
 
 The resulting binary is `routeguard-bus`.
+
+The Slint prototype target is `routeguard-bus-slint`. It is enabled automatically when either:
+
+- a Slint CMake package is installed and discoverable via `find_package(Slint)`, or
+- Rust/Cargo is available so CMake can fetch and build Slint from source.
+
+If neither is available, CMake will keep building the legacy Qt target and print a warning that the Slint target was skipped.
+
+Building Slint from source follows the official Slint requirements:
+
+- `cmake` 3.21+
+- a C++20-capable compiler
+- Rust 1.88+ when using the FetchContent path
 
 Production builds embed:
 
@@ -65,3 +79,13 @@ Device enrollment is now backend-driven:
 See `linux/routeguard-bus.service` for a systemd unit example. The service no longer needs an environment file for normal production use.
 
 For kiosk-style appliance installs on hardware with multiple connected displays, the packaged `linux/eglfs-kms.json` file is the source of truth for connector selection. Production currently prefers the external `DP-2` output and disables the built-in `eDP-1` panel on the reference laptop hardware.
+
+## Slint migration status
+
+Phase 1 adds a fresh Slint shell that only covers:
+
+- blocked/device-unavailable states
+- real driver PIN authentication
+- a minimal authenticated/logout confirmation screen
+
+Enrollment claiming, route views, RFID workflows, and the native map replacement remain deferred to later Slint phases.

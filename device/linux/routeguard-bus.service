@@ -1,7 +1,6 @@
 [Unit]
 Description=RouteGuard Bus Device
-After=network-online.target graphical.target
-Wants=network-online.target
+After=systemd-user-sessions.service systemd-udev-trigger.service
 Conflicts=getty@tty1.service
 
 [Service]
@@ -15,7 +14,7 @@ Environment=QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS=/dev/input/event20
 Environment=QT_QPA_EVDEV_MOUSE_PARAMETERS=/dev/input/event21
 Environment=QTWEBENGINE_DISABLE_SANDBOX=1
 Environment="QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox --disable-gpu-sandbox"
-ExecStart=/opt/routeguard-bus/routeguard-bus
+ExecStart=/opt/routeguard-bus/routeguard-bus-slint
 Restart=always
 RestartSec=3
 User=routeguard
@@ -29,4 +28,4 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target
