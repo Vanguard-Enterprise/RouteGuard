@@ -1,40 +1,19 @@
 # RouteGuard Deployment Guide
 
-This guide covers deploying RouteGuard to an LXC container on a Proxmox host (or any Debian 12 VM).
+This guide covers deploying RouteGuard to a Docker host running Debian 12 or a compatible Linux VM.
 
 ---
 
 ## Prerequisites
 
-**LXC container spec:**
+**Recommended host spec:**
 - OS: Debian 12 (Bookworm)
 - CPU: 4 vCPU
 - RAM: 8 GB
 - Disk: 40 GB
-- Nesting enabled (required for Docker)
+- Docker Engine and the Docker Compose plugin
 
----
-
-## Step 1: LXC container setup
-
-SSH into the container as root and run the setup script:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/your-org/routeguard/main/deploy/scripts/setup-lxc.sh)
-```
-
-Or clone the repo first (see Step 2) and run:
-
-```bash
-chmod +x deploy/scripts/setup-lxc.sh
-./deploy/scripts/setup-lxc.sh
-```
-
-Log out and back in for Docker group membership to take effect.
-
----
-
-## Step 2: Clone the repository
+## Step 1: Clone the repository
 
 ```bash
 git clone https://github.com/your-org/routeguard.git /opt/routeguard
@@ -43,7 +22,7 @@ cd /opt/routeguard
 
 ---
 
-## Step 3: Configure environment variables
+## Step 2: Configure environment variables
 
 ```bash
 cp deploy/.env.example deploy/.env
@@ -75,7 +54,7 @@ openssl rand -hex 32   # ENCRYPTION_KEY
 
 ---
 
-## Step 4: First deploy
+## Step 3: First deploy
 
 ```bash
 cd /opt/routeguard/deploy
@@ -98,12 +77,12 @@ docker compose logs routeguard-api --tail 50
 
 ---
 
-## Step 5: SSL certificate setup (Let's Encrypt via Traefik)
+## Step 4: SSL certificate setup (Let's Encrypt via Traefik)
 
 Traefik handles TLS termination automatically via the ACME challenge. Ensure:
 
 1. DNS A records for `api.route-guard.com` and `app.route-guard.com` point to your server's public IP.
-2. Ports 80 and 443 are open (done by `setup-lxc.sh`).
+2. Ports 80 and 443 are open in the host firewall.
 3. Set `ACME_EMAIL` in `deploy/.env` to a valid email address.
 
 Traefik will obtain and renew certificates automatically on first request.
@@ -116,7 +95,7 @@ docker compose logs traefik | grep -i acme
 
 ---
 
-## Step 6: GitHub Actions runner registration
+## Step 5: GitHub Actions runner registration
 
 To enable CI/CD, register a self-hosted GitHub Actions runner in the container:
 

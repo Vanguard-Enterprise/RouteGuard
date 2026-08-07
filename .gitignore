@@ -19,8 +19,10 @@ routeguard-api/bin/
 routeguard-api/.env
 routeguard-api/*.exe
 
-# Playwright MCP screenshots
-.playwright-mcp/
+# Generated development artifacts
+.dev-logs/
+.gocache/
+.go-cache/
 
 # Deploy
 deploy/.env
@@ -34,6 +36,3 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
-
-# Device build output (large image files)
-device/output/

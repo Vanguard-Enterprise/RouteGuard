@@ -2,4 +2,3 @@
 *.sh        text eol=lf
 *.py        text eol=lf
 Dockerfile  text eol=lf
-device/build/arm64/config  text eol=lf
