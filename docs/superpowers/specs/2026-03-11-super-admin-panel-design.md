@@ -12,7 +12,7 @@ Hybrid routing under `/dashboard`:
 - Sidebar switches between platform nav and district nav based on `is_platform` on the active org
 - Layout-level auth gates `/dashboard/admin/*` routes to platform org members only
 
-**Note:** This supersedes the previously documented `app/admin/` route section in CLAUDE.md. The `app/admin/` path is no longer used - all admin functionality lives under `/dashboard/admin/*`. CLAUDE.md must be updated during implementation.
+The previously documented `app/admin/` path is no longer used - all admin functionality lives under `/dashboard/admin/*`.
 
 ---
 

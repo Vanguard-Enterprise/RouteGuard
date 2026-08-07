@@ -2781,27 +2781,9 @@ git commit -m "feat: add updates page placeholder"
 
 ## Chunk 7: Final Integration & Cleanup
 
-### Task 29: Update CLAUDE.md
+### Task 29: Update repository documentation
 
-**Files:**
-- Modify: `CLAUDE.md`
-
-- [ ] **Step 1: Update App Router Sections table**
-
-Replace the `app/admin/` row with:
-
-```markdown
-| `app/dashboard/admin/` | Platform admin panel (orgs, users, audit, billing) |
-```
-
-Remove the old `app/admin/` row.
-
-- [ ] **Step 2: Commit**
-
-```bash
-git add CLAUDE.md
-git commit -m "docs: update CLAUDE.md - replace app/admin with dashboard/admin routes"
-```
+- [ ] Verify that repository documentation describes the `/dashboard/admin/*` routes and the active deployment stack.
 
 ---
 
