@@ -1,7 +1,3 @@
-const PUBLIC_API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
-const INTERNAL_API_BASE = process.env.INTERNAL_API_URL ?? PUBLIC_API_BASE
-const AUTH_BASE = ''
-
 export class APIError extends Error {
   constructor(public status: number, message: string) {
     super(message)
@@ -10,73 +6,19 @@ export class APIError extends Error {
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const apiBase = typeof window === 'undefined' ? INTERNAL_API_BASE : PUBLIC_API_BASE
-  const reqHeaders: Record<string, string> = {}
-
-  if (!(init?.body instanceof FormData)) {
-    reqHeaders['Content-Type'] = 'application/json'
-  }
-
-  if (typeof window === 'undefined') {
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const session = cookieStore.get('rg_session')
-      if (session) {
-        reqHeaders['Cookie'] = `rg_session=${session.value}`
-      }
-    } catch {
-      // Not in a Next.js server context
-    }
-  }
-
-  const res = await fetch(`${apiBase}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      ...reqHeaders,
-      ...init?.headers,
-    },
-  })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }))
-    throw new APIError(res.status, body.error ?? res.statusText)
-  }
-  if (res.status === 204) return undefined as T
-  return res.json()
+  return localRequest<T>(path, init)
 }
 
 async function platformRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  if (typeof window !== 'undefined') {
-    // Client-side: proxy through Next.js to forward the cookie
-    return clientRequest<T>(`/api${path}`, init)
-  }
-  // Server-side: direct call with cookie forwarding
   return request<T>(path, init)
 }
 
 async function orgRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  if (typeof window !== 'undefined') {
-    return clientRequest<T>(`/api${path}`, init)
-  }
   return request<T>(path, init)
 }
 
 async function clientRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }))
-    throw new APIError(res.status, body.error ?? res.statusText)
-  }
-  if (res.status === 204) return undefined as T
-  return res.json()
+  return localRequest<T>(path, init)
 }
 
 function qs(params?: Record<string, unknown>): string {
@@ -92,20 +34,7 @@ function qs(params?: Record<string, unknown>): string {
 }
 
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${AUTH_BASE}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }))
-    throw new APIError(res.status, body.error ?? res.statusText)
-  }
-  if (res.status === 204) return undefined as T
-  return res.json()
+  return localRequest<T>(path, init)
 }
 
 // Types
@@ -145,6 +74,78 @@ export interface MeResponse {
   active_org: OrgOption
   permissions: string[]
   home_org_id: string
+}
+
+export const DEMO_ORG: OrgOption = {
+  id: 'demo-org',
+  name: 'RouteGuard Demo District',
+  slug: 'routeguard-demo',
+  is_platform: false,
+}
+
+export const DEMO_USER: AuthUser = {
+  id: 'demo-user',
+  email: 'demo@route-guard.local',
+  name: 'Demo User',
+}
+
+export const DEMO_ME: MeResponse = {
+  user: DEMO_USER,
+  active_org: DEMO_ORG,
+  home_org_id: DEMO_ORG.id,
+  permissions: [
+    'org:manage',
+    'vehicles:read',
+    'vehicles:write',
+    'drivers:read',
+    'drivers:write',
+    'stops:read',
+    'stops:write',
+    'planning:run',
+  ],
+}
+
+function bodyValue(init?: RequestInit): Record<string, unknown> {
+  if (typeof init?.body !== 'string') return {}
+  try {
+    return JSON.parse(init.body) as Record<string, unknown>
+  } catch {
+    return {}
+  }
+}
+
+function emptyPage<T>(path: string): PageResponse<T> {
+  const query = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null
+  const page = Number(query?.get('page') ?? 1)
+  const perPage = Number(query?.get('per_page') ?? 10)
+  return { items: [], total: 0, page, per_page: perPage, total_pages: 1 }
+}
+
+function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? 'GET'
+  const body = bodyValue(init)
+  let value: unknown
+
+  if (path.includes('/auth/lookup')) value = { has_password: true, sso_options: [] }
+  else if (path.includes('/auth/login')) value = { user: DEMO_USER, orgs: [DEMO_ORG] }
+  else if (path.includes('/auth/me')) value = DEMO_ME
+  else if (path.includes('/auth/orgs')) value = [DEMO_ORG]
+  else if (path.includes('/auth/switch-org')) value = { org: DEMO_ORG, permissions: DEMO_ME.permissions }
+  else if (path.includes('/platform/stats')) value = { total_orgs: 1, suspended_orgs: 0, total_users: 1, active_sessions: 1, active_trips: 1 }
+  else if (path.includes('/platform/audit')) value = { items: [], next_cursor: '', has_more: false }
+  else if (path.includes('/platform/updates/install-command')) value = { release: null, command: 'Demo installs are disabled in local mode.' }
+  else if (path.includes('/platform/updates/rollout')) value = { latest_release: null, total_devices: 0, on_latest: 0, behind_latest: 0, percent_up_to_date: 0, organizations: [] }
+  else if (path.includes('/org/students/filter-options')) value = { grades: [], schools: [] }
+  else if (path.includes('/org/driver-vehicle-assignments')) value = { items: [] }
+  else if (path.includes('/org/settings')) value = { ...DEMO_ORG, is_demo: true, demo_template_version: 'local', demo_last_reset_at: null, suspended_at: null, deleted_at: null, member_count: 1, created_at: new Date(0).toISOString(), updated_at: new Date(0).toISOString() }
+  else if (path.includes('/org/billing')) value = { id: 'demo-billing', org_id: DEMO_ORG.id, billing_status: 'pilot', pilot_ends_at: null, contract_notes: 'Local demo mode', billing_contact_email: DEMO_USER.email, created_at: new Date(0).toISOString(), updated_at: new Date(0).toISOString(), org_name: DEMO_ORG.name, org_slug: DEMO_ORG.slug }
+  else if (/\/org\/(members|roles|sso|integrations|devices)(\/|$)/.test(path)) value = []
+  else if (path.includes('/platform/billing') || path.includes('/platform/updates/releases')) value = []
+  else if (path.includes('/platform/orgs') || path.includes('/platform/users') || path.includes('/platform/support/tickets')) value = emptyPage(path)
+  else if (path.includes('/platform/') || path.includes('/org/')) value = path.includes('?') || method === 'GET' ? emptyPage(path) : (method === 'DELETE' ? undefined : { ...body, id: 'local-demo-record' })
+  else value = method === 'DELETE' ? undefined : {}
+
+  return Promise.resolve(value as T)
 }
 
 export interface Organization {
@@ -610,20 +611,20 @@ export const api = {
         body: JSON.stringify({ email }),
       }),
     login: (email: string, password: string) =>
-      authRequest<LoginResponse>('/api/auth/login', {
+      authRequest<LoginResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       }),
     consumeMagicLink: (token: string) =>
-      authRequest<void>('/api/auth/magic-link/consume', {
+      authRequest<void>('/auth/magic-link/consume', {
         method: 'POST',
         body: JSON.stringify({ token }),
       }),
-    logout: () => authRequest<void>('/api/auth/logout', { method: 'POST' }),
+    logout: () => authRequest<void>('/auth/logout', { method: 'POST' }),
     me: () => request<MeResponse>('/auth/me'),
     switchOrg: (orgId: string) => {
       if (typeof window !== 'undefined') {
-        return clientRequest<{ org: OrgOption; permissions: string[] }>('/api/auth/switch-org', {
+        return clientRequest<{ org: OrgOption; permissions: string[] }>('/auth/switch-org', {
           method: 'POST',
           body: JSON.stringify({ org_id: orgId }),
         })
@@ -635,7 +636,7 @@ export const api = {
     },
     orgs: () => {
       if (typeof window !== 'undefined') {
-        return clientRequest<OrgOption[]>('/api/auth/orgs')
+        return clientRequest<OrgOption[]>('/auth/orgs')
       }
       return request<OrgOption[]>('/auth/orgs')
     },

@@ -5,8 +5,6 @@ import { CheckCircle } from 'lucide-react'
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -20,24 +18,7 @@ export default function ContactPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-    setLoading(true)
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'}/api/v1/contact`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        }
-      )
-      if (!res.ok) throw new Error('Failed to submit')
-      setSubmitted(true)
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+    setSubmitted(true)
   }
 
   return (
@@ -144,17 +125,12 @@ export default function ContactPage() {
                 />
               </div>
 
-              {error && (
-                <p className="text-sm text-red-600">{error}</p>
-              )}
-
               <button
                 type="submit"
-                disabled={loading}
                 className="w-full py-2.5 px-4 rounded-md text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: 'var(--color-brand-amber)', color: 'var(--color-brand-navy)' }}
               >
-                {loading ? 'Sending...' : 'Send Message'}
+                Send Message
               </button>
             </form>
           )}

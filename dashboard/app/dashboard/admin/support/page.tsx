@@ -39,36 +39,6 @@ export default function AdminSupportPage() {
   )
 
   useEffect(() => {
-    let closed = false
-    let source: EventSource | null = null
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-
-    const connect = () => {
-      source = new EventSource("/api/platform/support/stream", { withCredentials: true })
-      source.onopen = () => {
-        if (!closed) setStreamConnected(true)
-      }
-      source.onmessage = () => {
-        mutateTickets()
-      }
-      source.onerror = () => {
-        if (source) source.close()
-        if (closed) return
-        setStreamConnected(false)
-        reconnectTimer = setTimeout(connect, 3000)
-      }
-    }
-
-    connect()
-    return () => {
-      closed = true
-      setStreamConnected(false)
-      if (source) source.close()
-      if (reconnectTimer) clearTimeout(reconnectTimer)
-    }
-  }, [mutateTickets])
-
-  useEffect(() => {
     if (streamConnected) return
     const id = setInterval(() => {
       mutateTickets()

@@ -89,37 +89,6 @@ export default function HelpPage() {
   )
 
   useEffect(() => {
-    let closed = false
-    let source: EventSource | null = null
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-
-    const connect = () => {
-      source = new EventSource("/api/org/support/stream", { withCredentials: true })
-      source.onopen = () => {
-        if (!closed) setStreamConnected(true)
-      }
-      source.onmessage = () => {
-        mutateTickets()
-        if (selectedTicketId) mutateMessages()
-      }
-      source.onerror = () => {
-        if (source) source.close()
-        if (closed) return
-        setStreamConnected(false)
-        reconnectTimer = setTimeout(connect, 3000)
-      }
-    }
-
-    connect()
-    return () => {
-      closed = true
-      setStreamConnected(false)
-      if (source) source.close()
-      if (reconnectTimer) clearTimeout(reconnectTimer)
-    }
-  }, [mutateMessages, mutateTickets, selectedTicketId])
-
-  useEffect(() => {
     if (streamConnected) return
     const id = setInterval(() => {
       mutateTickets()

@@ -8,6 +8,7 @@ import { XIcon, MenuIcon, LayoutDashboardIcon, CircleUserRoundIcon, BellIcon, Lo
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/lib/api";
+import { clearDemoSession } from "@/lib/demo-session-client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 function getInitials(name: string) {
@@ -24,7 +25,7 @@ export function MobileNav({ scrolled, user }: { scrolled?: boolean; user?: AuthU
 	const router = useRouter();
 
 	async function handleLogout() {
-		await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+		clearDemoSession();
 		setOpen(false);
 		router.push("/");
 	}

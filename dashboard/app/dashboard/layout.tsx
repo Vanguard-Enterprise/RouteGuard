@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation"
-import { getServerUser } from "@/lib/server-api"
+import { getDemoUser } from "@/lib/demo-session"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner"
@@ -11,8 +10,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const me = await getServerUser()
-  if (!me) redirect("/login")
+  const me = await getDemoUser()
 
   return (
     <TooltipProvider>

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import type { AuthUser } from "@/lib/api"
+import { clearDemoSession } from "@/lib/demo-session-client"
 import {
   Avatar,
   AvatarFallback,
@@ -42,7 +43,7 @@ export function NavUser({ user }: { user: AuthUser }) {
   const router = useRouter()
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+    clearDemoSession()
     router.push("/")
   }
 

@@ -150,26 +150,12 @@ export function SchoolManagementPage() {
     setAddressSuggestions(localMatches)
   }, [knownAddresses])
 
-  async function applyGooglePlaceDetails(placeId: string) {
-    setPlaceDetailsLoading(true)
-    try {
-      const response = await fetch(`/api/geo/place-details?place_id=${encodeURIComponent(placeId)}`)
-      if (!response.ok) return
-      const payload = (await response.json()) as { name?: string; address?: string; phone?: string }
-      setForm((current) => ({ ...current, name: payload.name?.trim() || current.name, address: payload.address?.trim() || current.address, contact_phone: payload.phone?.trim() || current.contact_phone }))
-    } finally { setPlaceDetailsLoading(false) }
+  async function applyGooglePlaceDetails(_placeId: string) {
+    setPlaceDetailsLoading(false)
   }
 
-  async function applyGooglePlaceDetailsFromQuery(query: string) {
-    const normalizedQuery = query.trim()
-    if (normalizedQuery.length < 3) return
-    setPlaceDetailsLoading(true)
-    try {
-      const response = await fetch(`/api/geo/place-details?q=${encodeURIComponent(normalizedQuery)}`)
-      if (!response.ok) return
-      const payload = (await response.json()) as { name?: string; address?: string; phone?: string }
-      setForm((current) => ({ ...current, name: !current.name.trim() && payload.name?.trim() ? payload.name.trim() : current.name, address: payload.address?.trim() || current.address, contact_phone: payload.phone?.trim() || current.contact_phone }))
-    } finally { setPlaceDetailsLoading(false) }
+  async function applyGooglePlaceDetailsFromQuery(_query: string) {
+    setPlaceDetailsLoading(false)
   }
 
   function openCreateModal() { resetForm(); setModalOpen(true) }
@@ -229,20 +215,13 @@ export function SchoolManagementPage() {
     const cacheKey = searchText.toLowerCase()
     const cached = addressCacheRef.current.get(cacheKey)
     if (cached) { setAddressSuggestions((current) => uniqueSuggestions(current, cached).slice(0, 8)); setAddressSearchLoading(false); return }
-    const controller = new AbortController()
-    const timer = window.setTimeout(async () => {
-      setAddressSearchLoading(true)
-      try {
-        const response = await fetch(`/api/geo/address-search?q=${encodeURIComponent(searchText)}`, { signal: controller.signal })
-        if (!response.ok) throw new Error("Address search failed")
-        const payload = (await response.json()) as { items?: AddressSuggestion[] }
-        const remoteSuggestions = payload.items ?? []
-        addressCacheRef.current.set(cacheKey, remoteSuggestions)
-        setAddressSuggestions((current) => uniqueSuggestions(current, remoteSuggestions).slice(0, 8))
-      } catch {}
-      finally { setAddressSearchLoading(false) }
+    const timer = window.setTimeout(() => {
+      setAddressSearchLoading(false)
+      const localSuggestions = knownAddresses.filter((address) => address.toLowerCase().includes(searchText.toLowerCase())).slice(0, 8).map((address) => ({ label: address, address, source: "local" as const }))
+      addressCacheRef.current.set(cacheKey, localSuggestions)
+      setAddressSuggestions((current) => uniqueSuggestions(current, localSuggestions).slice(0, 8))
     }, 120)
-    return () => { window.clearTimeout(timer); controller.abort() }
+    return () => window.clearTimeout(timer)
   }, [applyInstantAddressSuggestions, form.address, modalOpen])
 
   function applyFilters() { setFilters(draftFilters); setFiltersOpen(false); setPage(1) }
