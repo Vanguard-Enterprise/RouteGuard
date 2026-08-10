@@ -21,19 +21,19 @@ const driverBus: FakeBus = {
   id: "DEMO-BUS-42",
   route: "North Loop",
   status: "On Time",
-  x: 410,
-  y: 348,
-  motionPath: "M410 348 C470 315 535 286 600 295 S720 340 820 310",
+  x: 620,
+  y: 250,
+  motionPath: "M620 250 L670 242 L730 238 L800 237 L880 239 L960 244",
   duration: 10,
 }
 
 const fakeBuses: FakeBus[] = [
-  { id: "BUS-12", route: "North Loop", status: "On Time", x: 278, y: 250, motionPath: "M278 250 C350 250 430 238 500 244 S620 254 690 220 S810 196 930 200", duration: 16 },
-  { id: "BUS-21", route: "Riverside", status: "Delayed", x: 352, y: 387, motionPath: "M352 387 C415 350 460 310 520 284 S625 286 680 322 S760 345 855 298", duration: 20 },
-  { id: "BUS-07", route: "Oak Ridge", status: "On Time", x: 615, y: 307, motionPath: "M615 307 C640 260 670 225 672 180 S700 124 745 82", duration: 14 },
-  { id: "BUS-33", route: "Hillcrest", status: "Out of Service", x: 820, y: 270, duration: 0 },
-  { id: "BUS-18", route: "Lakeside", status: "At Stop", x: 825, y: 110, duration: 0 },
-  { id: "BUS-05", route: "Cedar Run", status: "Emergency", x: 650, y: 380, duration: 0 },
+  { id: "BUS-12", route: "North Loop", status: "On Time", x: 140, y: 100, motionPath: "M140 100 L210 128 L290 157 L370 184 L450 207 L520 228 L590 242", duration: 16 },
+  { id: "BUS-21", route: "Riverside", status: "Delayed", x: 660, y: 480, motionPath: "M660 480 L652 430 L644 380 L634 330 L625 286 L620 250", duration: 20 },
+  { id: "BUS-07", route: "Oak Ridge", status: "On Time", x: 625, y: 238, motionPath: "M625 238 L680 237 L740 237 L810 237 L880 239 L960 244", duration: 14 },
+  { id: "BUS-33", route: "Hillcrest", status: "Out of Service", x: 870, y: 237, duration: 0 },
+  { id: "BUS-18", route: "Lakeside", status: "At Stop", x: 820, y: 150, duration: 0 },
+  { id: "BUS-05", route: "Cedar Run", status: "Emergency", x: 660, y: 430, duration: 0 },
 ]
 
 function statusColor(status: BusStatus) {
@@ -51,10 +51,10 @@ export function FakeBusTrackingMap({ mode = "fleet" }: FakeBusTrackingMapProps =
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1024 512" role="img" aria-label="Culpeper Virginia street map with live demo buses" preserveAspectRatio="none">
         <image href="/maps/culpeper-streets.webp" x="0" y="0" width="1024" height="512" preserveAspectRatio="none" />
         <rect width="1024" height="512" fill="#0f766e" opacity=".06" />
-        <g fill="none" stroke="#0f766e" strokeWidth="8" strokeLinecap="round" strokeDasharray="2 18" opacity=".5">
-          <path d="M278 250 C350 250 430 238 500 244 S620 254 690 220 S810 196 930 200" />
-          <path d="M352 387 C415 350 460 310 520 284 S625 286 680 322 S760 345 855 298" />
-          <path d="M615 307 C640 260 670 225 672 180 S700 124 745 82" />
+        <g fill="none" stroke="#0f766e" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 16" opacity=".6">
+          <path d="M140 100 L210 128 L290 157 L370 184 L450 207 L520 228 L590 242" />
+          <path d="M660 480 L652 430 L644 380 L634 330 L625 286 L620 250" />
+          <path d="M625 238 L680 237 L740 237 L810 237 L880 239 L960 244" />
         </g>
         {buses.map((bus) => {
           const color = mode === "driver" ? "#2563eb" : statusColor(bus.status)
