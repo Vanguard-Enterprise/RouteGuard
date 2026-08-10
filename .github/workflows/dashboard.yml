@@ -14,7 +14,7 @@ env:
 
 jobs:
   build-deploy:
-    runs-on: [self-hosted, routeguard]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       deployments: write
