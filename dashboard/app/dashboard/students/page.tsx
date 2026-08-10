@@ -220,10 +220,16 @@ export default function StudentsPage() {
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value as "all" | StudentStatus)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                position="popper"
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                className="w-[var(--radix-select-trigger-width)]"
+              >
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="On Bus">On Bus</SelectItem>
                 <SelectItem value="At School">At School</SelectItem>
@@ -231,10 +237,16 @@ export default function StudentsPage() {
               </SelectContent>
             </Select>
             <Select value={gradeFilter} onValueChange={setGradeFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by grade" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                position="popper"
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                className="w-[var(--radix-select-trigger-width)]"
+              >
                 <SelectItem value="all">All grades</SelectItem>
                 <SelectItem value="K">K</SelectItem>
                 <SelectItem value="1">1</SelectItem>
