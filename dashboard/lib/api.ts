@@ -121,6 +121,17 @@ function emptyPage<T>(path: string): PageResponse<T> {
   return { items: [], total: 0, page, per_page: perPage, total_pages: 1 }
 }
 
+function demoPage<T>(items: T[], path: string, searchable?: (item: T) => string[]): PageResponse<T> {
+  const query = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null
+  const search = query?.get('search')?.trim().toLowerCase() ?? ''
+  const filtered = search && searchable
+    ? items.filter((item) => searchable(item).some((value) => value.toLowerCase().includes(search)))
+    : items
+  const page = Number(query?.get('page') ?? 1)
+  const perPage = Number(query?.get('per_page') ?? 10)
+  return { items: filtered, total: filtered.length, page, per_page: perPage, total_pages: Math.max(1, Math.ceil(filtered.length / Math.max(1, perPage))) }
+}
+
 function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? 'GET'
   const body = bodyValue(init)
@@ -132,16 +143,52 @@ function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
   else if (path.includes('/auth/orgs')) value = [DEMO_ORG]
   else if (path.includes('/auth/switch-org')) value = { org: DEMO_ORG, permissions: DEMO_ME.permissions }
   else if (path.includes('/platform/stats')) value = { total_orgs: 1, suspended_orgs: 0, total_users: 1, active_sessions: 1, active_trips: 1 }
-  else if (path.includes('/platform/audit')) value = { items: [], next_cursor: '', has_more: false }
-  else if (path.includes('/platform/updates/install-command')) value = { release: null, command: 'Demo installs are disabled in local mode.' }
-  else if (path.includes('/platform/updates/rollout')) value = { latest_release: null, total_devices: 0, on_latest: 0, behind_latest: 0, percent_up_to_date: 0, organizations: [] }
-  else if (path.includes('/org/students/filter-options')) value = { grades: [], schools: [] }
-  else if (path.includes('/org/driver-vehicle-assignments')) value = { items: [] }
-  else if (path.includes('/org/settings')) value = { ...DEMO_ORG, is_demo: true, demo_template_version: 'local', demo_last_reset_at: null, suspended_at: null, deleted_at: null, member_count: 1, created_at: new Date(0).toISOString(), updated_at: new Date(0).toISOString() }
-  else if (path.includes('/org/billing')) value = { id: 'demo-billing', org_id: DEMO_ORG.id, billing_status: 'pilot', pilot_ends_at: null, contract_notes: 'Local demo mode', billing_contact_email: DEMO_USER.email, created_at: new Date(0).toISOString(), updated_at: new Date(0).toISOString(), org_name: DEMO_ORG.name, org_slug: DEMO_ORG.slug }
-  else if (/\/org\/(members|roles|sso|integrations|devices)(\/|$)/.test(path)) value = []
-  else if (path.includes('/platform/billing') || path.includes('/platform/updates/releases')) value = []
-  else if (path.includes('/platform/orgs') || path.includes('/platform/users') || path.includes('/platform/support/tickets')) value = emptyPage(path)
+  else if (path.includes('/platform/audit')) value = { items: DEMO_AUDIT_EVENTS, next_cursor: '', has_more: false }
+  else if (path.includes('/platform/updates/install-command')) value = { release: DEMO_RELEASES[0] ?? null, command: 'Demo installs are simulated locally.' }
+  else if (path.includes('/platform/updates/rollout')) value = DEMO_ROLLOUT
+  else if (path.includes('/org/students/filter-options')) value = { grades: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], schools: DEMO_SCHOOLS.map((school) => school.name) }
+  else if (path.includes('/org/driver-vehicle-assignments')) value = { items: DEMO_ASSIGNMENTS }
+  else if (path.includes('/org/settings')) value = DEMO_ORGANIZATION
+  else if (path.includes('/org/billing')) value = DEMO_BILLING
+  else if (path.includes('/org/support/tickets/') && path.endsWith('/messages')) value = DEMO_MESSAGES[path.split('/').at(-2) ?? ''] ?? []
+  else if (path.includes('/org/support/tickets')) value = demoPage(DEMO_TICKETS, path, (ticket) => [ticket.subject, ticket.status])
+  else if (path.includes('/org/students/deleted')) value = demoPage(DEMO_STUDENTS.filter((student) => student.deleted_at), path, (student) => [student.first_name, student.last_name, student.student_id])
+  else if (path.includes('/org/students')) value = demoPage(DEMO_STUDENTS.filter((student) => !student.deleted_at), path, (student) => [student.first_name, student.last_name, student.student_id, student.school, student.guardian_name])
+  else if (path.includes('/org/schools/deleted')) value = demoPage(DEMO_SCHOOLS.filter((school) => school.deleted_at), path, (school) => [school.name, school.address])
+  else if (path.includes('/org/schools')) value = demoPage(DEMO_SCHOOLS.filter((school) => !school.deleted_at), path, (school) => [school.name, school.address, school.contact_phone])
+  else if (path.includes('/org/vehicles/deleted')) value = demoPage(DEMO_VEHICLES.filter((vehicle) => vehicle.deleted_at), path, (vehicle) => [vehicle.vehicle_id, vehicle.license_plate])
+  else if (path.includes('/org/vehicles')) value = demoPage(DEMO_VEHICLES.filter((vehicle) => !vehicle.deleted_at), path, (vehicle) => [vehicle.vehicle_id, vehicle.license_plate])
+  else if (path.includes('/org/drivers/deleted')) value = demoPage(DEMO_DRIVERS.filter((driver) => driver.deleted_at), path, (driver) => [driver.name, driver.driver_id, driver.phone])
+  else if (path.includes('/org/drivers')) value = demoPage(DEMO_DRIVERS.filter((driver) => !driver.deleted_at), path, (driver) => [driver.name, driver.driver_id, driver.phone])
+  else if (path.includes('/org/stops/deleted')) value = demoPage(DEMO_STOPS.filter((stop) => stop.deleted_at), path, (stop) => [stop.name, stop.stop_id, stop.address])
+  else if (path.includes('/org/stops')) value = demoPage(DEMO_STOPS.filter((stop) => !stop.deleted_at), path, (stop) => [stop.name, stop.stop_id, stop.address])
+  else if (path.includes('/org/routes/') && !path.includes('/deleted') && method === 'GET') {
+    const route = DEMO_ROUTES.find((candidate) => path.includes(`/${candidate.id}`)) ?? DEMO_ROUTES[0]
+    value = { route, stops: DEMO_STOPS.slice(0, 3), students: DEMO_STUDENTS.slice(0, route.assigned_students > 30 ? 4 : 3) }
+  }
+  else if (path.includes('/org/routes/deleted')) value = demoPage(DEMO_ROUTES.filter((route) => route.deleted_at), path, (route) => [route.route_code, route.status])
+  else if (path.includes('/org/routes')) value = demoPage(DEMO_ROUTES.filter((route) => !route.deleted_at), path, (route) => [route.route_code, route.status, route.objective_mode])
+  else if (path.includes('/org/planner-runs/') && method === 'GET') {
+    const run = DEMO_PLANNER_RUNS.find((candidate) => path.includes(`/${candidate.id}`)) ?? DEMO_PLANNER_RUNS[0]
+    value = { run, routes: DEMO_ROUTES.filter((route) => route.planner_run_id === run.id), issues: [] }
+  }
+  else if (path.includes('/org/planner-runs')) value = demoPage(DEMO_PLANNER_RUNS, path, (run) => [run.status, run.mode, run.service_window])
+  else if (path.includes('/org/members')) value = DEMO_MEMBERS
+  else if (path.includes('/org/roles')) value = DEMO_ROLES
+  else if (path.includes('/org/sso')) value = DEMO_SSO_CONNECTIONS
+  else if (path.includes('/org/integrations')) value = DEMO_INTEGRATIONS
+  else if (path.includes('/org/devices')) value = DEMO_DEVICES
+  else if (path.includes('/platform/billing')) value = DEMO_BILLING_LIST
+  else if (path.includes('/platform/updates/releases')) value = DEMO_RELEASES
+  else if (path.includes('/platform/orgs/') && !path.endsWith('/members')) value = DEMO_ORGANIZATIONS.find((org) => path.includes(`/${org.id}`)) ?? DEMO_ORGANIZATION
+  else if (path.includes('/platform/users/') && method === 'GET') {
+    const user = DEMO_PLATFORM_USERS.find((candidate) => path.includes(`/${candidate.id}`)) ?? DEMO_PLATFORM_USERS[0]
+    value = { ...user, memberships: [{ org_id: DEMO_ORG.id, org_name: DEMO_ORG.name, org_slug: DEMO_ORG.slug, roles: [{ id: 'role-admin', name: 'District Admin', permissions: DEMO_ME.permissions }] }] }
+  }
+  else if (path.includes('/platform/support/tickets/') && method === 'GET') value = DEMO_TICKETS.find((ticket) => path.includes(`/${ticket.id}`)) ?? DEMO_TICKETS[0]
+  else if (path.includes('/platform/orgs') && method === 'GET') value = demoPage(DEMO_ORGANIZATIONS, path, (org) => [org.name, org.slug])
+  else if (path.includes('/platform/users') && method === 'GET') value = demoPage(DEMO_PLATFORM_USERS, path, (user) => [user.name, user.email])
+  else if (path.includes('/platform/support/tickets') && method === 'GET') value = demoPage(DEMO_TICKETS, path, (ticket) => [ticket.subject, ticket.status])
   else if (path.includes('/platform/') || path.includes('/org/')) value = path.includes('?') || method === 'GET' ? emptyPage(path) : (method === 'DELETE' ? undefined : { ...body, id: 'local-demo-record' })
   else value = method === 'DELETE' ? undefined : {}
 
@@ -601,6 +648,124 @@ export interface SupportMessage {
   body: string
   created_at: string
 }
+
+const DEMO_TIME = '2026-08-08T12:00:00.000Z'
+
+export const DEMO_ORGANIZATION: Organization = {
+  ...DEMO_ORG,
+  is_demo: true,
+  demo_template_version: 'e2-demo',
+  demo_last_reset_at: DEMO_TIME,
+  suspended_at: null,
+  deleted_at: null,
+  member_count: 4,
+  created_at: '2026-01-15T12:00:00.000Z',
+  updated_at: DEMO_TIME,
+}
+
+export const DEMO_SCHOOLS: School[] = [
+  { id: 'school-elm', org_id: DEMO_ORG.id, school_id: 'SCH-001', name: 'Emerald Hill Elementary', address: '1320 Diamond Farm Road', contact_phone: '(540) 555-0101', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'school-culpeper', org_id: DEMO_ORG.id, school_id: 'SCH-002', name: 'Culpeper Middle School', address: '14300 Achievement Drive', contact_phone: '(540) 555-0102', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'school-high', org_id: DEMO_ORG.id, school_id: 'SCH-003', name: 'Culpeper County High School', address: '14240 Achievement Drive', contact_phone: '(540) 555-0103', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'school-archive', org_id: DEMO_ORG.id, school_id: 'SCH-004', name: 'Old Town Learning Center', address: '508 Main Street', contact_phone: '', is_active: false, created_at: DEMO_TIME, updated_at: DEMO_TIME, deleted_at: '2026-08-01T12:00:00.000Z' },
+]
+
+export const DEMO_STUDENTS: Student[] = [
+  { id: 'student-001', org_id: DEMO_ORG.id, student_id: 'RG-1001', first_name: 'Maya', last_name: 'Brooks', grade: '5', school: 'Emerald Hill Elementary', guardian_name: 'Jordan Brooks', guardian_contact: '(540) 555-0141', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'student-002', org_id: DEMO_ORG.id, student_id: 'RG-1002', first_name: 'Liam', last_name: 'Carter', grade: '7', school: 'Culpeper Middle School', guardian_name: 'Avery Carter', guardian_contact: '(540) 555-0142', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'student-003', org_id: DEMO_ORG.id, student_id: 'RG-1003', first_name: 'Sofia', last_name: 'Nguyen', grade: '10', school: 'Culpeper County High School', guardian_name: 'Minh Nguyen', guardian_contact: '(540) 555-0143', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'student-004', org_id: DEMO_ORG.id, student_id: 'RG-1004', first_name: 'Ethan', last_name: 'Reed', grade: '3', school: 'Emerald Hill Elementary', guardian_name: 'Casey Reed', guardian_contact: '(540) 555-0144', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'student-005', org_id: DEMO_ORG.id, student_id: 'RG-1005', first_name: 'Aaliyah', last_name: 'Davis', grade: '8', school: 'Culpeper Middle School', guardian_name: 'Taylor Davis', guardian_contact: '(540) 555-0145', is_active: false, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'student-006', org_id: DEMO_ORG.id, student_id: 'RG-1006', first_name: 'Noah', last_name: 'Morgan', grade: '4', school: 'Old Town Learning Center', guardian_name: 'Riley Morgan', guardian_contact: '(540) 555-0146', is_active: false, created_at: DEMO_TIME, updated_at: DEMO_TIME, deleted_at: '2026-08-02T12:00:00.000Z' },
+]
+
+export const DEMO_VEHICLES: Vehicle[] = [
+  { id: 'vehicle-001', org_id: DEMO_ORG.id, vehicle_id: 'BUS-12', license_plate: 'RG-1201', capacity: 48, is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'vehicle-002', org_id: DEMO_ORG.id, vehicle_id: 'BUS-21', license_plate: 'RG-2101', capacity: 54, is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'vehicle-003', org_id: DEMO_ORG.id, vehicle_id: 'BUS-07', license_plate: 'RG-0701', capacity: 36, is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'vehicle-004', org_id: DEMO_ORG.id, vehicle_id: 'BUS-33', license_plate: 'RG-3301', capacity: 48, is_active: false, created_at: DEMO_TIME, updated_at: DEMO_TIME, deleted_at: '2026-08-03T12:00:00.000Z' },
+]
+
+export const DEMO_DRIVERS: Driver[] = [
+  { id: 'driver-001', org_id: DEMO_ORG.id, driver_id: 'DRV-101', name: 'Alex Johnson', phone: '(540) 555-0161', is_available: true, is_active: true, has_pin: true, pin_updated_at: DEMO_TIME, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'driver-002', org_id: DEMO_ORG.id, driver_id: 'DRV-102', name: 'Morgan Lee', phone: '(540) 555-0162', is_available: true, is_active: true, has_pin: true, pin_updated_at: DEMO_TIME, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'driver-003', org_id: DEMO_ORG.id, driver_id: 'DRV-103', name: 'Samira Patel', phone: '(540) 555-0163', is_available: true, is_active: true, has_pin: false, pin_updated_at: null, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'driver-004', org_id: DEMO_ORG.id, driver_id: 'DRV-104', name: 'Chris Wilson', phone: '(540) 555-0164', is_available: false, is_active: true, has_pin: true, pin_updated_at: DEMO_TIME, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'driver-005', org_id: DEMO_ORG.id, driver_id: 'DRV-105', name: 'Jamie Parker', phone: '(540) 555-0165', is_available: false, is_active: false, has_pin: false, pin_updated_at: null, created_at: DEMO_TIME, updated_at: DEMO_TIME, deleted_at: '2026-08-04T12:00:00.000Z' },
+]
+
+export const DEMO_STOPS: Stop[] = [
+  { id: 'stop-001', org_id: DEMO_ORG.id, stop_id: 'STOP-001', name: 'Mountain Run Library', address: '610 Mountain Run Lake Road', latitude: 38.47291, longitude: -78.0123, notes: 'Use the east entrance.', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'stop-002', org_id: DEMO_ORG.id, stop_id: 'STOP-002', name: 'Culpeper Baptist Church', address: '318 South West Street', latitude: 38.47112, longitude: -77.9962, notes: 'Pull into the side lot.', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'stop-003', org_id: DEMO_ORG.id, stop_id: 'STOP-003', name: 'Lakeview Community Center', address: '201 Lakeview Parkway', latitude: 38.4874, longitude: -78.0251, notes: '', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'stop-004', org_id: DEMO_ORG.id, stop_id: 'STOP-004', name: 'North Ridge Park', address: '902 North Ridge Road', latitude: 38.5019, longitude: -77.9817, notes: 'Stop near the playground.', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'stop-005', org_id: DEMO_ORG.id, stop_id: 'STOP-005', name: 'West Street Corner', address: '120 West Street', latitude: 38.4682, longitude: -77.9998, notes: '', is_active: false, created_at: DEMO_TIME, updated_at: DEMO_TIME, deleted_at: '2026-08-05T12:00:00.000Z' },
+]
+
+export const DEMO_PLANNER_RUNS: PlannerRun[] = [
+  { id: 'run-001', org_id: DEMO_ORG.id, mode: 'FASTEST_TIME', service_window: 'PM', status: 'published', created_by: DEMO_USER.id, created_at: '2026-08-08T09:00:00.000Z', published_at: '2026-08-08T09:12:00.000Z' },
+  { id: 'run-002', org_id: DEMO_ORG.id, mode: 'FEWEST_BUSES', service_window: 'PM', status: 'draft', created_by: DEMO_USER.id, created_at: '2026-08-08T11:30:00.000Z', published_at: null },
+  { id: 'run-003', org_id: DEMO_ORG.id, mode: 'FASTEST_TIME', service_window: 'AM', status: 'published', created_by: DEMO_USER.id, created_at: '2026-08-07T06:30:00.000Z', published_at: '2026-08-07T06:45:00.000Z' },
+]
+
+export const DEMO_ROUTES: Route[] = [
+  { id: 'route-001', org_id: DEMO_ORG.id, planner_run_id: 'run-001', route_code: 'PM-NORTH-01', service_window: 'PM', status: 'active', objective_mode: 'FASTEST_TIME', vehicle_id: 'vehicle-001', driver_id: 'driver-001', estimated_travel_minutes: 42, assigned_students: 31, seat_utilization: 64.6, unassigned_count: 0, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'route-002', org_id: DEMO_ORG.id, planner_run_id: 'run-001', route_code: 'PM-SOUTH-02', service_window: 'PM', status: 'active', objective_mode: 'FASTEST_TIME', vehicle_id: 'vehicle-002', driver_id: 'driver-002', estimated_travel_minutes: 51, assigned_students: 44, seat_utilization: 81.5, unassigned_count: 1, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'route-003', org_id: DEMO_ORG.id, planner_run_id: 'run-002', route_code: 'PM-EAST-03', service_window: 'PM', status: 'draft', objective_mode: 'FEWEST_BUSES', vehicle_id: 'vehicle-003', driver_id: 'driver-003', estimated_travel_minutes: 38, assigned_students: 27, seat_utilization: 75, unassigned_count: 2, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+]
+
+export const DEMO_ASSIGNMENTS = [
+  { id: 'assignment-001', driver_id: 'driver-001', vehicle_id: 'vehicle-001', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'assignment-002', driver_id: 'driver-002', vehicle_id: 'vehicle-002', is_active: true, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+]
+
+export const DEMO_MEMBERS: OrgMember[] = [
+  { user_id: DEMO_USER.id, email: DEMO_USER.email, name: DEMO_USER.name, roles: [{ id: 'role-admin', name: 'District Admin' }] },
+  { user_id: 'member-001', email: 'transport@route-guard.local', name: 'Taylor Transport', roles: [{ id: 'role-dispatch', name: 'Dispatcher' }] },
+  { user_id: 'member-002', email: 'safety@route-guard.local', name: 'Casey Safety', roles: [{ id: 'role-viewer', name: 'Safety Viewer' }] },
+]
+
+export const DEMO_ROLES: OrgRole[] = [
+  { id: 'role-admin', name: 'District Admin', permissions: DEMO_ME.permissions, is_system: true },
+  { id: 'role-dispatch', name: 'Dispatcher', permissions: ['vehicles:read', 'drivers:read', 'stops:read', 'planning:run'], is_system: true },
+  { id: 'role-viewer', name: 'Safety Viewer', permissions: ['vehicles:read', 'drivers:read', 'stops:read'], is_system: true },
+]
+
+export const DEMO_SSO_CONNECTIONS: SSOConnection[] = [{ id: 'sso-demo', org_id: DEMO_ORG.id, type: 'oidc', display_name: 'Demo sign-in (inactive)', enabled: false, oidc_issuer_url: 'https://demo.invalid', oidc_client_id: 'local-demo', oidc_scopes: 'openid profile email', created_at: DEMO_TIME, updated_at: DEMO_TIME }]
+export const DEMO_INTEGRATIONS: Integration[] = [{ id: 'integration-demo', org_id: DEMO_ORG.id, type: 'student-information-system', display_name: 'Sample SIS (local)', base_url: 'local://demo', has_api_key: false, has_api_secret: false, enabled: false, sync_schedule: null, last_synced_at: null, created_at: DEMO_TIME, updated_at: DEMO_TIME }]
+export const DEMO_DEVICES: OrgDevice[] = [
+  { id: 'device-001', org_id: DEMO_ORG.id, vehicle_id: 'vehicle-001', device_key: 'RG-DEVICE-001', name: 'BUS-12 tablet', software_version: 'demo-1.0', connectivity_state: 'online', app_health: 'healthy', enrollment_code: null, enrollment_expires_at: null, enrolled_at: DEMO_TIME, token_issued_at: DEMO_TIME, revoked_at: null, last_seen_at: DEMO_TIME, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'device-002', org_id: DEMO_ORG.id, vehicle_id: 'vehicle-002', device_key: 'RG-DEVICE-002', name: 'BUS-21 tablet', software_version: 'demo-1.0', connectivity_state: 'online', app_health: 'healthy', enrollment_code: null, enrollment_expires_at: null, enrolled_at: DEMO_TIME, token_issued_at: DEMO_TIME, revoked_at: null, last_seen_at: '2026-08-08T11:55:00.000Z', created_at: DEMO_TIME, updated_at: DEMO_TIME },
+]
+
+export const DEMO_TICKETS: SupportTicket[] = [
+  { id: 'ticket-001', org_id: DEMO_ORG.id, created_by_user_id: DEMO_USER.id, assigned_admin_user_id: null, subject: 'How do I publish a new route?', status: 'open', created_at: '2026-08-08T10:15:00.000Z', updated_at: '2026-08-08T10:15:00.000Z', last_message_at: '2026-08-08T10:15:00.000Z', resolved_at: null },
+  { id: 'ticket-002', org_id: DEMO_ORG.id, created_by_user_id: 'member-001', assigned_admin_user_id: DEMO_USER.id, subject: 'Bus tablet demo status', status: 'in_progress', created_at: '2026-08-07T14:20:00.000Z', updated_at: '2026-08-08T09:05:00.000Z', last_message_at: '2026-08-08T09:05:00.000Z', resolved_at: null },
+  { id: 'ticket-003', org_id: DEMO_ORG.id, created_by_user_id: 'member-002', assigned_admin_user_id: DEMO_USER.id, subject: 'Route export question', status: 'resolved', created_at: '2026-08-06T08:40:00.000Z', updated_at: '2026-08-06T11:10:00.000Z', last_message_at: '2026-08-06T11:10:00.000Z', resolved_at: '2026-08-06T11:10:00.000Z' },
+]
+
+export const DEMO_MESSAGES: Record<string, SupportMessage[]> = {
+  'ticket-001': [{ id: 'message-001', ticket_id: 'ticket-001', sender_user_id: DEMO_USER.id, sender_org_id: DEMO_ORG.id, sender_is_platform: false, body: 'I would like to review the publishing flow for the afternoon routes.', created_at: '2026-08-08T10:15:00.000Z' }],
+  'ticket-002': [{ id: 'message-002', ticket_id: 'ticket-002', sender_user_id: 'member-001', sender_org_id: DEMO_ORG.id, sender_is_platform: false, body: 'The BUS-21 tablet is showing the local demo connection.', created_at: '2026-08-08T09:05:00.000Z' }],
+  'ticket-003': [{ id: 'message-003', ticket_id: 'ticket-003', sender_user_id: DEMO_USER.id, sender_org_id: DEMO_ORG.id, sender_is_platform: true, body: 'Route exports are represented as sample data in this demo.', created_at: '2026-08-06T11:10:00.000Z' }],
+}
+
+export const DEMO_PLATFORM_USERS: PlatformUser[] = [
+  { id: DEMO_USER.id, email: DEMO_USER.email, name: DEMO_USER.name, disabled_at: null, last_login_at: DEMO_TIME, created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'platform-user-001', email: 'transport@route-guard.local', name: 'Taylor Transport', disabled_at: null, last_login_at: '2026-08-08T08:30:00.000Z', created_at: DEMO_TIME, updated_at: DEMO_TIME },
+  { id: 'platform-user-002', email: 'safety@route-guard.local', name: 'Casey Safety', disabled_at: null, last_login_at: '2026-08-07T16:10:00.000Z', created_at: DEMO_TIME, updated_at: DEMO_TIME },
+]
+
+export const DEMO_ORGANIZATIONS: Organization[] = [DEMO_ORGANIZATION, { ...DEMO_ORGANIZATION, id: 'org-riverbend', name: 'Riverbend Demo Schools', slug: 'riverbend-demo', member_count: 2 }]
+export const DEMO_BILLING: OrgBilling = { id: 'demo-billing', org_id: DEMO_ORG.id, billing_status: 'pilot', pilot_ends_at: null, contract_notes: 'Local demo plan', billing_contact_email: DEMO_USER.email, created_at: DEMO_TIME, updated_at: DEMO_TIME, org_name: DEMO_ORG.name, org_slug: DEMO_ORG.slug }
+export const DEMO_BILLING_LIST: OrgBilling[] = [DEMO_BILLING, { ...DEMO_BILLING, id: 'riverbend-billing', org_id: 'org-riverbend', org_name: 'Riverbend Demo Schools', org_slug: 'riverbend-demo', billing_status: 'active', billing_contact_email: 'admin@riverbend.local' }]
+export const DEMO_AUDIT_EVENTS: AuditEvent[] = [
+  { id: 'audit-001', actor_id: DEMO_USER.id, actor_email: DEMO_USER.email, org_id: DEMO_ORG.id, event_type: 'route.demo_published', target_type: 'route', target_id: 'route-001', metadata: { route_code: 'PM-NORTH-01' }, ip_address: 'local', created_at: '2026-08-08T09:12:00.000Z' },
+  { id: 'audit-002', actor_id: DEMO_USER.id, actor_email: DEMO_USER.email, org_id: DEMO_ORG.id, event_type: 'student.demo_updated', target_type: 'student', target_id: 'student-001', metadata: { field: 'guardian_contact' }, ip_address: 'local', created_at: '2026-08-08T08:40:00.000Z' },
+  { id: 'audit-003', actor_id: 'member-001', actor_email: 'transport@route-guard.local', org_id: DEMO_ORG.id, event_type: 'driver.demo_assigned', target_type: 'vehicle', target_id: 'vehicle-002', metadata: { driver_id: 'driver-002' }, ip_address: 'local', created_at: '2026-08-07T14:20:00.000Z' },
+]
+export const DEMO_RELEASES: SoftwareRelease[] = [{ id: 'release-001', version: 'demo-1.0.0', release_date: '2026-08-01', release_notes: 'Initial E² demo release.', artifact_url: 'local://routeguard-demo', artifact_sha256: 'demo', installer_url: 'local://routeguard-demo-installer', target_os: 'linux', target_arch: 'amd64', is_install_default: true, created_at: DEMO_TIME }]
+export const DEMO_ROLLOUT: RolloutSummary = { latest_release: DEMO_RELEASES[0], total_devices: DEMO_DEVICES.length, on_latest: DEMO_DEVICES.length, behind_latest: 0, percent_up_to_date: 100, organizations: [{ org_id: DEMO_ORG.id, org_name: DEMO_ORG.name, total_devices: DEMO_DEVICES.length, on_latest: DEMO_DEVICES.length, behind_latest: 0, percent_up_to_date: 100, devices: DEMO_DEVICES.map((device) => ({ id: device.id, org_id: DEMO_ORG.id, org_name: DEMO_ORG.name, vehicle_id: device.vehicle_id, vehicle_label: device.name, device_key: device.device_key, name: device.name, software_version: device.software_version, connectivity_state: device.connectivity_state, app_health: device.app_health, last_seen_at: device.last_seen_at })) }] }
 
 // API methods
 export const api = {
