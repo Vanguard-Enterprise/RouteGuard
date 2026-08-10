@@ -16,7 +16,6 @@ export default function MarketingNav() {
 
   const navLinks = [
     { href: '/#features', label: 'Features' },
-    { href: '/pricing', label: 'Pricing' },
     { href: '/contact', label: 'Contact' },
   ]
 
@@ -45,10 +44,10 @@ export default function MarketingNav() {
 
         <div className="hidden md:flex items-center">
           <Link
-            href="/staff/login"
+            href="/login"
             className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors"
           >
-            Staff Login
+            Demo Login
           </Link>
         </div>
 
@@ -75,11 +74,11 @@ export default function MarketingNav() {
               </Link>
             ))}
             <Link
-              href="/staff/login"
+              href="/login"
               className="py-2 px-2 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors mt-1 border-t border-gray-100 pt-3"
               onClick={() => setMobileOpen(false)}
             >
-              Staff Login
+              Demo Login
             </Link>
           </nav>
         </div>

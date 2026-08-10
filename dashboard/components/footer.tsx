@@ -20,22 +20,19 @@ const footerLinks: FooterSection[] = [
 		label: "Product",
 		links: [
 			{ title: "Features", href: "/#features" },
-			{ title: "Pricing", href: "/pricing" },
 			{ title: "Contact", href: "/contact" },
 		],
 	},
 	{
 		label: "Company",
 		links: [
-			{ title: "FAQs", href: "/faqs" },
-			{ title: "Privacy Policy", href: "/privacy" },
-			{ title: "Terms of Service", href: "/terms" },
+			{ title: "Contact", href: "/contact" },
 		],
 	},
 	{
 		label: "Portal",
 		links: [
-			{ title: "Staff Login", href: "/staff/login" },
+			{ title: "Demo Login", href: "/login" },
 			{ title: "Request a Demo", href: "/contact" },
 		],
 	},

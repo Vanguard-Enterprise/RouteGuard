@@ -17,7 +17,6 @@ export default function MarketingFooter() {
             <ul className="space-y-2">
               {[
                 { href: '/#features', label: 'Features' },
-                { href: '/pricing', label: 'Pricing' },
                 { href: '/contact', label: 'Contact' },
               ].map((link) => (
                 <li key={link.href}>
@@ -29,21 +28,6 @@ export default function MarketingFooter() {
             </ul>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-blue-100 uppercase tracking-wider mb-4">Legal</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/privacy" className="text-sm text-blue-200 hover:text-white transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="text-sm text-blue-200 hover:text-white transition-colors">
-                  Terms of Service
-                </Link>
-              </li>
-            </ul>
-          </div>
         </div>
 
         <div className="mt-10 pt-6 border-t border-blue-900 flex flex-col sm:flex-row items-center justify-between gap-2">

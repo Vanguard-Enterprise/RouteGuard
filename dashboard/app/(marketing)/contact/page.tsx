@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false)
@@ -46,14 +46,13 @@ export default function ContactPage() {
                 className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
                 style={{ backgroundColor: 'var(--color-brand-slate)' }}
               >
-                <CheckCircle className="w-7 h-7" style={{ color: 'var(--color-brand-green)' }} />
+                <AlertCircle className="w-7 h-7" style={{ color: 'var(--color-brand-amber)' }} />
               </div>
               <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-brand-navy)' }}>
-                Message Received
+                Demo Mode
               </h2>
               <p className="text-gray-600 text-sm">
-                Thanks for reaching out. A member of our team will contact you at{' '}
-                <strong>{form.email}</strong> shortly.
+                Message failed to send because this site is running in demo mode. No message was delivered.
               </p>
             </div>
           ) : (
