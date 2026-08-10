@@ -20,7 +20,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">RouteGuard Demo</CardTitle>
-          <CardDescription>Authentication has been removed now that E2 has ended.</CardDescription>
+          <CardDescription>Authentication has been removed now that E^2 has ended.</CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
