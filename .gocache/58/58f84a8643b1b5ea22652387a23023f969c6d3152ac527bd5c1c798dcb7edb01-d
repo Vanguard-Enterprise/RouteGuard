@@ -1,5 +1,0 @@
-./school_repo_test.go
-./student_repo_test.go
-./support_repo_test.go
-./testutil_test.go
-./user_repo_test.go
