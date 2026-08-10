@@ -1,16 +1,16 @@
 # RouteGuard
 
-Enterprise school bus fleet management platform.
+Lightweight school bus safety demo application.
 
 ## Structure
 
 | Directory | Description |
 |-----------|-------------|
 | `dashboard/` | Next.js frontend (route-guard.com) |
-| `routeguard-api/` | Go API backend, including the active device API (api.route-guard.com) |
-| `deploy/` | Docker Compose, Traefik, deployment scripts |
-| `docs/` | Active architecture and feature documentation |
+| `deploy/` | Single-app Docker/Kubernetes deployment files |
+| `device/` | Native Linux bus device app and appliance support files |
+| `docs/` | Architecture and implementation plans |
 
 ## Quick Start
 
-See `deploy/README.md` for full setup instructions.
+See `deploy/README.md` for local development and Kubernetes instructions.

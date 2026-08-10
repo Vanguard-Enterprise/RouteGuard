@@ -21,9 +21,6 @@ import {
   BusIcon,
   UsersIcon,
   BuildingIcon,
-  ShieldCheckIcon,
-  CreditCardIcon,
-  ArrowDownToLineIcon,
   Settings2Icon,
   CircleHelpIcon,
   SearchIcon,
@@ -34,36 +31,6 @@ const platformNavItems = [
     title: "Dashboard",
     url: "/dashboard",
     icon: <LayoutDashboardIcon />,
-  },
-  {
-    title: "Organizations",
-    url: "/dashboard/admin/orgs",
-    icon: <BuildingIcon />,
-  },
-  {
-    title: "Users",
-    url: "/dashboard/admin/users",
-    icon: <UsersIcon />,
-  },
-  {
-    title: "Audit Log",
-    url: "/dashboard/admin/audit",
-    icon: <ShieldCheckIcon />,
-  },
-  {
-    title: "Billing",
-    url: "/dashboard/admin/billing",
-    icon: <CreditCardIcon />,
-  },
-  {
-    title: "Updates",
-    url: "/dashboard/admin/updates",
-    icon: <ArrowDownToLineIcon />,
-  },
-  {
-    title: "Support",
-    url: "/dashboard/admin/support",
-    icon: <CircleHelpIcon />,
   },
 ]
 
@@ -102,8 +69,8 @@ const districtManagementNavItems = [
     icon: <BuildingIcon />,
   },
   {
-    title: "Veichles",
-    url: "/dashboard/management/veichles",
+    title: "Vehicles",
+    url: "/dashboard/management/vehicles",
     icon: <BusIcon />,
   },
   {
@@ -178,7 +145,7 @@ export function AppSidebar({
     if (item.url === "/dashboard/management/school") {
       return me.permissions.includes("org:manage")
     }
-    if (item.url === "/dashboard/management/veichles") {
+    if (item.url === "/dashboard/management/vehicles") {
       return me.permissions.includes("vehicles:read")
     }
     if (item.url === "/dashboard/management/drivers") {

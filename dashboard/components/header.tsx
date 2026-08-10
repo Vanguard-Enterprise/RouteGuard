@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { AuthUser } from "@/lib/api";
+import { clearDemoSession } from "@/lib/demo-session-client";
 import {
 	Avatar,
 	AvatarFallback,
@@ -30,7 +31,6 @@ import {
 
 export const navLinks = [
 	{ label: "Features", href: "/#features" },
-	{ label: "Pricing", href: "/pricing" },
 	{ label: "Contact", href: "/contact" },
 ];
 
@@ -47,7 +47,7 @@ function HeaderUserMenu({ user, scrolled }: { user: AuthUser; scrolled: boolean 
 	const router = useRouter();
 
 	async function handleLogout() {
-		await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+		clearDemoSession();
 		router.push("/");
 	}
 

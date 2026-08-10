@@ -1,12 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -20,24 +18,7 @@ export default function ContactPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-    setLoading(true)
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'}/api/v1/contact`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        }
-      )
-      if (!res.ok) throw new Error('Failed to submit')
-      setSubmitted(true)
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+    setSubmitted(true)
   }
 
   return (
@@ -65,14 +46,13 @@ export default function ContactPage() {
                 className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
                 style={{ backgroundColor: 'var(--color-brand-slate)' }}
               >
-                <CheckCircle className="w-7 h-7" style={{ color: 'var(--color-brand-green)' }} />
+                <AlertCircle className="w-7 h-7" style={{ color: 'var(--color-brand-amber)' }} />
               </div>
               <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-brand-navy)' }}>
-                Message Received
+                Demo Mode
               </h2>
               <p className="text-gray-600 text-sm">
-                Thanks for reaching out. A member of our team will contact you at{' '}
-                <strong>{form.email}</strong> shortly.
+                Message failed to send because this site is running in demo mode. No message was delivered.
               </p>
             </div>
           ) : (
@@ -144,17 +124,12 @@ export default function ContactPage() {
                 />
               </div>
 
-              {error && (
-                <p className="text-sm text-red-600">{error}</p>
-              )}
-
               <button
                 type="submit"
-                disabled={loading}
                 className="w-full py-2.5 px-4 rounded-md text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: 'var(--color-brand-amber)', color: 'var(--color-brand-navy)' }}
               >
-                {loading ? 'Sending...' : 'Send Message'}
+                Send Message
               </button>
             </form>
           )}

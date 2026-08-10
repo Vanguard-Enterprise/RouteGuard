@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import { VehicleManagementPage } from "@/components/dashboard/vehicle-management-page"
 
 export default function VehicleManagementAliasRoute() {
-  redirect("/dashboard/management/veichles")
+  return <VehicleManagementPage />
 }
