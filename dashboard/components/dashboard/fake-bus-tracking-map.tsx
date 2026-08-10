@@ -1,6 +1,6 @@
 "use client"
 
-import { BusFrontIcon, MapPinIcon, RadioIcon } from "lucide-react"
+import { MapPinIcon, RadioIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type BusStatus = "On Time" | "Delayed" | "At Stop" | "Out of Service" | "Emergency"
@@ -82,5 +82,5 @@ export function FakeBusTrackingMap({ mode = "fleet" }: FakeBusTrackingMapProps =
 
   if (mode === "driver") return <div className="h-full">{mapSurface}</div>
 
-  return <div className="px-4 lg:px-6"><Card className="@container/card overflow-hidden border-0 shadow-sm"><CardHeader className="border-b bg-card/80"><CardTitle className="flex items-center gap-2"><MapPinIcon className="size-4 text-primary" />Live Bus Tracking</CardTitle></CardHeader><CardContent className="bg-card p-3 sm:p-4"><div className="h-[300px] sm:h-[360px]">{mapSurface}</div><div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><BusFrontIcon className="size-3.5" />{buses.length} buses tracked</div></CardContent></Card></div>
+  return <div className="px-4 lg:px-6"><Card className="@container/card overflow-hidden border-0 shadow-sm"><CardHeader className="border-b bg-card/80"><CardTitle className="flex items-center gap-2"><MapPinIcon className="size-4 text-primary" />Live Bus Tracking</CardTitle></CardHeader><CardContent className="bg-card p-3 sm:p-4"><div className="h-[300px] sm:h-[360px]">{mapSurface}</div></CardContent></Card></div>
 }
