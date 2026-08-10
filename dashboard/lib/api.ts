@@ -121,15 +121,277 @@ function emptyPage<T>(path: string): PageResponse<T> {
   return { items: [], total: 0, page, per_page: perPage, total_pages: 1 }
 }
 
-function demoPage<T>(items: T[], path: string, searchable?: (item: T) => string[]): PageResponse<T> {
+function demoPage<T>(
+  items: T[],
+  path: string,
+  searchable?: (item: T) => string[],
+  matches?: (item: T, query: URLSearchParams) => boolean,
+): PageResponse<T> {
   const query = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null
   const search = query?.get('search')?.trim().toLowerCase() ?? ''
-  const filtered = search && searchable
-    ? items.filter((item) => searchable(item).some((value) => value.toLowerCase().includes(search)))
-    : items
+  const filtered = items.filter((item) => {
+    const matchesSearch = !search || !searchable || searchable(item).some((value) => value.toLowerCase().includes(search))
+    return matchesSearch && (!matches || !query || matches(item, query))
+  })
   const page = Number(query?.get('page') ?? 1)
   const perPage = Number(query?.get('per_page') ?? 10)
-  return { items: filtered, total: filtered.length, page, per_page: perPage, total_pages: Math.max(1, Math.ceil(filtered.length / Math.max(1, perPage))) }
+  const pageSize = Math.max(1, perPage)
+  const start = Math.max(0, page - 1) * pageSize
+  return {
+    items: filtered.slice(start, start + pageSize),
+    total: filtered.length,
+    page,
+    per_page: perPage,
+    total_pages: Math.max(1, Math.ceil(filtered.length / pageSize)),
+  }
+}
+
+function csvQuery(query: URLSearchParams, key: string) {
+  return (query.get(key) ?? '').split(',').map((value) => value.trim()).filter(Boolean)
+}
+
+function studentMatches(student: Student, query: URLSearchParams) {
+  const status = query.get('status')
+  const gradeMin = Number(query.get('grade_min'))
+  const gradeMax = Number(query.get('grade_max'))
+  const schools = csvQuery(query, 'schools')
+  const guardianSearch = query.get('guardian_search')?.trim().toLowerCase() ?? ''
+  const grade = Number(student.grade)
+  return (
+    (!status || status === 'all' || (status === 'active' ? student.is_active : !student.is_active)) &&
+    (!query.has('grade_min') || grade >= gradeMin) &&
+    (!query.has('grade_max') || grade <= gradeMax) &&
+    (schools.length === 0 || schools.includes(student.school)) &&
+    (!guardianSearch || `${student.guardian_name} ${student.guardian_contact}`.toLowerCase().includes(guardianSearch))
+  )
+}
+
+function activeMatches<T extends { is_active: boolean }>(item: T, query: URLSearchParams) {
+  const status = query.get('status')
+  return !status || status === 'all' || (status === 'active' ? item.is_active : !item.is_active)
+}
+
+function driverMatches(driver: Driver, query: URLSearchParams) {
+  const status = query.get('status')
+  return (
+    !status ||
+    status === 'all' ||
+    (status === 'active' && driver.is_active) ||
+    (status === 'inactive' && !driver.is_active) ||
+    (status === 'available' && driver.is_available) ||
+    (status === 'unavailable' && !driver.is_available)
+  )
+}
+
+function routeMatches(route: Route, query: URLSearchParams) {
+  const status = query.get('status')
+  return !status || status === 'all' || route.status === status
+}
+
+function timestamp() {
+  return new Date().toISOString()
+}
+
+function pathId(path: string, resource: string) {
+  const segments = path.split('?')[0].split('/').filter(Boolean)
+  const index = segments.indexOf(resource)
+  return index >= 0 ? segments[index + 1] : undefined
+}
+
+function nextId(prefix: string) {
+  return `${prefix}-local-${Date.now()}`
+}
+
+// These collections intentionally live in the browser module instead of a server.
+// They give the demo its interactive behavior without reintroducing a database.
+let demoStudents: Student[]
+let demoSchools: School[]
+let demoVehicles: Vehicle[]
+let demoDrivers: Driver[]
+let demoStops: Stop[]
+let demoRoutes: Route[]
+let demoPlannerRuns: PlannerRun[]
+let demoAssignments: typeof DEMO_ASSIGNMENTS
+let demoTickets: SupportTicket[]
+let demoMessages: Record<string, SupportMessage[]>
+
+function patchById<T extends { id: string }>(items: T[], id: string | undefined, patch: Partial<T>) {
+  const index = id ? items.findIndex((item) => item.id === id) : -1
+  if (index < 0) return undefined
+  items[index] = { ...items[index], ...patch }
+  return items[index]
+}
+
+function removeById<T extends { id: string; deleted_at?: string | null; is_active?: boolean }>(items: T[], id: string | undefined) {
+  const item = id ? items.find((candidate) => candidate.id === id) : undefined
+  if (!item) return undefined
+  item.deleted_at = timestamp()
+  if ('is_active' in item) item.is_active = false
+  return item
+}
+
+function restoreById<T extends { id: string; deleted_at?: string | null; is_active?: boolean }>(items: T[], id: string | undefined) {
+  const item = id ? items.find((candidate) => candidate.id === id) : undefined
+  if (!item) return undefined
+  item.deleted_at = null
+  if ('is_active' in item) item.is_active = true
+  return item
+}
+
+function applyDemoMutation(path: string, method: string, body: Record<string, unknown>) {
+  const updatedAt = timestamp()
+
+  if (path === '/org/students/status' && method === 'PUT') {
+    const ids = Array.isArray(body.student_ids) ? body.student_ids.map(String) : []
+    const isActive = body.is_active !== false
+    demoStudents = demoStudents.map((student) => ids.includes(student.id) ? { ...student, is_active: isActive, deleted_at: isActive ? null : student.deleted_at, updated_at: updatedAt } : student)
+    return { processed_count: ids.length, student_ids: ids }
+  }
+  if (path === '/org/students' && method === 'DELETE') {
+    const ids = Array.isArray(body.student_ids) ? body.student_ids.map(String) : []
+    ids.forEach((id) => removeById(demoStudents, id))
+    return { processed_count: ids.length, student_ids: ids }
+  }
+  if (path === '/org/students' && method === 'POST') {
+    const student: Student = {
+      id: String(body.id ?? nextId('student')),
+      org_id: DEMO_ORG.id,
+      student_id: String(body.student_id ?? nextId('RG')),
+      first_name: String(body.first_name ?? 'Demo'),
+      last_name: String(body.last_name ?? 'Student'),
+      grade: String(body.grade ?? 'K'),
+      school: String(body.school ?? DEMO_SCHOOLS[0]?.name ?? 'Demo School'),
+      guardian_name: String(body.guardian_name ?? 'Demo Guardian'),
+      guardian_contact: String(body.guardian_contact ?? ''),
+      is_active: body.is_active !== false,
+      created_at: updatedAt,
+      updated_at: updatedAt,
+    }
+    demoStudents.push(student)
+    return student
+  }
+  if (path.startsWith('/org/students/') && path.endsWith('/restore') && method === 'POST') return restoreById(demoStudents, pathId(path, 'students'))
+  if (path.startsWith('/org/students/') && path.endsWith('/stop-assignment') && method === 'PUT') return { student_id: pathId(path, 'students'), stop_id: String(body.stop_id ?? ''), service_window: body.service_window ?? 'PM', is_active: body.is_active !== false }
+  if (path.startsWith('/org/students/') && method === 'PUT') return patchById(demoStudents, pathId(path, 'students'), { ...body, updated_at: updatedAt } as Partial<Student>)
+  if (path.startsWith('/org/students/') && method === 'DELETE') return removeById(demoStudents, pathId(path, 'students'))
+
+  if (path === '/org/schools' && method === 'POST') {
+    const school: School = {
+      id: String(body.id ?? nextId('school')),
+      org_id: DEMO_ORG.id,
+      school_id: String(body.school_id ?? nextId('SCH')),
+      name: String(body.name ?? 'Demo School'),
+      address: String(body.address ?? ''),
+      contact_phone: String(body.contact_phone ?? ''),
+      is_active: body.is_active !== false,
+      created_at: updatedAt,
+      updated_at: updatedAt,
+    }
+    demoSchools.push(school)
+    return school
+  }
+  if (path.startsWith('/org/schools/') && path.endsWith('/restore') && method === 'POST') return restoreById(demoSchools, pathId(path, 'schools'))
+  if (path.startsWith('/org/schools/') && method === 'PUT') return patchById(demoSchools, pathId(path, 'schools'), { ...body, updated_at: updatedAt } as Partial<School>)
+  if (path.startsWith('/org/schools/') && method === 'DELETE') return removeById(demoSchools, pathId(path, 'schools'))
+
+  if (path === '/org/vehicles' && method === 'POST') {
+    const vehicle: Vehicle = {
+      id: String(body.id ?? nextId('vehicle')),
+      org_id: DEMO_ORG.id,
+      vehicle_id: String(body.vehicle_id ?? nextId('BUS')),
+      license_plate: String(body.license_plate ?? 'DEMO-000'),
+      capacity: Number(body.capacity ?? 40),
+      is_active: body.is_active !== false,
+      created_at: updatedAt,
+      updated_at: updatedAt,
+    }
+    demoVehicles.push(vehicle)
+    return vehicle
+  }
+  if (path.startsWith('/org/vehicles/') && path.endsWith('/restore') && method === 'POST') return restoreById(demoVehicles, pathId(path, 'vehicles'))
+  if (path.startsWith('/org/vehicles/') && method === 'PUT') return patchById(demoVehicles, pathId(path, 'vehicles'), { ...body, updated_at: updatedAt } as Partial<Vehicle>)
+  if (path.startsWith('/org/vehicles/') && method === 'DELETE') return removeById(demoVehicles, pathId(path, 'vehicles'))
+
+  if (path === '/org/drivers' && method === 'POST') {
+    const driver: Driver = {
+      id: String(body.id ?? nextId('driver')),
+      org_id: DEMO_ORG.id,
+      driver_id: String(body.driver_id ?? nextId('DRV')),
+      name: String(body.name ?? 'Demo Driver'),
+      phone: String(body.phone ?? ''),
+      is_available: body.is_available !== false,
+      is_active: body.is_active !== false,
+      has_pin: false,
+      pin_updated_at: null,
+      created_at: updatedAt,
+      updated_at: updatedAt,
+    }
+    demoDrivers.push(driver)
+    return driver
+  }
+  if (path.startsWith('/org/drivers/') && path.endsWith('/restore') && method === 'POST') return restoreById(demoDrivers, pathId(path, 'drivers'))
+  if (path.startsWith('/org/drivers/') && path.endsWith('/pin') && method === 'PUT') return patchById(demoDrivers, pathId(path, 'drivers'), { has_pin: true, pin_updated_at: updatedAt, updated_at: updatedAt } as Partial<Driver>)
+  if (path.startsWith('/org/drivers/') && path.endsWith('/pin') && method === 'DELETE') return patchById(demoDrivers, pathId(path, 'drivers'), { has_pin: false, pin_updated_at: null, updated_at: updatedAt } as Partial<Driver>)
+  if (path.startsWith('/org/drivers/') && method === 'PUT') return patchById(demoDrivers, pathId(path, 'drivers'), { ...body, updated_at: updatedAt } as Partial<Driver>)
+  if (path.startsWith('/org/drivers/') && method === 'DELETE') return removeById(demoDrivers, pathId(path, 'drivers'))
+
+  if (path === '/org/stops' && method === 'POST') {
+    const stop: Stop = {
+      id: String(body.id ?? nextId('stop')),
+      org_id: DEMO_ORG.id,
+      stop_id: String(body.stop_id ?? nextId('STOP')),
+      name: String(body.name ?? 'Demo Stop'),
+      address: String(body.address ?? ''),
+      latitude: Number(body.latitude ?? 38.473),
+      longitude: Number(body.longitude ?? -77.996),
+      notes: String(body.notes ?? ''),
+      is_active: body.is_active !== false,
+      created_at: updatedAt,
+      updated_at: updatedAt,
+    }
+    demoStops.push(stop)
+    return stop
+  }
+  if (path.startsWith('/org/stops/') && path.endsWith('/restore') && method === 'POST') return restoreById(demoStops, pathId(path, 'stops'))
+  if (path.startsWith('/org/stops/') && method === 'PUT') return patchById(demoStops, pathId(path, 'stops'), { ...body, updated_at: updatedAt } as Partial<Stop>)
+  if (path.startsWith('/org/stops/') && method === 'DELETE') return removeById(demoStops, pathId(path, 'stops'))
+
+  if (path === '/org/routes' && method === 'POST') return { run: { ...DEMO_PLANNER_RUNS[0], ...body, id: nextId('run'), status: 'draft', created_at: updatedAt }, issues: [] }
+  if (path.startsWith('/org/routes/') && path.endsWith('/restore') && method === 'POST') return restoreById(demoRoutes, pathId(path, 'routes'))
+  if (path.startsWith('/org/routes/') && method === 'PUT') return patchById(demoRoutes, pathId(path, 'routes'), { ...body, updated_at: updatedAt } as Partial<Route>)
+  if (path.startsWith('/org/routes/') && method === 'DELETE') return removeById(demoRoutes, pathId(path, 'routes'))
+
+  if (path === '/org/driver-vehicle-assignments' && method === 'POST') {
+    const assignment = { id: String(body.id ?? nextId('assignment')), driver_id: String(body.driver_id ?? ''), vehicle_id: String(body.vehicle_id ?? ''), is_active: body.is_active !== false, created_at: updatedAt, updated_at: updatedAt }
+    const existing = demoAssignments.findIndex((item) => item.driver_id === assignment.driver_id && item.vehicle_id === assignment.vehicle_id)
+    if (existing >= 0) demoAssignments[existing] = assignment
+    else demoAssignments.push(assignment)
+    return assignment
+  }
+
+  if (path === '/org/planner-runs' && method === 'POST') {
+    const run: PlannerRun = { id: nextId('run'), org_id: DEMO_ORG.id, mode: body.mode === 'FEWEST_BUSES' ? 'FEWEST_BUSES' : 'FASTEST_TIME', service_window: 'PM', status: 'draft', created_by: DEMO_USER.id, created_at: updatedAt, published_at: null }
+    demoPlannerRuns.push(run)
+    return { run, issues: [] }
+  }
+  if (path.startsWith('/org/planner-runs/') && path.endsWith('/publish') && method === 'POST') return patchById(demoPlannerRuns, pathId(path, 'planner-runs'), { status: 'published', published_at: updatedAt } as Partial<PlannerRun>)
+
+  if (path === '/org/support/tickets' && method === 'POST') {
+    const ticket: SupportTicket = { id: nextId('ticket'), org_id: DEMO_ORG.id, created_by_user_id: DEMO_USER.id, assigned_admin_user_id: null, subject: String(body.subject ?? 'Demo support request'), status: 'open', created_at: updatedAt, updated_at: updatedAt, last_message_at: updatedAt, resolved_at: null }
+    const message: SupportMessage = { id: nextId('message'), ticket_id: ticket.id, sender_user_id: DEMO_USER.id, sender_org_id: DEMO_ORG.id, sender_is_platform: false, body: String(body.body ?? ''), created_at: updatedAt }
+    demoTickets.push(ticket)
+    demoMessages[ticket.id] = [message]
+    return { ticket, message }
+  }
+  if (path.startsWith('/org/support/tickets/') && path.endsWith('/messages') && method === 'POST') {
+    const ticketId = pathId(path, 'tickets') ?? ''
+    const message: SupportMessage = { id: nextId('message'), ticket_id: ticketId, sender_user_id: DEMO_USER.id, sender_org_id: DEMO_ORG.id, sender_is_platform: false, body: String(body.body ?? ''), created_at: updatedAt }
+    demoMessages[ticketId] = [...(demoMessages[ticketId] ?? []), message]
+    const ticket = patchById(demoTickets, ticketId, { updated_at: updatedAt, last_message_at: updatedAt } as Partial<SupportTicket>)
+    return { ticket, message }
+  }
+
+  return method === 'DELETE' ? undefined : { ...body, id: String(body.id ?? nextId('local-demo-record')) }
 }
 
 function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -142,37 +404,38 @@ function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
   else if (path.includes('/auth/me')) value = DEMO_ME
   else if (path.includes('/auth/orgs')) value = [DEMO_ORG]
   else if (path.includes('/auth/switch-org')) value = { org: DEMO_ORG, permissions: DEMO_ME.permissions }
+  else if (method !== 'GET') value = applyDemoMutation(path, method, body)
   else if (path.includes('/platform/stats')) value = { total_orgs: 1, suspended_orgs: 0, total_users: 1, active_sessions: 1, active_trips: 1 }
   else if (path.includes('/platform/audit')) value = { items: DEMO_AUDIT_EVENTS, next_cursor: '', has_more: false }
   else if (path.includes('/platform/updates/install-command')) value = { release: DEMO_RELEASES[0] ?? null, command: 'Demo installs are simulated locally.' }
   else if (path.includes('/platform/updates/rollout')) value = DEMO_ROLLOUT
-  else if (path.includes('/org/students/filter-options')) value = { grades: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], schools: DEMO_SCHOOLS.map((school) => school.name) }
-  else if (path.includes('/org/driver-vehicle-assignments')) value = { items: DEMO_ASSIGNMENTS }
+  else if (path.includes('/org/students/filter-options')) value = { grades: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], schools: demoSchools.map((school) => school.name) }
+  else if (path.includes('/org/driver-vehicle-assignments')) value = { items: demoAssignments }
   else if (path.includes('/org/settings')) value = DEMO_ORGANIZATION
   else if (path.includes('/org/billing')) value = DEMO_BILLING
-  else if (path.includes('/org/support/tickets/') && path.endsWith('/messages')) value = DEMO_MESSAGES[path.split('/').at(-2) ?? ''] ?? []
-  else if (path.includes('/org/support/tickets')) value = demoPage(DEMO_TICKETS, path, (ticket) => [ticket.subject, ticket.status])
-  else if (path.includes('/org/students/deleted')) value = demoPage(DEMO_STUDENTS.filter((student) => student.deleted_at), path, (student) => [student.first_name, student.last_name, student.student_id])
-  else if (path.includes('/org/students')) value = demoPage(DEMO_STUDENTS.filter((student) => !student.deleted_at), path, (student) => [student.first_name, student.last_name, student.student_id, student.school, student.guardian_name])
-  else if (path.includes('/org/schools/deleted')) value = demoPage(DEMO_SCHOOLS.filter((school) => school.deleted_at), path, (school) => [school.name, school.address])
-  else if (path.includes('/org/schools')) value = demoPage(DEMO_SCHOOLS.filter((school) => !school.deleted_at), path, (school) => [school.name, school.address, school.contact_phone])
-  else if (path.includes('/org/vehicles/deleted')) value = demoPage(DEMO_VEHICLES.filter((vehicle) => vehicle.deleted_at), path, (vehicle) => [vehicle.vehicle_id, vehicle.license_plate])
-  else if (path.includes('/org/vehicles')) value = demoPage(DEMO_VEHICLES.filter((vehicle) => !vehicle.deleted_at), path, (vehicle) => [vehicle.vehicle_id, vehicle.license_plate])
-  else if (path.includes('/org/drivers/deleted')) value = demoPage(DEMO_DRIVERS.filter((driver) => driver.deleted_at), path, (driver) => [driver.name, driver.driver_id, driver.phone])
-  else if (path.includes('/org/drivers')) value = demoPage(DEMO_DRIVERS.filter((driver) => !driver.deleted_at), path, (driver) => [driver.name, driver.driver_id, driver.phone])
-  else if (path.includes('/org/stops/deleted')) value = demoPage(DEMO_STOPS.filter((stop) => stop.deleted_at), path, (stop) => [stop.name, stop.stop_id, stop.address])
-  else if (path.includes('/org/stops')) value = demoPage(DEMO_STOPS.filter((stop) => !stop.deleted_at), path, (stop) => [stop.name, stop.stop_id, stop.address])
+  else if (path.includes('/org/support/tickets/') && path.endsWith('/messages')) value = demoMessages[path.split('/').at(-2) ?? ''] ?? []
+  else if (path.includes('/org/support/tickets')) value = demoPage(demoTickets, path, (ticket) => [ticket.subject, ticket.status], (ticket, query) => !query.get('status') || query.get('status') === ticket.status)
+  else if (path.includes('/org/students/deleted')) value = demoPage(demoStudents.filter((student) => student.deleted_at), path, (student) => [student.first_name, student.last_name, student.student_id], studentMatches)
+  else if (path.includes('/org/students')) value = demoPage(demoStudents.filter((student) => !student.deleted_at), path, (student) => [student.first_name, student.last_name, student.student_id, student.school, student.guardian_name], studentMatches)
+  else if (path.includes('/org/schools/deleted')) value = demoPage(demoSchools.filter((school) => school.deleted_at), path, (school) => [school.name, school.address], activeMatches)
+  else if (path.includes('/org/schools')) value = demoPage(demoSchools.filter((school) => !school.deleted_at), path, (school) => [school.name, school.address, school.contact_phone], activeMatches)
+  else if (path.includes('/org/vehicles/deleted')) value = demoPage(demoVehicles.filter((vehicle) => vehicle.deleted_at), path, (vehicle) => [vehicle.vehicle_id, vehicle.license_plate], activeMatches)
+  else if (path.includes('/org/vehicles')) value = demoPage(demoVehicles.filter((vehicle) => !vehicle.deleted_at), path, (vehicle) => [vehicle.vehicle_id, vehicle.license_plate], activeMatches)
+  else if (path.includes('/org/drivers/deleted')) value = demoPage(demoDrivers.filter((driver) => driver.deleted_at), path, (driver) => [driver.name, driver.driver_id, driver.phone], driverMatches)
+  else if (path.includes('/org/drivers')) value = demoPage(demoDrivers.filter((driver) => !driver.deleted_at), path, (driver) => [driver.name, driver.driver_id, driver.phone], driverMatches)
+  else if (path.includes('/org/stops/deleted')) value = demoPage(demoStops.filter((stop) => stop.deleted_at), path, (stop) => [stop.name, stop.stop_id, stop.address], activeMatches)
+  else if (path.includes('/org/stops')) value = demoPage(demoStops.filter((stop) => !stop.deleted_at), path, (stop) => [stop.name, stop.stop_id, stop.address], activeMatches)
   else if (path.includes('/org/routes/') && !path.includes('/deleted') && method === 'GET') {
-    const route = DEMO_ROUTES.find((candidate) => path.includes(`/${candidate.id}`)) ?? DEMO_ROUTES[0]
-    value = { route, stops: DEMO_STOPS.slice(0, 3), students: DEMO_STUDENTS.slice(0, route.assigned_students > 30 ? 4 : 3) }
+    const route = demoRoutes.find((candidate) => path.includes(`/${candidate.id}`)) ?? demoRoutes[0]
+    value = { route, stops: demoStops.slice(0, 3), students: demoStudents.slice(0, route.assigned_students > 30 ? 4 : 3) }
   }
-  else if (path.includes('/org/routes/deleted')) value = demoPage(DEMO_ROUTES.filter((route) => route.deleted_at), path, (route) => [route.route_code, route.status])
-  else if (path.includes('/org/routes')) value = demoPage(DEMO_ROUTES.filter((route) => !route.deleted_at), path, (route) => [route.route_code, route.status, route.objective_mode])
+  else if (path.includes('/org/routes/deleted')) value = demoPage(demoRoutes.filter((route) => route.deleted_at), path, (route) => [route.route_code, route.status], routeMatches)
+  else if (path.includes('/org/routes')) value = demoPage(demoRoutes.filter((route) => !route.deleted_at), path, (route) => [route.route_code, route.status, route.objective_mode], routeMatches)
   else if (path.includes('/org/planner-runs/') && method === 'GET') {
-    const run = DEMO_PLANNER_RUNS.find((candidate) => path.includes(`/${candidate.id}`)) ?? DEMO_PLANNER_RUNS[0]
-    value = { run, routes: DEMO_ROUTES.filter((route) => route.planner_run_id === run.id), issues: [] }
+    const run = demoPlannerRuns.find((candidate) => path.includes(`/${candidate.id}`)) ?? demoPlannerRuns[0]
+    value = { run, routes: demoRoutes.filter((route) => route.planner_run_id === run.id), issues: [] }
   }
-  else if (path.includes('/org/planner-runs')) value = demoPage(DEMO_PLANNER_RUNS, path, (run) => [run.status, run.mode, run.service_window])
+  else if (path.includes('/org/planner-runs')) value = demoPage(demoPlannerRuns, path, (run) => [run.status, run.mode, run.service_window])
   else if (path.includes('/org/members')) value = DEMO_MEMBERS
   else if (path.includes('/org/roles')) value = DEMO_ROLES
   else if (path.includes('/org/sso')) value = DEMO_SSO_CONNECTIONS
@@ -190,7 +453,7 @@ function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
   else if (path.includes('/platform/users') && method === 'GET') value = demoPage(DEMO_PLATFORM_USERS, path, (user) => [user.name, user.email])
   else if (path.includes('/platform/support/tickets') && method === 'GET') value = demoPage(DEMO_TICKETS, path, (ticket) => [ticket.subject, ticket.status])
   else if (path.includes('/platform/') || path.includes('/org/')) value = path.includes('?') || method === 'GET' ? emptyPage(path) : (method === 'DELETE' ? undefined : { ...body, id: 'local-demo-record' })
-  else value = method === 'DELETE' ? undefined : {}
+  else value = {}
 
   return Promise.resolve(value as T)
 }
@@ -766,6 +1029,17 @@ export const DEMO_AUDIT_EVENTS: AuditEvent[] = [
 ]
 export const DEMO_RELEASES: SoftwareRelease[] = [{ id: 'release-001', version: 'demo-1.0.0', release_date: '2026-08-01', release_notes: 'Initial E² demo release.', artifact_url: 'local://routeguard-demo', artifact_sha256: 'demo', installer_url: 'local://routeguard-demo-installer', target_os: 'linux', target_arch: 'amd64', is_install_default: true, created_at: DEMO_TIME }]
 export const DEMO_ROLLOUT: RolloutSummary = { latest_release: DEMO_RELEASES[0], total_devices: DEMO_DEVICES.length, on_latest: DEMO_DEVICES.length, behind_latest: 0, percent_up_to_date: 100, organizations: [{ org_id: DEMO_ORG.id, org_name: DEMO_ORG.name, total_devices: DEMO_DEVICES.length, on_latest: DEMO_DEVICES.length, behind_latest: 0, percent_up_to_date: 100, devices: DEMO_DEVICES.map((device) => ({ id: device.id, org_id: DEMO_ORG.id, org_name: DEMO_ORG.name, vehicle_id: device.vehicle_id, vehicle_label: device.name, device_key: device.device_key, name: device.name, software_version: device.software_version, connectivity_state: device.connectivity_state, app_health: device.app_health, last_seen_at: device.last_seen_at })) }] }
+
+demoStudents = [...DEMO_STUDENTS]
+demoSchools = [...DEMO_SCHOOLS]
+demoVehicles = [...DEMO_VEHICLES]
+demoDrivers = [...DEMO_DRIVERS]
+demoStops = [...DEMO_STOPS]
+demoRoutes = [...DEMO_ROUTES]
+demoPlannerRuns = [...DEMO_PLANNER_RUNS]
+demoAssignments = [...DEMO_ASSIGNMENTS]
+demoTickets = [...DEMO_TICKETS]
+demoMessages = Object.fromEntries(Object.entries(DEMO_MESSAGES).map(([id, messages]) => [id, [...messages]]))
 
 // API methods
 export const api = {
