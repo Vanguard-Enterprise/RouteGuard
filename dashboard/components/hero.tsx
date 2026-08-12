@@ -1,9 +1,9 @@
-"use client";
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowRightIcon, CalendarIcon } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import dashboardScreenshot from "@/public/screens/route-guard-home.png";
 
 export function HeroSection() {
 	return (
@@ -74,16 +74,14 @@ export function HeroSection() {
 							</Link>
 						</Button>
 						<Button
+							asChild
 							className="text-[#1B3A5C] hover:opacity-90"
 							style={{ backgroundColor: "var(--color-brand-amber)" }}
-							onClick={() =>
-								document
-									.getElementById("features")
-									?.scrollIntoView({ behavior: "smooth" })
-							}
 						>
-							See How It Works
-							<ArrowRightIcon data-icon="inline-end" />
+							<Link href="#features">
+								See How It Works
+								<ArrowRightIcon data-icon="inline-end" />
+							</Link>
 						</Button>
 					</div>
 				</div>
@@ -102,21 +100,13 @@ export function HeroSection() {
 						)}
 					>
 						<div className="relative inset-shadow-2xs inset-shadow-white/10 mx-auto max-w-5xl overflow-hidden rounded-[24px] border border-white/10 bg-background/90 p-2 shadow-2xl ring-1 ring-white/10">
-							{/* eslint-disable-next-line @next/next/no-img-element */}
-							<img
+							<Image
 								alt="RouteGuard admin dashboard screenshot"
-								className="z-2 aspect-[2.01/1] w-full rounded-[16px] border border-slate-200/80 object-cover object-top shadow-[0_24px_70px_rgba(15,23,42,0.3)] dark:hidden"
-								height="1020"
-								src="/screens/route-guard-home.png"
-								width="2048"
-							/>
-							{/* eslint-disable-next-line @next/next/no-img-element */}
-							<img
-								alt="RouteGuard admin dashboard screenshot"
-								className="hidden aspect-[2.01/1] w-full rounded-[16px] border border-white/10 object-cover object-top shadow-[0_24px_70px_rgba(15,23,42,0.45)] dark:block"
-								height="1020"
-								src="/screens/route-guard-home.png"
-								width="2048"
+								className="z-2 aspect-[2.01/1] w-full rounded-[16px] border border-slate-200/80 object-cover object-top shadow-[0_24px_70px_rgba(15,23,42,0.3)] dark:border-white/10 dark:shadow-[0_24px_70px_rgba(15,23,42,0.45)]"
+								fetchPriority="high"
+								quality={75}
+								sizes="(max-width: 640px) 140vw, (max-width: 1024px) 96vw, 1024px"
+								src={dashboardScreenshot}
 							/>
 						</div>
 					</div>

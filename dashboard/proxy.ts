@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 
-export function proxy(request: NextRequest) {
+export function proxy() {
   const response = NextResponse.next()
   const isDev = process.env.NODE_ENV === 'development'
 
@@ -27,5 +26,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|assets/).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|assets/|screens/|logos/|maps/|logo.png|text-logo.png).*)',
+  ],
 }

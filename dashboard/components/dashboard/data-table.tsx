@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import dynamic from "next/dynamic"
 import {
   closestCenter,
   DndContext,
@@ -35,19 +36,12 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { toast } from "sonner"
 import { z } from "zod"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Drawer,
@@ -77,7 +71,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import {
   Table,
   TableBody,
@@ -104,9 +97,14 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronsRightIcon,
-  TrendingUpIcon,
   CircleXIcon,
 } from "lucide-react"
+
+const RouteRidershipChart = dynamic(() =>
+  import("@/components/dashboard/route-ridership-chart").then(
+    (module) => module.RouteRidershipChart
+  )
+)
 
 export const schema = z.object({
   id: z.number(),
@@ -117,6 +115,8 @@ export const schema = z.object({
   limit: z.string(),
   reviewer: z.string(),
 })
+
+export type RouteTableRow = z.infer<typeof schema>
 
 function DragHandle({ id }: { id: number }) {
   const { attributes, listeners } = useSortable({ id })
@@ -633,31 +633,12 @@ export function DataTable({
   )
 }
 
-const routeChartData = [
-  { month: "January", riders: 186, onTime: 160 },
-  { month: "February", riders: 305, onTime: 280 },
-  { month: "March", riders: 237, onTime: 210 },
-  { month: "April", riders: 273, onTime: 250 },
-  { month: "May", riders: 209, onTime: 190 },
-  { month: "June", riders: 214, onTime: 195 },
-]
-
-const routeChartConfig = {
-  riders: {
-    label: "Riders",
-    color: "var(--primary)",
-  },
-  onTime: {
-    label: "On-Time",
-    color: "var(--primary)",
-  },
-} satisfies ChartConfig
-
 function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
   const isMobile = useIsMobile()
+  const [open, setOpen] = React.useState(false)
 
   return (
-    <Drawer direction={isMobile ? "bottom" : "right"}>
+    <Drawer direction={isMobile ? "bottom" : "right"} open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
         <Button variant="link" className="w-fit px-0 text-left text-foreground">
           {item.header}
@@ -671,61 +652,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
           </DrawerDescription>
         </DrawerHeader>
         <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-          {!isMobile && (
-            <>
-              <ChartContainer config={routeChartConfig}>
-                <AreaChart
-                  accessibilityLayer
-                  data={routeChartData}
-                  margin={{
-                    left: 0,
-                    right: 10,
-                  }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                    hide
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  <Area
-                    dataKey="onTime"
-                    type="natural"
-                    fill="var(--color-onTime)"
-                    fillOpacity={0.6}
-                    stroke="var(--color-onTime)"
-                    stackId="a"
-                  />
-                  <Area
-                    dataKey="riders"
-                    type="natural"
-                    fill="var(--color-riders)"
-                    fillOpacity={0.4}
-                    stroke="var(--color-riders)"
-                    stackId="a"
-                  />
-                </AreaChart>
-              </ChartContainer>
-              <Separator />
-              <div className="grid gap-2">
-                <div className="flex gap-2 leading-none font-medium">
-                  Trending up by 5.2% this month{" "}
-                  <TrendingUpIcon className="size-4" />
-                </div>
-                <div className="text-muted-foreground">
-                  Showing ridership data for the last 6 months on this route.
-                </div>
-              </div>
-              <Separator />
-            </>
-          )}
+          {!isMobile && open ? <RouteRidershipChart /> : null}
           <form className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
               <Label htmlFor="header">Route Name</Label>

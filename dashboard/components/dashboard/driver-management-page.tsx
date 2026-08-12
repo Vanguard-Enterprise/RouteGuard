@@ -1,18 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { api } from "@/lib/api"
 import type { Driver, DriverUpsertPayload } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
+import { MiniAreaChart, MiniBarChart, MiniDonutChart } from "@/components/ui/mini-charts"
 import {
   Dialog,
   DialogContent,
@@ -65,7 +60,6 @@ import {
   UserRoundPlusIcon,
   XIcon,
 } from "lucide-react"
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts"
 import { toast } from "sonner"
 
 type DriverFilters = {
@@ -85,31 +79,6 @@ const emptyFilters: DriverFilters = {
 }
 
 const SOFT_DELETE_RETENTION_DAYS = 30
-
-const driverAvailabilityChartConfig = {
-  drivers: {
-    label: "Drivers",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig
-
-const driverStatusChartConfig = {
-  drivers: {
-    label: "Drivers",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig
-
-const driverCoverageChartConfig = {
-  covered: {
-    label: "With phone",
-    color: "var(--chart-3)",
-  },
-  missing: {
-    label: "Missing phone",
-    color: "var(--chart-4)",
-  },
-} satisfies ChartConfig
 
 function formatTimeUntilDeletion(deletedAt?: string | null) {
   if (!deletedAt) return "Unknown"
@@ -154,7 +123,7 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
-  const userSetPerPageRef = useRef(false)
+  const [autoPerPage, setAutoPerPage] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -240,7 +209,7 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
 
   useEffect(() => {
     const updatePerPageForViewport = () => {
-      if (userSetPerPageRef.current) return
+      if (!autoPerPage) return
       const clampedRows = getAutoPerPage(window.innerHeight)
       setPerPage((current) => (current === clampedRows ? current : clampedRows))
     }
@@ -248,7 +217,7 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
     updatePerPageForViewport()
     window.addEventListener("resize", updatePerPageForViewport)
     return () => window.removeEventListener("resize", updatePerPageForViewport)
-  }, [])
+  }, [autoPerPage])
 
   function resetForm() {
     setPayload(emptyPayload)
@@ -418,9 +387,9 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
   const hasActiveFilters = filters.status !== "all"
   const perPageOptions = useMemo(() => {
     const base = [10, 25, 50]
-    const options = userSetPerPageRef.current ? [...base, perPage] : base
+    const options = autoPerPage ? base : [...base, perPage]
     return Array.from(new Set(options)).sort((a, b) => a - b)
-  }, [perPage])
+  }, [autoPerPage, perPage])
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-6">
@@ -447,20 +416,10 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
               <div className="text-2xl font-semibold">{availableDriversCount}</div>
               <Badge variant="secondary">{activeDriversCount} active</Badge>
             </div>
-            <ChartContainer config={driverAvailabilityChartConfig} className="h-24 w-full">
-              <AreaChart accessibilityLayer data={availabilityTrend} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="driver-availability-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-drivers)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--color-drivers)" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
-                <ChartTooltip content={<ChartTooltipContent hideIndicator />} />
-                <Area dataKey="drivers" type="monotone" fill="url(#driver-availability-fill)" fillOpacity={1} stroke="var(--color-drivers)" strokeWidth={2} />
-              </AreaChart>
-            </ChartContainer>
+            <MiniAreaChart
+              data={availabilityTrend.map((item) => ({ label: item.day, value: item.drivers }))}
+              label="Available drivers by day"
+            />
           </CardContent>
         </Card>
 
@@ -479,14 +438,11 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
               <div className="text-2xl font-semibold">{data?.total ?? drivers.length}</div>
               <Badge variant="outline">{Math.max(drivers.length - activeDriversCount, 0)} inactive</Badge>
             </div>
-            <ChartContainer config={driverStatusChartConfig} className="h-24 w-full">
-              <BarChart accessibilityLayer data={statusDistribution} margin={{ left: -12, right: 0, top: 4, bottom: 0 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="drivers" fill="var(--color-drivers)" radius={6} />
-              </BarChart>
-            </ChartContainer>
+            <MiniBarChart
+              data={statusDistribution.map((item) => ({ label: item.name, value: item.drivers }))}
+              color="var(--chart-2)"
+              label="Driver roster by status"
+            />
           </CardContent>
         </Card>
 
@@ -506,12 +462,10 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
               <Badge variant="secondary">{phoneCoverageCount} with phones</Badge>
             </div>
             <div className="flex items-center gap-3">
-              <ChartContainer config={driverCoverageChartConfig} className="h-24 w-24 shrink-0">
-                <PieChart accessibilityLayer>
-                  <ChartTooltip content={<ChartTooltipContent nameKey="name" labelKey="name" />} />
-                  <Pie data={coverageData} dataKey="value" nameKey="name" innerRadius={20} outerRadius={34} strokeWidth={2} />
-                </PieChart>
-              </ChartContainer>
+              <MiniDonutChart
+                data={coverageData.map((item) => ({ label: item.name, value: item.value, color: item.fill }))}
+                label="Driver phone coverage"
+              />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 {coverageData.map((entry) => (
                   <div key={entry.name} className="flex items-center justify-between gap-3 text-sm">
@@ -770,7 +724,7 @@ export function DriverManagementPage({ canWrite }: DriverManagementPageProps) {
           </div>
           <div className="mt-4 grid grid-cols-3 items-center">
             <div className="justify-self-start">
-              <Select value={userSetPerPageRef.current ? String(perPage) : "auto"} onValueChange={(value) => { if (value === "auto") { userSetPerPageRef.current = false; setPerPage(getAutoPerPage(window.innerHeight)); setPage(1); return } userSetPerPageRef.current = true; setPerPage(Number(value)); setPage(1) }}>
+              <Select value={autoPerPage ? "auto" : String(perPage)} onValueChange={(value) => { if (value === "auto") { setAutoPerPage(true); setPerPage(getAutoPerPage(window.innerHeight)); setPage(1); return } setAutoPerPage(false); setPerPage(Number(value)); setPage(1) }}>
                 <SelectTrigger className="min-w-[76px]"><div className="flex items-center gap-2"><UserRoundIcon className="size-4" /><SelectValue /></div></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">Auto</SelectItem>

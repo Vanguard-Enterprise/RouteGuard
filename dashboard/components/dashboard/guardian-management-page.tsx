@@ -7,12 +7,7 @@ import type { Student } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
+import { MiniAreaChart, MiniBarChart, MiniDonutChart } from "@/components/ui/mini-charts"
 import { ComboboxMultiSelect } from "@/components/ui/combobox"
 import {
   Dialog,
@@ -52,17 +47,6 @@ import {
   UsersIcon,
   XIcon,
 } from "lucide-react"
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  XAxis,
-} from "recharts"
 
 type GuardianRecord = {
   id: string
@@ -89,43 +73,6 @@ const emptyFilters: GuardianFilters = {
   familySize: "all",
 }
 
-const guardianCoverageChartConfig = {
-  families: {
-    label: "Families",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig
-
-const familySizeChartConfig = {
-  guardians: {
-    label: "Guardians",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig
-
-const schoolShareChartConfig = {
-  value: {
-    label: "Guardians",
-    color: "var(--chart-3)",
-  },
-  north: {
-    label: "North",
-    color: "var(--chart-1)",
-  },
-  south: {
-    label: "South",
-    color: "var(--chart-2)",
-  },
-  east: {
-    label: "East",
-    color: "var(--chart-3)",
-  },
-  west: {
-    label: "West",
-    color: "var(--chart-4)",
-  },
-} satisfies ChartConfig
-
 function getAutoPerPage(viewportHeight: number) {
   const reservedVerticalSpacePx = 390
   const estimatedRowHeightPx = 54
@@ -144,14 +91,13 @@ function buildGuardianId(name: string, contact: string) {
 
 async function listAllStudents() {
   const firstPage = await api.org.students.list({ page: 1, per_page: 200 })
-  const items = [...firstPage.items]
+  const remainingPages = await Promise.all(
+    Array.from({ length: Math.max(0, firstPage.total_pages - 1) }, (_, index) =>
+      api.org.students.list({ page: index + 2, per_page: 200 })
+    )
+  )
 
-  for (let page = 2; page <= firstPage.total_pages; page += 1) {
-    const nextPage = await api.org.students.list({ page, per_page: 200 })
-    items.push(...nextPage.items)
-  }
-
-  return items
+  return [firstPage, ...remainingPages].flatMap((page) => page.items)
 }
 
 export function GuardianManagementPage() {
@@ -392,20 +338,10 @@ export function GuardianManagementPage() {
               <div className="text-2xl font-semibold">{filteredGuardians.length}</div>
               <Badge variant="secondary">{activeGuardianCount} active families</Badge>
             </div>
-            <ChartContainer config={guardianCoverageChartConfig} className="h-24 w-full">
-              <AreaChart accessibilityLayer data={familyTrend} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="guardian-coverage-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-families)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--color-families)" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
-                <ChartTooltip content={<ChartTooltipContent hideIndicator />} />
-                <Area dataKey="families" type="monotone" fill="url(#guardian-coverage-fill)" fillOpacity={1} stroke="var(--color-families)" strokeWidth={2} />
-              </AreaChart>
-            </ChartContainer>
+            <MiniAreaChart
+              data={familyTrend.map((item) => ({ label: item.day, value: item.families }))}
+              label="Active families by day"
+            />
           </CardContent>
         </Card>
 
@@ -424,14 +360,11 @@ export function GuardianManagementPage() {
               <div className="text-2xl font-semibold">{pagedGuardians.length}</div>
               <Badge variant="outline">{filteredGuardians.length} filtered</Badge>
             </div>
-            <ChartContainer config={familySizeChartConfig} className="h-24 w-full">
-              <BarChart accessibilityLayer data={familySizeDistribution} margin={{ left: -12, right: 0, top: 4, bottom: 0 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="guardians" fill="var(--color-guardians)" radius={6} />
-              </BarChart>
-            </ChartContainer>
+            <MiniBarChart
+              data={familySizeDistribution.map((item) => ({ label: item.label, value: item.guardians }))}
+              color="var(--chart-2)"
+              label="Guardian distribution by family size"
+            />
           </CardContent>
         </Card>
 
@@ -451,16 +384,10 @@ export function GuardianManagementPage() {
               <Badge variant="secondary">{withContactCount} with contact</Badge>
             </div>
             <div className="flex items-center gap-3">
-              <ChartContainer config={schoolShareChartConfig} className="h-24 w-24 shrink-0">
-                <PieChart accessibilityLayer>
-                  <ChartTooltip content={<ChartTooltipContent nameKey="school" labelKey="school" />} />
-                  <Pie data={schoolShare} dataKey="value" nameKey="school" innerRadius={20} outerRadius={34} strokeWidth={2}>
-                    {schoolShare.map((entry) => (
-                      <Cell key={entry.school} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
+              <MiniDonutChart
+                data={schoolShare.map((item) => ({ label: item.school, value: item.value, color: item.fill }))}
+                label="Guardian share by school"
+              />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 {schoolShare.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No school associations for current filters.</p>
