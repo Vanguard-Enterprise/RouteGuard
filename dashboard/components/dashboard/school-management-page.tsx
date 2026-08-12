@@ -7,7 +7,7 @@ import type { School, SchoolUpsertPayload } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { MiniAreaChart, MiniBarChart, MiniDonutChart } from "@/components/ui/mini-charts"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ArchiveIcon, Building2Icon, ChevronLeftIcon, ChevronRightIcon, CircleCheckIcon, CircleXIcon, FilterIcon, MapPinIcon, RotateCcwIcon, SchoolIcon, SquarePenIcon, Trash2Icon, UserRoundPlusIcon, XIcon } from "lucide-react"
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts"
 import { toast } from "sonner"
 
 type FormState = {
@@ -40,9 +39,6 @@ type AddressSuggestion = {
 const emptyForm: FormState = { name: "", address: "", contact_phone: "", is_active: true }
 const emptyFilters: SchoolFilters = { name: "", address: "" }
 const SOFT_DELETE_RETENTION_DAYS = 30
-const schoolCoverageChartConfig = { schools: { label: "Schools", color: "var(--chart-1)" } } satisfies ChartConfig
-const schoolAddressChartConfig = { schools: { label: "Schools", color: "var(--chart-2)" } } satisfies ChartConfig
-const schoolStatusChartConfig = { active: { label: "Active", color: "var(--chart-3)" }, inactive: { label: "Inactive", color: "var(--chart-4)" } } satisfies ChartConfig
 
 function formatTimeUntilDeletion(deletedAt?: string | null) {
   if (!deletedAt) return "Unknown"
@@ -85,7 +81,7 @@ export function SchoolManagementPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
-  const userSetPerPageRef = useRef(false)
+  const [autoPerPage, setAutoPerPage] = useState(true)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -150,11 +146,13 @@ export function SchoolManagementPage() {
     setAddressSuggestions(localMatches)
   }, [knownAddresses])
 
-  async function applyGooglePlaceDetails(_placeId: string) {
+  async function applyGooglePlaceDetails(placeId: string) {
+    void placeId
     setPlaceDetailsLoading(false)
   }
 
-  async function applyGooglePlaceDetailsFromQuery(_query: string) {
+  async function applyGooglePlaceDetailsFromQuery(query: string) {
+    void query
     setPlaceDetailsLoading(false)
   }
 
@@ -199,30 +197,42 @@ export function SchoolManagementPage() {
 
   useEffect(() => {
     const updatePerPageForViewport = () => {
-      if (userSetPerPageRef.current) return
+      if (!autoPerPage) return
       const clampedRows = getAutoPerPage(window.innerHeight)
       setPerPage((current) => (current === clampedRows ? current : clampedRows))
     }
     updatePerPageForViewport()
     window.addEventListener("resize", updatePerPageForViewport)
     return () => window.removeEventListener("resize", updatePerPageForViewport)
-  }, [])
+  }, [autoPerPage])
 
   useEffect(() => {
-    if (!modalOpen) { setAddressSuggestions([]); setAddressSearchLoading(false); return }
     const searchText = form.address.trim()
-    if (searchText.length < 3) { applyInstantAddressSuggestions(searchText); setAddressSearchLoading(false); return }
-    const cacheKey = searchText.toLowerCase()
-    const cached = addressCacheRef.current.get(cacheKey)
-    if (cached) { setAddressSuggestions((current) => uniqueSuggestions(current, cached).slice(0, 8)); setAddressSearchLoading(false); return }
     const timer = window.setTimeout(() => {
+      if (!modalOpen) {
+        setAddressSuggestions([])
+        setAddressSearchLoading(false)
+        return
+      }
+      if (searchText.length < 3) {
+        applyInstantAddressSuggestions(searchText)
+        setAddressSearchLoading(false)
+        return
+      }
+      const cacheKey = searchText.toLowerCase()
+      const cached = addressCacheRef.current.get(cacheKey)
+      if (cached) {
+        setAddressSuggestions((current) => uniqueSuggestions(current, cached).slice(0, 8))
+        setAddressSearchLoading(false)
+        return
+      }
       setAddressSearchLoading(false)
       const localSuggestions = knownAddresses.filter((address) => address.toLowerCase().includes(searchText.toLowerCase())).slice(0, 8).map((address) => ({ label: address, address, source: "local" as const }))
       addressCacheRef.current.set(cacheKey, localSuggestions)
       setAddressSuggestions((current) => uniqueSuggestions(current, localSuggestions).slice(0, 8))
-    }, 120)
+    }, searchText.length >= 3 ? 120 : 0)
     return () => window.clearTimeout(timer)
-  }, [applyInstantAddressSuggestions, form.address, modalOpen])
+  }, [applyInstantAddressSuggestions, form.address, knownAddresses, modalOpen])
 
   function applyFilters() { setFilters(draftFilters); setFiltersOpen(false); setPage(1) }
   function clearFilters() { setDraftFilters(emptyFilters); setFilters(emptyFilters); setPage(1) }
@@ -230,18 +240,27 @@ export function SchoolManagementPage() {
   const hasActiveFilters = Boolean(filters.name.trim()) || Boolean(filters.address.trim())
   const perPageOptions = useMemo(() => {
     const base = [10, 25, 50]
-    const options = userSetPerPageRef.current ? [...base, perPage] : base
+    const options = autoPerPage ? base : [...base, perPage]
     return Array.from(new Set(options)).sort((a, b) => a - b)
-  }, [perPage])
+  }, [autoPerPage, perPage])
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-6">
       <div className="flex flex-col gap-1"><h1 className="text-2xl font-semibold tracking-tight">School Management</h1><p className="text-sm text-muted-foreground">Create, update, and archive school records with the same chart-driven workspace used across management pages.</p></div>
 
       <div className="grid gap-3 lg:grid-cols-3">
-        <Card className="min-w-0"><CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Campus Coverage</CardTitle><CardDescription>Projected active campuses over the week</CardDescription></div><SchoolIcon className="text-muted-foreground" /></div></CardHeader><CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{activeSchoolsCount}</div><Badge variant="secondary">{schools.length} on page</Badge></div><ChartContainer config={schoolCoverageChartConfig} className="h-24 w-full"><AreaChart accessibilityLayer data={campusTrend} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}><defs><linearGradient id="school-coverage-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--color-schools)" stopOpacity={0.3} /><stop offset="95%" stopColor="var(--color-schools)" stopOpacity={0.05} /></linearGradient></defs><CartesianGrid vertical={false} /><XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} /><ChartTooltip content={<ChartTooltipContent hideIndicator />} /><Area dataKey="schools" type="monotone" fill="url(#school-coverage-fill)" fillOpacity={1} stroke="var(--color-schools)" strokeWidth={2} /></AreaChart></ChartContainer></CardContent></Card>
-        <Card className="min-w-0"><CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Location Readiness</CardTitle><CardDescription>Address and phone completion across this slice</CardDescription></div><MapPinIcon className="text-muted-foreground" /></div></CardHeader><CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{addressCoveragePercent}%</div><Badge variant="outline">{phoneCoverageCount} with phones</Badge></div><ChartContainer config={schoolAddressChartConfig} className="h-24 w-full"><BarChart accessibilityLayer data={addressSlices} margin={{ left: -12, right: 0, top: 4, bottom: 0 }}><CartesianGrid vertical={false} /><XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} /><ChartTooltip content={<ChartTooltipContent />} /><Bar dataKey="schools" fill="var(--color-schools)" radius={6} /></BarChart></ChartContainer></CardContent></Card>
-        <Card className="min-w-0"><CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Status Share</CardTitle><CardDescription>Active and inactive school records</CardDescription></div><Building2Icon className="text-muted-foreground" /></div></CardHeader><CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{data?.total ?? schools.length}</div><Badge variant="secondary">{Math.max(schools.length - activeSchoolsCount, 0)} inactive</Badge></div><div className="flex items-center gap-3"><ChartContainer config={schoolStatusChartConfig} className="h-24 w-24 shrink-0"><PieChart accessibilityLayer><ChartTooltip content={<ChartTooltipContent nameKey="name" labelKey="name" />} /><Pie data={statusShare} dataKey="value" nameKey="name" innerRadius={20} outerRadius={34} strokeWidth={2} /></PieChart></ChartContainer><div className="flex min-w-0 flex-1 flex-col gap-2">{statusShare.map((entry) => <div key={entry.name} className="flex items-center justify-between gap-3 text-sm"><div className="flex min-w-0 items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: entry.fill }} /><span className="truncate">{entry.name}</span></div><span className="font-medium tabular-nums">{entry.value}</span></div>)}</div></div></CardContent></Card>
+        <Card className="min-w-0">
+          <CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Campus Coverage</CardTitle><CardDescription>Projected active campuses over the week</CardDescription></div><SchoolIcon className="text-muted-foreground" /></div></CardHeader>
+          <CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{activeSchoolsCount}</div><Badge variant="secondary">{schools.length} on page</Badge></div><MiniAreaChart data={campusTrend.map((item) => ({ label: item.day, value: item.schools }))} label="Active campuses by day" /></CardContent>
+        </Card>
+        <Card className="min-w-0">
+          <CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Location Readiness</CardTitle><CardDescription>Address and phone completion across this slice</CardDescription></div><MapPinIcon className="text-muted-foreground" /></div></CardHeader>
+          <CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{addressCoveragePercent}%</div><Badge variant="outline">{phoneCoverageCount} with phones</Badge></div><MiniBarChart data={addressSlices.map((item) => ({ label: item.name, value: item.schools }))} color="var(--chart-2)" label="School location readiness" /></CardContent>
+        </Card>
+        <Card className="min-w-0">
+          <CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Status Share</CardTitle><CardDescription>Active and inactive school records</CardDescription></div><Building2Icon className="text-muted-foreground" /></div></CardHeader>
+          <CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{data?.total ?? schools.length}</div><Badge variant="secondary">{Math.max(schools.length - activeSchoolsCount, 0)} inactive</Badge></div><div className="flex items-center gap-3"><MiniDonutChart data={statusShare.map((item) => ({ label: item.name, value: item.value, color: item.fill }))} label="School status share" /><div className="flex min-w-0 flex-1 flex-col gap-2">{statusShare.map((entry) => <div key={entry.name} className="flex items-center justify-between gap-3 text-sm"><div className="flex min-w-0 items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: entry.fill }} /><span className="truncate">{entry.name}</span></div><span className="font-medium tabular-nums">{entry.value}</span></div>)}</div></div></CardContent>
+        </Card>
       </div>
 
       <Dialog open={modalOpen} onOpenChange={(open) => { setModalOpen(open); if (!open) resetForm() }}>
@@ -266,7 +285,7 @@ export function SchoolManagementPage() {
         <CardContent>
           {error ? <p className="mb-4 text-sm text-destructive">{error instanceof Error ? error.message : "Failed to load schools"}</p> : null}
           <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>School</TableHead><TableHead>Address</TableHead><TableHead>Phone</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{isLoading ? <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow> : schools.length === 0 ? <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No schools found.</TableCell></TableRow> : schools.map((school) => <TableRow key={school.id}><TableCell><div className="font-medium">{school.name}</div><div className="text-xs text-muted-foreground">{school.school_id}</div></TableCell><TableCell>{school.address}</TableCell><TableCell>{school.contact_phone || "-"}</TableCell><TableCell><Badge variant="outline" className="px-1.5 text-muted-foreground">{school.is_active ? <CircleCheckIcon className="fill-green-500 dark:fill-green-400" /> : <CircleXIcon className="fill-muted-foreground/30" />}{school.is_active ? "Active" : "Inactive"}</Badge></TableCell><TableCell className="text-right"><div className="flex justify-end gap-2"><Button size="icon" variant="outline" onClick={() => openEditModal(school)} aria-label={`Edit ${school.name}`} title="Edit"><SquarePenIcon className="size-4" /></Button><Button size="icon" variant="destructive" onClick={() => setArchiveTarget(school)} aria-label={`Archive ${school.name}`} title="Archive"><ArchiveIcon className="size-4" /></Button></div></TableCell></TableRow>)}</TableBody></Table></div>
-          <div className="mt-4 grid grid-cols-3 items-center"><div className="justify-self-start"><Select value={userSetPerPageRef.current ? String(perPage) : "auto"} onValueChange={(value) => { if (value === "auto") { userSetPerPageRef.current = false; setPerPage(getAutoPerPage(window.innerHeight)); setPage(1); return } userSetPerPageRef.current = true; setPerPage(Number(value)); setPage(1) }}><SelectTrigger className="min-w-[76px]"><div className="flex items-center gap-2"><Building2Icon className="size-4" /><SelectValue /></div></SelectTrigger><SelectContent><SelectItem value="auto">Auto</SelectItem>{perPageOptions.map((option) => <SelectItem key={option} value={String(option)}>{option}</SelectItem>)}</SelectContent></Select></div><div className="justify-self-center flex items-center gap-2"><Button size="icon" variant="outline" disabled={!data || data.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ChevronLeftIcon className="size-4" /></Button><span className="min-w-16 text-center text-sm text-muted-foreground">{(data?.page ?? 1)} of {Math.max(1, data?.total_pages ?? 1)}</span><Button size="icon" variant="outline" disabled={!data || data.page >= data.total_pages} onClick={() => setPage((current) => current + 1)}><ChevronRightIcon className="size-4" /></Button></div><div /></div>
+          <div className="mt-4 grid grid-cols-3 items-center"><div className="justify-self-start"><Select value={autoPerPage ? "auto" : String(perPage)} onValueChange={(value) => { if (value === "auto") { setAutoPerPage(true); setPerPage(getAutoPerPage(window.innerHeight)); setPage(1); return } setAutoPerPage(false); setPerPage(Number(value)); setPage(1) }}><SelectTrigger className="min-w-[76px]"><div className="flex items-center gap-2"><Building2Icon className="size-4" /><SelectValue /></div></SelectTrigger><SelectContent><SelectItem value="auto">Auto</SelectItem>{perPageOptions.map((option) => <SelectItem key={option} value={String(option)}>{option}</SelectItem>)}</SelectContent></Select></div><div className="justify-self-center flex items-center gap-2"><Button size="icon" variant="outline" disabled={!data || data.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ChevronLeftIcon className="size-4" /></Button><span className="min-w-16 text-center text-sm text-muted-foreground">{(data?.page ?? 1)} of {Math.max(1, data?.total_pages ?? 1)}</span><Button size="icon" variant="outline" disabled={!data || data.page >= data.total_pages} onClick={() => setPage((current) => current + 1)}><ChevronRightIcon className="size-4" /></Button></div><div /></div>
         </CardContent>
       </Card>
 

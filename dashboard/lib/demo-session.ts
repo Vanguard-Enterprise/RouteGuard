@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
-import { DEMO_ME, type AuthUser, type MeResponse } from './api'
+import type { AuthUser, MeResponse } from './api'
+import { DEMO_ME } from './demo-session-data'
 
 export const DEMO_SESSION_COOKIE = 'rg_demo_user'
 
@@ -23,4 +24,3 @@ export async function getDemoUser(): Promise<MeResponse> {
   const user = parseUser(cookieStore.get(DEMO_SESSION_COOKIE)?.value)
   return user ? { ...DEMO_ME, user } : DEMO_ME
 }
-

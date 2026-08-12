@@ -2,12 +2,18 @@ import { cn } from "@/lib/utils";
 import React from "react";
 import { createPortal } from "react-dom";
 
+const subscribeToHydration = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 function Portal({ className, ...props }: React.ComponentProps<"div">) {
-	const [mounted, setMounted] = React.useState(false);
+	const mounted = React.useSyncExternalStore(
+		subscribeToHydration,
+		getHydratedSnapshot,
+		getServerSnapshot
+	);
 
 	React.useEffect(() => {
-		setMounted(true);
-
 		const originalStyle = window.getComputedStyle(document.body).overflow;
 		const scrollbarWidth =
 			window.innerWidth - document.documentElement.clientWidth;

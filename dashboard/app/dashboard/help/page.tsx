@@ -64,10 +64,10 @@ export default function HelpPage() {
   const [newSubject, setNewSubject] = useState("")
   const [newBody, setNewBody] = useState("")
   const [creating, setCreating] = useState(false)
-  const [streamConnected, setStreamConnected] = useState(false)
   const [composerBody, setComposerBody] = useState("")
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
+  const optimisticIdRef = useRef(0)
 
   const ticketsKey = useMemo(() => ["support-org-tickets", statusFilter], [statusFilter])
   const { data: ticketsData, isLoading: ticketsLoading, mutate: mutateTickets } = useSWR(
@@ -77,7 +77,12 @@ export default function HelpPage() {
         status: statusFilter === "all" ? undefined : statusFilter,
         page: 1,
         per_page: 100,
-      })
+      }),
+    {
+      refreshInterval: 60_000,
+      refreshWhenHidden: false,
+      revalidateOnFocus: true,
+    }
   )
 
   const selectedTicket = (ticketsData?.items ?? []).find((t) => t.id === selectedTicketId) ?? null
@@ -85,17 +90,13 @@ export default function HelpPage() {
   const { data: messages = [], mutate: mutateMessages } = useSWR<SupportMessage[]>(
     messagesKey,
     () => api.org.support.listMessages(selectedTicketId as string),
-    { fallbackData: [] }
+    {
+      fallbackData: [],
+      refreshInterval: selectedTicketId ? 15_000 : 0,
+      refreshWhenHidden: false,
+      revalidateOnFocus: true,
+    }
   )
-
-  useEffect(() => {
-    if (streamConnected) return
-    const id = setInterval(() => {
-      mutateTickets()
-      if (selectedTicketId) mutateMessages()
-    }, 5000)
-    return () => clearInterval(id)
-  }, [streamConnected, mutateMessages, mutateTickets, selectedTicketId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
@@ -125,8 +126,9 @@ export default function HelpPage() {
     setSending(true)
     setComposerBody("")
 
+    optimisticIdRef.current += 1
     const optimisticMessage: SupportMessage = {
-      id: `temp-${Date.now()}`,
+      id: `temp-${optimisticIdRef.current}`,
       ticket_id: selectedTicket.id,
       sender_user_id: me?.user.id ?? "me",
       sender_org_id: me?.active_org.id ?? "",
@@ -149,8 +151,6 @@ export default function HelpPage() {
   }
 
   if (selectedTicket) {
-    let previousDay = ""
-
     return (
       <div className="h-full min-h-0 flex flex-col">
         <Card className="flex-1 min-h-0 overflow-hidden flex flex-col rounded-none border-x-0 border-b-0">
@@ -165,17 +165,14 @@ export default function HelpPage() {
                   <p className="text-xs text-muted-foreground">Opened {formatOpenedTime(selectedTicket.created_at)}</p>
                 </div>
               </div>
-              <Badge variant={streamConnected ? "default" : "outline"}>
-                {streamConnected ? "Live" : "Polling"}
-              </Badge>
+              <Badge variant="outline">Auto-refresh</Badge>
             </div>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 p-0 flex flex-col">
             <div className="flex-1 overflow-y-auto px-4 py-4 bg-muted/20">
-              {messages.map((message) => {
+              {messages.map((message, index) => {
                 const label = dayLabel(message.created_at)
-                const showDay = label !== previousDay
-                previousDay = label
+                const showDay = index === 0 || dayLabel(messages[index - 1].created_at) !== label
                 const mine = message.sender_user_id === me?.user.id
                 return (
                   <div key={message.id} className="mb-2">
@@ -246,9 +243,7 @@ export default function HelpPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Get Help</h1>
         <div className="flex items-center gap-2">
-          <Badge variant={streamConnected ? "default" : "outline"}>
-            {streamConnected ? "Live" : "Polling"}
-          </Badge>
+          <Badge variant="outline">Auto-refresh</Badge>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button type="button">New Ticket</Button>

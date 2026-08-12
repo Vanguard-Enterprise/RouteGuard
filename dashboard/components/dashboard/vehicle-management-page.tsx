@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { api } from "@/lib/api"
 import type { Vehicle, VehicleUpsertPayload } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { MiniAreaChart, MiniBarChart, MiniDonutChart } from "@/components/ui/mini-charts"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ArchiveIcon, BusFrontIcon, ChevronLeftIcon, ChevronRightIcon, CircleCheckIcon, CircleXIcon, FilterIcon, GaugeIcon, RotateCcwIcon, SquarePenIcon, Trash2Icon, UserRoundPlusIcon, XIcon } from "lucide-react"
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts"
 import { toast } from "sonner"
 
 type FormState = {
@@ -43,13 +42,6 @@ const emptyFilters: VehicleFilters = {
 }
 
 const SOFT_DELETE_RETENTION_DAYS = 30
-
-const fleetUtilizationChartConfig = { vehicles: { label: "Vehicles", color: "var(--chart-1)" } } satisfies ChartConfig
-const capacityBandChartConfig = { vehicles: { label: "Vehicles", color: "var(--chart-2)" } } satisfies ChartConfig
-const fleetStatusChartConfig = {
-  active: { label: "Active", color: "var(--chart-3)" },
-  inactive: { label: "Inactive", color: "var(--chart-4)" },
-} satisfies ChartConfig
 
 function formatTimeUntilDeletion(deletedAt?: string | null) {
   if (!deletedAt) return "Unknown"
@@ -85,7 +77,7 @@ export function VehicleManagementPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
-  const userSetPerPageRef = useRef(false)
+  const [autoPerPage, setAutoPerPage] = useState(true)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -188,14 +180,14 @@ export function VehicleManagementPage() {
 
   useEffect(() => {
     const updatePerPageForViewport = () => {
-      if (userSetPerPageRef.current) return
+      if (!autoPerPage) return
       const clampedRows = getAutoPerPage(window.innerHeight)
       setPerPage((current) => (current === clampedRows ? current : clampedRows))
     }
     updatePerPageForViewport()
     window.addEventListener("resize", updatePerPageForViewport)
     return () => window.removeEventListener("resize", updatePerPageForViewport)
-  }, [])
+  }, [autoPerPage])
 
   function applyFilters() { setFilters(draftFilters); setFiltersOpen(false); setPage(1) }
   function clearFilters() { setDraftFilters(emptyFilters); setFilters(emptyFilters); setPage(1) }
@@ -203,9 +195,9 @@ export function VehicleManagementPage() {
   const hasActiveFilters = Boolean(filters.license_plate.trim()) || filters.status !== "all"
   const perPageOptions = useMemo(() => {
     const base = [10, 25, 50]
-    const options = userSetPerPageRef.current ? [...base, perPage] : base
+    const options = autoPerPage ? base : [...base, perPage]
     return Array.from(new Set(options)).sort((a, b) => a - b)
-  }, [perPage])
+  }, [autoPerPage, perPage])
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-6">
@@ -215,9 +207,18 @@ export function VehicleManagementPage() {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
-        <Card className="min-w-0"><CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Fleet Readiness</CardTitle><CardDescription>Projected active buses across the week</CardDescription></div><BusFrontIcon className="text-muted-foreground" /></div></CardHeader><CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{activeVehiclesCount}</div><Badge variant="secondary">{vehicles.length} on page</Badge></div><ChartContainer config={fleetUtilizationChartConfig} className="h-24 w-full"><AreaChart accessibilityLayer data={utilizationTrend} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}><defs><linearGradient id="vehicle-utilization-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--color-vehicles)" stopOpacity={0.3} /><stop offset="95%" stopColor="var(--color-vehicles)" stopOpacity={0.05} /></linearGradient></defs><CartesianGrid vertical={false} /><XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} /><ChartTooltip content={<ChartTooltipContent hideIndicator />} /><Area dataKey="vehicles" type="monotone" fill="url(#vehicle-utilization-fill)" fillOpacity={1} stroke="var(--color-vehicles)" strokeWidth={2} /></AreaChart></ChartContainer></CardContent></Card>
-        <Card className="min-w-0"><CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Capacity Bands</CardTitle><CardDescription>How seats are distributed across this slice</CardDescription></div><GaugeIcon className="text-muted-foreground" /></div></CardHeader><CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{totalCapacity}</div><Badge variant="outline">{averageCapacity} avg seats</Badge></div><ChartContainer config={capacityBandChartConfig} className="h-24 w-full"><BarChart accessibilityLayer data={capacityBands} margin={{ left: -12, right: 0, top: 4, bottom: 0 }}><CartesianGrid vertical={false} /><XAxis dataKey="range" tickLine={false} axisLine={false} tickMargin={8} /><ChartTooltip content={<ChartTooltipContent />} /><Bar dataKey="vehicles" fill="var(--color-vehicles)" radius={6} /></BarChart></ChartContainer></CardContent></Card>
-        <Card className="min-w-0"><CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Status Share</CardTitle><CardDescription>Active versus inactive fleet records</CardDescription></div><CircleCheckIcon className="text-muted-foreground" /></div></CardHeader><CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{data?.total ?? vehicles.length}</div><Badge variant="secondary">{Math.max(vehicles.length - activeVehiclesCount, 0)} inactive</Badge></div><div className="flex items-center gap-3"><ChartContainer config={fleetStatusChartConfig} className="h-24 w-24 shrink-0"><PieChart accessibilityLayer><ChartTooltip content={<ChartTooltipContent nameKey="name" labelKey="name" />} /><Pie data={statusShare} dataKey="value" nameKey="name" innerRadius={20} outerRadius={34} strokeWidth={2} /></PieChart></ChartContainer><div className="flex min-w-0 flex-1 flex-col gap-2">{statusShare.map((entry) => <div key={entry.name} className="flex items-center justify-between gap-3 text-sm"><div className="flex min-w-0 items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: entry.fill }} /><span className="truncate">{entry.name}</span></div><span className="font-medium tabular-nums">{entry.value}</span></div>)}</div></div></CardContent></Card>
+        <Card className="min-w-0">
+          <CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Fleet Readiness</CardTitle><CardDescription>Projected active buses across the week</CardDescription></div><BusFrontIcon className="text-muted-foreground" /></div></CardHeader>
+          <CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{activeVehiclesCount}</div><Badge variant="secondary">{vehicles.length} on page</Badge></div><MiniAreaChart data={utilizationTrend.map((item) => ({ label: item.day, value: item.vehicles }))} label="Active vehicles by day" /></CardContent>
+        </Card>
+        <Card className="min-w-0">
+          <CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Capacity Bands</CardTitle><CardDescription>How seats are distributed across this slice</CardDescription></div><GaugeIcon className="text-muted-foreground" /></div></CardHeader>
+          <CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{totalCapacity}</div><Badge variant="outline">{averageCapacity} avg seats</Badge></div><MiniBarChart data={capacityBands.map((item) => ({ label: item.range, value: item.vehicles }))} color="var(--chart-2)" label="Vehicles by capacity band" /></CardContent>
+        </Card>
+        <Card className="min-w-0">
+          <CardHeader className="gap-2 pb-2"><div className="flex items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle className="text-base">Status Share</CardTitle><CardDescription>Active versus inactive fleet records</CardDescription></div><CircleCheckIcon className="text-muted-foreground" /></div></CardHeader>
+          <CardContent className="flex flex-col gap-3"><div className="flex items-baseline justify-between gap-3"><div className="text-2xl font-semibold">{data?.total ?? vehicles.length}</div><Badge variant="secondary">{Math.max(vehicles.length - activeVehiclesCount, 0)} inactive</Badge></div><div className="flex items-center gap-3"><MiniDonutChart data={statusShare.map((item) => ({ label: item.name, value: item.value, color: item.fill }))} label="Vehicle status share" /><div className="flex min-w-0 flex-1 flex-col gap-2">{statusShare.map((entry) => <div key={entry.name} className="flex items-center justify-between gap-3 text-sm"><div className="flex min-w-0 items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: entry.fill }} /><span className="truncate">{entry.name}</span></div><span className="font-medium tabular-nums">{entry.value}</span></div>)}</div></div></CardContent>
+        </Card>
       </div>
 
       <Dialog open={modalOpen} onOpenChange={(open) => { setModalOpen(open); if (!open) resetForm() }}>
@@ -256,7 +257,7 @@ export function VehicleManagementPage() {
         <CardContent>
           {error ? <p className="mb-4 text-sm text-destructive">{error instanceof Error ? error.message : "Failed to load vehicles"}</p> : null}
           <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Vehicle</TableHead><TableHead>License Plate</TableHead><TableHead>Capacity</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{isLoading ? <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow> : vehicles.length === 0 ? <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No vehicles found.</TableCell></TableRow> : vehicles.map((vehicle) => <TableRow key={vehicle.id}><TableCell><div className="font-medium">{vehicle.vehicle_id}</div><div className="text-xs text-muted-foreground">ID: {vehicle.id.slice(0, 8)}</div></TableCell><TableCell>{vehicle.license_plate}</TableCell><TableCell>{vehicle.capacity}</TableCell><TableCell><Badge variant="outline" className="px-1.5 text-muted-foreground">{vehicle.is_active ? <CircleCheckIcon className="fill-green-500 dark:fill-green-400" /> : <CircleXIcon className="fill-muted-foreground/30" />}{vehicle.is_active ? "Active" : "Inactive"}</Badge></TableCell><TableCell className="text-right"><div className="flex justify-end gap-2"><Button size="icon" variant="outline" onClick={() => openEditModal(vehicle)} aria-label={`Edit ${vehicle.vehicle_id}`} title="Edit"><SquarePenIcon className="size-4" /></Button><Button size="icon" variant="destructive" onClick={() => setArchiveTarget(vehicle)} aria-label={`Archive ${vehicle.vehicle_id}`} title="Archive"><ArchiveIcon className="size-4" /></Button></div></TableCell></TableRow>)}</TableBody></Table></div>
-          <div className="mt-4 grid grid-cols-3 items-center"><div className="justify-self-start"><Select value={userSetPerPageRef.current ? String(perPage) : "auto"} onValueChange={(value) => { if (value === "auto") { userSetPerPageRef.current = false; setPerPage(getAutoPerPage(window.innerHeight)); setPage(1); return } userSetPerPageRef.current = true; setPerPage(Number(value)); setPage(1) }}><SelectTrigger className="min-w-[76px]"><div className="flex items-center gap-2"><BusFrontIcon className="size-4" /><SelectValue /></div></SelectTrigger><SelectContent><SelectItem value="auto">Auto</SelectItem>{perPageOptions.map((option) => <SelectItem key={option} value={String(option)}>{option}</SelectItem>)}</SelectContent></Select></div><div className="justify-self-center flex items-center gap-2"><Button size="icon" variant="outline" disabled={!data || data.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ChevronLeftIcon className="size-4" /></Button><span className="min-w-16 text-center text-sm text-muted-foreground">{(data?.page ?? 1)} of {Math.max(1, data?.total_pages ?? 1)}</span><Button size="icon" variant="outline" disabled={!data || data.page >= data.total_pages} onClick={() => setPage((current) => current + 1)}><ChevronRightIcon className="size-4" /></Button></div><div /></div>
+          <div className="mt-4 grid grid-cols-3 items-center"><div className="justify-self-start"><Select value={autoPerPage ? "auto" : String(perPage)} onValueChange={(value) => { if (value === "auto") { setAutoPerPage(true); setPerPage(getAutoPerPage(window.innerHeight)); setPage(1); return } setAutoPerPage(false); setPerPage(Number(value)); setPage(1) }}><SelectTrigger className="min-w-[76px]"><div className="flex items-center gap-2"><BusFrontIcon className="size-4" /><SelectValue /></div></SelectTrigger><SelectContent><SelectItem value="auto">Auto</SelectItem>{perPageOptions.map((option) => <SelectItem key={option} value={String(option)}>{option}</SelectItem>)}</SelectContent></Select></div><div className="justify-self-center flex items-center gap-2"><Button size="icon" variant="outline" disabled={!data || data.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ChevronLeftIcon className="size-4" /></Button><span className="min-w-16 text-center text-sm text-muted-foreground">{(data?.page ?? 1)} of {Math.max(1, data?.total_pages ?? 1)}</span><Button size="icon" variant="outline" disabled={!data || data.page >= data.total_pages} onClick={() => setPage((current) => current + 1)}><ChevronRightIcon className="size-4" /></Button></div><div /></div>
         </CardContent>
       </Card>
 

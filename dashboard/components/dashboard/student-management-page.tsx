@@ -1,18 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { api } from "@/lib/api"
 import type { Student, StudentFilterOptions, StudentUpsertPayload } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
+import { MiniAreaChart, MiniBarChart, MiniDonutChart } from "@/components/ui/mini-charts"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ComboboxMultiSelect } from "@/components/ui/combobox"
 import {
@@ -69,17 +64,6 @@ import {
   UserRoundPlusIcon,
   XIcon,
 } from "lucide-react"
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  XAxis,
-} from "recharts"
 import { toast } from "sonner"
 
 type FormState = {
@@ -115,43 +99,6 @@ const emptyFilters: StudentFilters = {
 }
 
 const SOFT_DELETE_RETENTION_DAYS = 30
-
-const attendanceChartConfig = {
-  riders: {
-    label: "Riders",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig
-
-const gradeDistributionChartConfig = {
-  students: {
-    label: "Students",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig
-
-const schoolShareChartConfig = {
-  value: {
-    label: "Students",
-    color: "var(--chart-3)",
-  },
-  north: {
-    label: "North",
-    color: "var(--chart-1)",
-  },
-  south: {
-    label: "South",
-    color: "var(--chart-2)",
-  },
-  east: {
-    label: "East",
-    color: "var(--chart-3)",
-  },
-  west: {
-    label: "West",
-    color: "var(--chart-4)",
-  },
-} satisfies ChartConfig
 
 function formatTimeUntilDeletion(deletedAt?: string | null) {
   if (!deletedAt) return "Unknown"
@@ -230,7 +177,7 @@ export function StudentManagementPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
-  const userSetPerPageRef = useRef(false)
+  const [autoPerPage, setAutoPerPage] = useState(true)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -566,7 +513,7 @@ export function StudentManagementPage() {
 
   useEffect(() => {
     const updatePerPageForViewport = () => {
-      if (userSetPerPageRef.current) return
+      if (!autoPerPage) return
       const clampedRows = getAutoPerPage(window.innerHeight)
       setPerPage((current) => (current === clampedRows ? current : clampedRows))
     }
@@ -574,7 +521,7 @@ export function StudentManagementPage() {
     updatePerPageForViewport()
     window.addEventListener("resize", updatePerPageForViewport)
     return () => window.removeEventListener("resize", updatePerPageForViewport)
-  }, [])
+  }, [autoPerPage])
 
   function applyFilters() {
     const normalizedGradeRange = normalizeGradeRange(draftFilters.gradeRange, filterOptions)
@@ -598,9 +545,9 @@ export function StudentManagementPage() {
 
   const perPageOptions = useMemo(() => {
     const base = [10, 25, 50]
-    const options = userSetPerPageRef.current ? [...base, perPage] : base
+    const options = autoPerPage ? base : [...base, perPage]
     return Array.from(new Set(options)).sort((a, b) => a - b)
-  }, [perPage])
+  }, [autoPerPage, perPage])
 
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-6">
@@ -627,32 +574,10 @@ export function StudentManagementPage() {
               <div className="text-2xl font-semibold">{projectedAttendance}</div>
               <Badge variant="secondary">{activeStudentsCount} active</Badge>
             </div>
-            <ChartContainer config={attendanceChartConfig} className="h-24 w-full">
-              <AreaChart accessibilityLayer data={attendanceTrend} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="student-attendance-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-riders)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--color-riders)" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <ChartTooltip content={<ChartTooltipContent hideIndicator />} />
-                <Area
-                  dataKey="riders"
-                  type="monotone"
-                  fill="url(#student-attendance-fill)"
-                  fillOpacity={1}
-                  stroke="var(--color-riders)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ChartContainer>
+            <MiniAreaChart
+              data={attendanceTrend.map((item) => ({ label: item.day, value: item.riders }))}
+              label="Projected bus attendance by day"
+            />
           </CardContent>
         </Card>
 
@@ -671,19 +596,11 @@ export function StudentManagementPage() {
               <div className="text-2xl font-semibold">{data?.total ?? students.length}</div>
               <Badge variant="outline">{inactiveStudentsCount} inactive</Badge>
             </div>
-            <ChartContainer config={gradeDistributionChartConfig} className="h-24 w-full">
-              <BarChart accessibilityLayer data={gradeDistribution} margin={{ left: -12, right: 0, top: 4, bottom: 0 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="grade"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="students" fill="var(--color-students)" radius={6} />
-              </BarChart>
-            </ChartContainer>
+            <MiniBarChart
+              data={gradeDistribution.map((item) => ({ label: item.grade, value: item.students }))}
+              color="var(--chart-2)"
+              label="Student distribution by grade"
+            />
           </CardContent>
         </Card>
 
@@ -703,25 +620,10 @@ export function StudentManagementPage() {
               <Badge variant="secondary">{guardianCoverageCount} with contacts</Badge>
             </div>
             <div className="flex items-center gap-3">
-              <ChartContainer config={schoolShareChartConfig} className="h-24 w-24 shrink-0">
-                <PieChart accessibilityLayer>
-                  <ChartTooltip
-                    content={<ChartTooltipContent nameKey="school" labelKey="school" />}
-                  />
-                  <Pie
-                    data={schoolShare}
-                    dataKey="value"
-                    nameKey="school"
-                    innerRadius={20}
-                    outerRadius={34}
-                    strokeWidth={2}
-                  >
-                    {schoolShare.map((entry) => (
-                      <Cell key={entry.school} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
+              <MiniDonutChart
+                data={schoolShare.map((item) => ({ label: item.school, value: item.value, color: item.fill }))}
+                label="Student share by school"
+              />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 {schoolShare.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No school data on this page.</p>
@@ -1150,16 +1052,16 @@ export function StudentManagementPage() {
           <div className="mt-4 grid grid-cols-3 items-center">
             <div className="justify-self-start">
               <Select
-                value={userSetPerPageRef.current ? String(perPage) : "auto"}
+                value={autoPerPage ? "auto" : String(perPage)}
                 onValueChange={(value) => {
                   if (value === "auto") {
-                    userSetPerPageRef.current = false
+                    setAutoPerPage(true)
                     setPerPage(getAutoPerPage(window.innerHeight))
                     setPage(1)
                     return
                   }
 
-                  userSetPerPageRef.current = true
+                  setAutoPerPage(false)
                   setPerPage(Number(value))
                   setPage(1)
                 }}

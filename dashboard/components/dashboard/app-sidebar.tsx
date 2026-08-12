@@ -1,11 +1,13 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import type { MeResponse } from "@/lib/api"
 import { NavMain } from "@/components/dashboard/nav-main"
 import { NavSecondary } from "@/components/dashboard/nav-secondary"
 import { NavUser } from "@/components/dashboard/nav-user"
 import { OrgSwitcher } from "@/components/dashboard/org-switcher"
+import { LogoIcon } from "@/components/logo"
 import {
   Sidebar,
   SidebarContent,
@@ -169,15 +171,10 @@ export function AppSidebar({
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="/dashboard">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/logo.png"
-                  alt="RouteGuard"
-                  className="size-5!"
-                />
+              <Link href="/dashboard">
+                <LogoIcon className="size-5!" sizes="20px" />
                 <span className="text-base font-semibold">RouteGuard</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

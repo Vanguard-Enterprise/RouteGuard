@@ -1,7 +1,3 @@
-"use client";
-
-import { motion, useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
 import { Logo } from "@/components/logo";
 import Link from "next/link";
 
@@ -46,16 +42,16 @@ export function Footer() {
 		>
 			<div className="relative mx-auto flex w-full max-w-5xl flex-col items-center justify-center px-6 md:px-8">
 				<div className="grid w-full gap-8 py-6 md:py-8 lg:grid-cols-3 lg:gap-8">
-					<AnimatedContainer className="space-y-4">
+					<div className="space-y-4">
 						<Logo className="h-7" />
 						<p className="mt-8 text-muted-foreground text-sm md:mt-0">
 							School bus tracking and student safety platform for modern transportation departments.
 						</p>
-					</AnimatedContainer>
+					</div>
 
 					<div className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-3 lg:col-span-2 lg:mt-0">
-						{footerLinks.map((section, index) => (
-							<AnimatedContainer delay={0.1 + index * 0.1} key={section.label}>
+						{footerLinks.map((section) => (
+							<div key={section.label}>
 								<div className="mb-10 md:mb-0">
 									<h3 className="text-xs text-muted-foreground uppercase tracking-wider">{section.label}</h3>
 									<ul className="mt-4 space-y-2 text-muted-foreground text-sm">
@@ -71,7 +67,7 @@ export function Footer() {
 										))}
 									</ul>
 								</div>
-							</AnimatedContainer>
+							</div>
 						))}
 					</div>
 				</div>
@@ -83,33 +79,5 @@ export function Footer() {
 				</div>
 			</div>
 		</footer>
-	);
-}
-
-function AnimatedContainer({
-	className,
-	delay = 0.1,
-	children,
-}: {
-	delay?: number;
-	className?: string;
-	children: ReactNode;
-}) {
-	const shouldReduceMotion = useReducedMotion();
-
-	if (shouldReduceMotion) {
-		return children;
-	}
-
-	return (
-		<motion.div
-			className={className}
-			initial={{ filter: "blur(4px)", translateY: -8, opacity: 0 }}
-			transition={{ delay, duration: 0.8 }}
-			viewport={{ once: true }}
-			whileInView={{ filter: "blur(0px)", translateY: 0, opacity: 1 }}
-		>
-			{children}
-		</motion.div>
 	);
 }

@@ -138,6 +138,19 @@
   body {
     @apply bg-background text-foreground;
   }
+	html {
+		scroll-behavior: smooth;
+	}
+
+	[data-animation-paused="true"] * {
+		animation-play-state: paused !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 /* RFID animation keyframes */

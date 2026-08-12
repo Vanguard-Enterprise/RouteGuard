@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type ScanPhase = "scanning" | "fail" | "rescanning" | "success";
 
@@ -57,10 +57,36 @@ function Particles({ color, count, radius }: { color: string; count: number; rad
 }
 
 export function RfidScanVisual() {
+	const rootRef = useRef<HTMLDivElement>(null);
 	const [phase, setPhase] = useState<ScanPhase>("scanning");
 	const [animKey, setAnimKey] = useState(0);
+	const [shouldAnimate, setShouldAnimate] = useState(false);
 
 	useEffect(() => {
+		const root = rootRef.current;
+		if (!root) return;
+
+		const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+		let isVisible = false;
+		const syncAnimation = () => setShouldAnimate(isVisible && !reducedMotion.matches);
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				isVisible = entry.isIntersecting;
+				syncAnimation();
+			},
+			{ rootMargin: "150px" }
+		);
+
+		observer.observe(root);
+		reducedMotion.addEventListener("change", syncAnimation);
+		return () => {
+			observer.disconnect();
+			reducedMotion.removeEventListener("change", syncAnimation);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!shouldAnimate) return;
 		let idx = 0;
 		let t: ReturnType<typeof setTimeout>;
 		const advance = () => {
@@ -71,7 +97,7 @@ export function RfidScanVisual() {
 		};
 		t = setTimeout(advance, SEQUENCE[0].duration);
 		return () => clearTimeout(t);
-	}, []);
+	}, [shouldAnimate]);
 
 	const isScanning = phase === "scanning" || phase === "rescanning";
 	const isFail     = phase === "fail";
@@ -83,7 +109,7 @@ export function RfidScanVisual() {
 	const innerFill  = isFail ? "bg-red-500"        : isSuccess ? "bg-green-500"       : "bg-blue-500";
 
 	return (
-		<>
+		<div ref={rootRef} data-animation-paused={!shouldAnimate}>
 			{/* ── Main visual ─────────────────────────────────── */}
 			<div className="relative mx-auto flex size-48 items-center justify-center -mt-8">
 
@@ -199,6 +225,6 @@ export function RfidScanVisual() {
 					Students are automatically scanned when they board the bus. Every scan is validated before the student boards the bus.
 				</p>
 			</div>
-		</>
+		</div>
 	);
 }

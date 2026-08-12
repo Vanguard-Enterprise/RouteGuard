@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { IconSelector, IconBuilding } from "@tabler/icons-react"
@@ -32,7 +32,7 @@ export function OrgSwitcher({ currentOrg }: { currentOrg: OrgOption }) {
     () => api.auth.orgs(),
     {
       fallbackData: [currentOrg],
-      refreshInterval: 5000,
+      dedupingInterval: 60_000,
       revalidateOnFocus: true,
       onSuccess: (nextOrgs) => {
         const nextOrgIds = new Set(nextOrgs.map((org) => org.id))
@@ -52,10 +52,6 @@ export function OrgSwitcher({ currentOrg }: { currentOrg: OrgOption }) {
       },
     }
   )
-
-  useEffect(() => {
-    mutate().catch(() => {})
-  }, [mutate, pathname])
 
   const orgs = orgsData ?? [currentOrg]
 
@@ -99,7 +95,11 @@ export function OrgSwitcher({ currentOrg }: { currentOrg: OrgOption }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open) void mutate()
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
